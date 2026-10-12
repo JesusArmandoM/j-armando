@@ -74,5 +74,11 @@ echo "Manual follow-up commands (not run by this script):"
 echo "  pnpm build   # production build"
 echo "  pnpm dev     # start the dev server (long-running; run it yourself)"
 echo "  curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/   # expect 200"
+echo ""
+echo "Database commands (need DATABASE_URL; see .env.example — not run by this script):"
+echo "  pnpm db:migrate   # apply database migrations (idempotent)"
+echo "  pnpm db:seed      # idempotent demo catalog seed (never overwrites rows)"
+echo "  pnpm db:verify    # assert the catalog is populated"
+echo "  pnpm db:devdb     # boot a disposable local PostgreSQL 17 (no Docker needed)"
 
 exit 0

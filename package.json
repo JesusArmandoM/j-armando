@@ -13,10 +13,17 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "node db/seed.ts",
+    "db:verify": "node db/verify.ts",
+    "db:devdb": "node db/devdb.ts"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.4",
     "next": "16.4.0",
+    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
@@ -24,9 +31,12 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^24",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.2",
+    "drizzle-kit": "0.31.11",
+    "embedded-postgres": "17.10.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "jsdom": "^30.1.2",

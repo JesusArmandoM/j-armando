@@ -5,6 +5,7 @@ This repository contains **J. Armando**, a production-grade clothing e-commerce 
 ## Read First
 
 - `CONTEXT.md` — domain language (glossary and rejected terms).
+- `CONSTRAINTS.md` — durable MUST / MUST NOT rules (money as integer cents, migrations, seeds, test self-containment).
 - `docs/build-brief.md` — problem, users, goals, non-goals, MVP slice, validation.
 - `docs/domain-model.md` — core entities, relationships, states and lifecycles.
 - `docs/risks-and-open-questions.md` — current risks and unresolved questions.
@@ -28,8 +29,15 @@ Read optional docs only when relevant:
 | Tests | `pnpm test` |
 | Production build | `pnpm build` |
 | Dev server (long-running; run manually) | `pnpm dev` |
+| Generate a DB migration from `db/schema/` | `pnpm db:generate` |
+| Apply DB migrations (needs `DATABASE_URL`) | `pnpm db:migrate` |
+| Seed the demo catalog (needs `DATABASE_URL`) | `pnpm db:seed` |
+| Verify the catalog is populated (needs `DATABASE_URL`) | `pnpm db:verify` |
+| Boot a disposable local PostgreSQL 17 | `pnpm db:devdb` (prints `DATABASE_URL`; Ctrl-C stops it) |
 
-`./init.sh` runs install + lint + typecheck + test and exits. It never starts a dev server.
+`./init.sh` runs install + lint + typecheck + test and exits. It never starts a dev server and never touches a database.
+
+Database access goes through `DATABASE_URL` (Drizzle over `pg`; see `ARCHITECTURE.md` → Data Layer). Copy `.env.example` to `.env.local` (gitignored) or export the variable before running the `db:migrate` / `db:seed` / `db:verify` commands; each command loads `.env.local`/`.env` itself, and an exported `DATABASE_URL` wins over file contents (env-file precedence: `ARCHITECTURE.md` → Data Layer). The test suite needs no configuration: it boots an ephemeral embedded PostgreSQL 17 per run and leaves nothing behind.
 
 Toolchain: Node `v24.21.0` via nvm (`~/.nvm`, pinned by `.nvmrc`), pnpm `12.11.2` via Corepack. `init.sh` loads nvm if the shell has not. See `ARCHITECTURE.md`.
 

@@ -15,7 +15,6 @@ These must be answered before implementation planning is final.
 
 ## Implementation-Time Questions
 
-- ORM / data-access layer choice (Drizzle vs Prisma vs raw SQL).
 - Styling approach capable of expressing the design system's zero-radius editorial language and token set.
 - Cart merge rule when a guest signs in with an existing cart (union with quantity caps, or replace).
 - Stock reservation strategy at checkout (reserve on add-to-cart vs. validate at payment) and reservation expiry.
@@ -25,6 +24,10 @@ These must be answered before implementation planning is final.
 - Admin authentication: same account model with an `admin` role, or a separate admin identity.
 - Backoffice product data model details: composition, care, imagery per variant, SKU generation.
 - Whether `pending` payment state is exposed to the shopper or collapsed to a single "processing" message.
+
+## Resolved
+
+- **ORM / data-access layer choice** — resolved 2026-10-12 by `bootstrap-database-schema`: **Drizzle ORM** (`drizzle-orm` + `drizzle-kit` over `pg`), with schema in `db/schema/` and committed SQL migrations in `db/migrations/`. See `adr/0002-drizzle-data-access-layer.md`. The managed provider (Neon vs Supabase) intentionally stays undecided — everything connects through `DATABASE_URL`.
 
 ## Later / Not MVP
 

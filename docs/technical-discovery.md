@@ -15,7 +15,7 @@ Project: **J. Armando**. Glossary terms are defined in `../CONTEXT.md`. Split ou
 | --- | --- | --- |
 | Framework | **Next.js (App Router)** + **TypeScript** | One language for storefront, backoffice and API routes; good story for auth, payments and AI SDKs. |
 | Database | **PostgreSQL** (managed) | Relational fit for products/variants/stock/orders; transactions for stock correctness. |
-| ORM / access | To be decided (e.g. Drizzle or Prisma) | Open question; pick before implementation. |
+| ORM / access | **Drizzle ORM** (`drizzle-orm` + `drizzle-kit` over `pg`) | Decided in `bootstrap-database-schema`; see `adr/0002-drizzle-data-access-layer.md`. TypeScript-first schema, reviewable SQL migrations, swappable driver behind `DATABASE_URL`. |
 | Styling | To be decided | Must be able to express the design system's zero-radius editorial language and its tokens. |
 | AI | LLM provider behind `ChatAssistant`; external try-on service behind `TryOnProvider` | Both swappable and simulatable without touching store code. |
 

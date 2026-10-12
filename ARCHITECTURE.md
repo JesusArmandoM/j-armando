@@ -4,7 +4,7 @@ Runtime and tooling boundaries for **J. Armando**. Update this file when domains
 
 ## Status
 
-Pre-product. The application shell exists; no product behavior (catalog, cart, checkout, orders, identity, AI) is implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
+The application shell and the PostgreSQL data layer exist; no product behavior (catalog, cart, checkout, orders, identity, AI) is implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
 
 ## Toolchain Pin
 
@@ -43,15 +43,24 @@ app/                     Next.js App Router routes and UI
   page.tsx               Landing page (placeholder shell)
   globals.css            Design tokens and base styles
   page.test.tsx          Landing page smoke test
+db/                      Data layer: Drizzle schema, migrations, seed, scripts
+  schema/                Table + enum definitions (catalog, account, cart, order)
+  migrations/            Generated SQL migrations (committed; never hand-edited)
+  tests/                 DB integration tests + embedded-Postgres globalSetup
+  seed-data.ts           Demo catalog content (English copy, USD cents)
+public/images/products/  Placeholder product images used by the seed
 docs/                    Discovery documents (English) and specs
   specs/                 One implementation spec per feature
+  adr/                   Architecture decision records
 stitch_image_based_application/   Design reference only — NOT a specification
+drizzle.config.ts        drizzle-kit configuration (reads DATABASE_URL)
+.env.example             Environment template (copy to .env.local, gitignored)
 init.sh                  Standard startup + verification gate (non-blocking)
 feature_list.json        Source of truth for feature state
 PROGRESS.md              Verified state and session log
 AGENTS.md                Agent operating rules
 ARCHITECTURE.md          This file
-CONSTRAINTS.md           Durable MUST/MUST NOT rules (does not exist yet)
+CONSTRAINTS.md           Durable MUST/MUST NOT rules
 ```
 
 ## Standard Gate
@@ -63,7 +72,7 @@ CONSTRAINTS.md           Durable MUST/MUST NOT rules (does not exist yet)
 3. It **may** print manual follow-up commands after the checks pass.
 4. It fails fast via `set -euo pipefail`.
 
-Individual commands are also available as `package.json` scripts: `dev`, `build`, `start`, `lint`, `typecheck`, `test`.
+Individual commands are also available as `package.json` scripts: `dev`, `build`, `start`, `lint`, `typecheck`, `test`, plus the database commands `db:generate`, `db:migrate`, `db:seed`, `db:verify` and `db:devdb` (see Data Layer below).
 
 ## Verification Stack
 
@@ -71,13 +80,35 @@ Individual commands are also available as `package.json` scripts: `dev`, `build`
 | --- | --- | --- |
 | Lint | ESLint (`eslint-config-next`) | `pnpm lint` |
 | Types | `tsc --noEmit` | `pnpm typecheck` |
-| Unit/component | Vitest + Testing Library (jsdom) | `pnpm test` |
+| Unit/component | Vitest + Testing Library (jsdom) | `pnpm test` (project `ui`) |
+| DB integration | Vitest (node) + embedded PostgreSQL 17 | `pnpm test` (project `db`) |
 | Production build | `next build` | `pnpm build` |
 | Browser E2E | **not present** | — |
 
-Vitest runs with `globals: true`. This is required: `@testing-library/react` only registers its automatic `afterEach` cleanup when `afterEach` is globally available. Setting `globals: false` silently leaks DOM between tests.
+Vitest runs two projects (`vitest.config.mts`): `ui` (jsdom) and `db` (node, PostgreSQL integration). Both run with `globals: true`. In the `ui` project this is required: `@testing-library/react` only registers its automatic `afterEach` cleanup when `afterEach` is globally available. Setting `globals: false` silently leaks DOM between tests.
 
 There is no persistent browser E2E harness yet. Focused E2E coverage becomes required from the first feature with a real user flow (`catalog-product-listing` onward).
+
+## Data Layer
+
+The data-access layer is **Drizzle ORM** (`drizzle-orm` + `drizzle-kit` over `pg`), decided in `bootstrap-database-schema` and recorded in `docs/adr/0002-drizzle-data-access-layer.md`. All storage goes through `db/`; features never talk to `pg` directly.
+
+- **Schema:** `db/schema/` — Drizzle tables and PostgreSQL enums grouped by domain (`catalog.ts`, `account.ts`, `cart.ts`, `order.ts`). Scope today: catalog/cart/order/account. AI-side tables (conversation, message, try_on_session, photo), collections, tax rates and shipping-method rows belong to later features.
+- **Conventions:** money is `bigint` **integer cents** with `currency char(3) default 'USD'` and catalog prices tax-exclusive (US market); timestamps are `timestamptz`; ids are `uuid` with `gen_random_uuid()`. Variant availability (`available` / `out_of_stock` / `discontinued`) is derived, never stored.
+- **Migrations:** `pnpm db:generate` writes SQL to `db/migrations/` once; the output is committed. Applied migrations are tracked (`drizzle.__drizzle_migrations`), so `pnpm db:migrate` is idempotent. Never edit an applied migration — generate a new one (`CONSTRAINTS.md`).
+- **Seed:** `pnpm db:seed` loads `db/seed-data.ts` (demo catalog: 6 categories, 9 products across published/draft/archived, 40 variants, 16 images) with strict insert-if-missing semantics — `ON CONFLICT DO NOTHING` on natural keys in one transaction; never updates, never deletes. `pnpm db:verify` asserts the catalog is populated and exits non-zero on an empty catalog.
+- **Connection:** everything connects through `DATABASE_URL` (`db/client.ts`). `.env.example` documents it; copy it to `.env.local` (gitignored) or export the variable. All `db:*` commands load `.env.local`/`.env` themselves when the variable is not exported (`db/env.ts`; `drizzle.config.ts` calls it too, so `pnpm db:migrate` behaves like `db:seed`/`db:verify`). Provider choice (Neon vs Supabase) stays open behind this URL.
+- **Env precedence:** an exported `DATABASE_URL` always wins over file contents (`process.loadEnvFile` never overwrites). When both `.env` and `.env.local` define it, `db:seed`/`db:verify` prefer `.env.local` (loaded first by `db/env.ts`) while `db:migrate` prefers `.env` (drizzle-kit pre-loads `.env` before `drizzle.config.ts` runs) — keep `DATABASE_URL` in a single file to avoid ambiguity (verified 2026-10-12).
+- **Script runtime:** the `db:*` TypeScript scripts run with **Node 24 native type stripping** — erasable syntax only (Drizzle `pgEnum` + string unions instead of TS `enum`/`namespace`) and explicit `.ts` import extensions (enabled via `allowImportingTsExtensions` in `tsconfig.json`); `db/package.json` marks the directory as ESM. The `tsx` fallback was not needed. `drizzle-kit` loads `drizzle.config.ts` with its own loader.
+
+### Test database strategy
+
+The automated gate must stay self-contained on machines with no Docker and no system PostgreSQL (`CONSTRAINTS.md`):
+
+- The `db` Vitest project boots **one ephemeral embedded PostgreSQL 17** per test run (`embedded-postgres`, real PostgreSQL binaries) in `db/tests/global-setup.ts`, on a free port and in a temp data directory. The teardown stops the server and removes the directory; nothing is left running.
+- Each test file creates its own throwaway database on that server (`db/tests/harness.ts`), so test files run in parallel against isolated state.
+- Local development points `DATABASE_URL` at any real PostgreSQL; `pnpm db:devdb` boots a disposable embedded server for machines that have none and prints the URL to use. Its shutdown is handled by `embedded-postgres`'s exit hook (verified: no process and no data directory survive Ctrl-C).
+- Deployed environments use managed PostgreSQL behind the same `DATABASE_URL`; provisioning is out of scope.
 
 ## Layering Intent
 
@@ -88,10 +119,9 @@ Not yet realised in code, but this is the direction to preserve:
   - `PaymentProvider` — simulated in the MVP, real gateway later (`docs/specs/` for `payment-provider-abstraction`).
   - `TryOnProvider` and `ChatAssistant` — real external services behind their own interfaces.
 - Catalog, cart and order rules belong in the domain layer, not in React components or route handlers.
-- Storage goes through the data-access layer chosen in `bootstrap-database-schema` (Drizzle vs Prisma vs raw SQL is still undecided; see `docs/risks-and-open-questions.md`).
+- Storage goes through the Drizzle data-access layer in `db/` (ADR 0002); features depend on `db/` repositories, never on raw `pg` access.
 
 ## Known Open Points
 
 - **Design token conflict.** `DESIGN.md` records a discrepancy between the design-system front matter (`primary: #000000`) and its prose ("Never pure digital black", `#121212`). The landing page uses the prose values (`#121212` ink, `#F9F8F5` canvas). Unresolved — listed in `DESIGN.md` open design questions.
 - **Styling approach is undecided.** Only plain CSS with custom properties is in use. Do not commit the project to a styling system until that decision is made deliberately.
-- **ORM is undecided.** Deferred to `bootstrap-database-schema`.
