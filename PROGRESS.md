@@ -65,6 +65,7 @@ These must be answered before or during the relevant features. Full detail in `d
 - Files or artifacts updated: all of the above, plus `feature_list.json` and this file.
 - Known risk or unresolved issue: none blocking the shell. Two durable findings worth keeping — `@types/node` must stay `^24` (not `create-next-app`'s `^20`) because `vitest@5` peers require `^22 || >=24`; and Vitest must keep `globals: true` or Testing Library skips its cleanup and leaks DOM between tests. The `DESIGN.md` hex-token conflict (`#000000` front matter vs `#121212` prose) is still unresolved and the landing page uses the prose values.
 - Next best step: run `feature-validator` against `docs/specs/bootstrap-app-skeleton.md` for independent acceptance. Then take `bootstrap-database-schema`.
+  - **Follow-up (Session 003):** independent validation ran and returned **ACCEPT**; `bootstrap-app-skeleton` is now `accepted` in `feature_list.json`.
 
 ### Session 003
 
