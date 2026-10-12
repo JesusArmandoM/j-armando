@@ -27,5 +27,5 @@ Repository contents policy:
 
 - Feature work is reviewable as a scoped diff and can be verified against a clean checkout.
 - Rollback and bisect are available from `bootstrap-database-schema` onward.
-- The project shows up as an untracked nested repository in the parent `~/Documents` repo. If the parent repository is ever committed, this project must be excluded from it (e.g. added to the parent's `.gitignore`).
+- Follow-up (2026-10-11, same session): the accidental parent repository at `~/Documents` (zero commits, 337 staged files from unrelated Android practice projects) was **deleted** — it had no history, tags, remotes or stashes, and no user files were affected. This project is now the only git repository under `~/Documents`, so IDE commit panels show only project files.
 - Working rule: commit at feature boundaries so that diffs stay scoped to one feature of `feature_list.json`.
