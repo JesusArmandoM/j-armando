@@ -1,0 +1,447 @@
+[
+  {
+    "id": "bootstrap-app-skeleton",
+    "area": "bootstrap",
+    "title": "Next.js + TypeScript application skeleton runs locally",
+    "user_visible_behavior": "The repository contains a runnable Next.js (App Router) + TypeScript application that serves a landing page at the local dev URL, and ./init.sh performs install and baseline verification instead of reporting pre-bootstrap status.",
+    "depends_on": [],
+    "status": "accepted",
+    "verification": [
+      "./init.sh installs dependencies and runs lint, typecheck and tests, all exiting 0; re-running it is idempotent and it never starts a dev server.",
+      "pnpm build exits 0 and produces a production build.",
+      "pnpm dev serves an HTTP 200 landing page at http://localhost:3000/ whose body contains \"J. Armando\"."
+    ],
+    "evidence": [
+      "./init.sh (run 1, 2026-10-11): exit 0. install + lint + typecheck + test all passed; vitest: 1 test file, 2 tests passed. Left no listener on port 3000.",
+      "./init.sh (run 2, 2026-10-11): exit 0 again (idempotent). install skipped (lockfile up to date), lint + typecheck + test passed; no listener left on port 3000.",
+      "pnpm build (2026-10-11): exit 0. Next.js 16.4.0 (Turbopack) production build; routes / and /_not-found prerendered as static content.",
+      "Manual dev check (2026-10-11): `pnpm dev` then `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/` returned 200; response body contains \"J. Armando\". Dev server was stopped afterwards; port 3000 verified free.",
+      "Smoke test names: 'landing page > renders the store name as the main heading' and 'landing page > renders English copy and states USD pricing'.",
+      "Independent validation (feature-validator, 2026-10-11): verdict ACCEPT. Every recorded claim reproduced independently: ./init.sh twice exit 0, pnpm build exit 0 (Next.js 16.4.0 Turbopack), dev-server HTTP 200 with 'J. Armando' body copy, clean-checkout gate run exit 0 (no node_modules/.next), gate failure propagation confirmed (broken test -> exit 1, type error -> exit 2). 5/5 acceptance scenarios pass; scope, security and durable-docs checks clean; no blocking findings."
+    ],
+    "notes": "Stack is decided in docs/technical-discovery.md: Next.js (App Router) + TypeScript + PostgreSQL, deployed on Vercel. This is the first bootstrap slice; bootstrap-database-schema follows. Do not initialize the framework until this feature is selected. Update init.sh's placeholder commands as part of this feature."
+  },
+  {
+    "id": "bootstrap-database-schema",
+    "area": "bootstrap",
+    "title": "PostgreSQL schema is defined and migrates cleanly",
+    "user_visible_behavior": "A managed PostgreSQL database can be created and migrated from empty to the full catalog/cart/order/account schema, and the application can read and write through the chosen data-access layer.",
+    "depends_on": ["bootstrap-app-skeleton"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: migrations run against an empty database and exit 0.",
+      "Provisional: migrations are idempotent; re-running them against an already-migrated database exits 0.",
+      "Provisional: a smoke query reads and writes one row in a core table."
+    ],
+    "evidence": [],
+    "notes": "Entities and relationships are defined in docs/domain-model.md. ORM choice (Drizzle vs Prisma vs raw SQL) is an implementation-time open question in docs/risks-and-open-questions.md; decide it here and record the decision."
+  },
+  {
+    "id": "catalog-product-listing",
+    "area": "catalog",
+    "title": "Shopper sees a grid of published products",
+    "user_visible_behavior": "The catalog page shows each published product exactly once with its image, name and price in a responsive grid. Draft and archived products are not visible.",
+    "depends_on": ["bootstrap-database-schema"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: with seeded data containing published, draft and archived products, only the published ones render on the catalog page.",
+      "Provisional: each product appears exactly once and shows name, image and price."
+    ],
+    "evidence": [],
+    "notes": "Design reference: stitch_image_based_application/cat_logo_colecci_n_editorial/. Copy must be English and prices USD (see DESIGN.md). Do not build the excluded merchandising features (capsules, newsletter) from that screen."
+  },
+  {
+    "id": "catalog-filtering",
+    "area": "catalog",
+    "title": "Shopper narrows and orders the catalog listing",
+    "user_visible_behavior": "The shopper can filter products by category, size, color and price limit, and can sort the results by newest, price ascending, price descending and name. The result count updates and filters can be reset.",
+    "depends_on": ["catalog-product-listing"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: filtering by each of category, size, color and price limit narrows the listing correctly and updates the result count.",
+      "Provisional: each sort option reorders the listing correctly.",
+      "Provisional: reset restores the unfiltered, default-sorted listing."
+    ],
+    "evidence": [],
+    "notes": "Filters must be reflected in the URL so results are shareable and back/forward works. Design reference: the filter and 'Ordenar' row in stitch_image_based_application/cat_logo_colecci_n_editorial/."
+  },
+  {
+    "id": "product-detail-page",
+    "area": "catalog",
+    "title": "Shopper opens a product detail page",
+    "user_visible_behavior": "The shopper can open a product and see its image gallery, name, price, description, composition and care information.",
+    "depends_on": ["catalog-product-listing"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: opening a product from the catalog shows its gallery, name, price, description, composition and care.",
+      "Provisional: an unknown product id returns a not-found state rather than an error page."
+    ],
+    "evidence": [],
+    "notes": "Design reference: stitch_image_based_application/detalle_de_producto_probador_virtual_ia/. Out of MVP scope on this screen: the FITIQ fit predictor and the 'Coordinados por Stylist IA' cross-sell module."
+  },
+  {
+    "id": "product-variant-selection",
+    "area": "catalog",
+    "title": "Shopper selects a size and color variant",
+    "user_visible_behavior": "The shopper can pick a size and a color on the product detail page. Out-of-stock size/color combinations are visibly disabled and cannot be selected. The selected variant drives the price shown and the stock message.",
+    "depends_on": ["product-detail-page"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: selecting each available size/color combination updates the shown price and stock message.",
+      "Provisional: an out-of-stock combination is visibly disabled and cannot be selected."
+    ],
+    "evidence": [],
+    "notes": "Variant is the sellable unit and the only thing with stock (see CONTEXT.md and docs/domain-model.md). Design reference: the size matrix and tonalidad swatches in the product detail asset; keep the zero-radius tile treatment from DESIGN.md."
+  },
+  {
+    "id": "guest-cart-add",
+    "area": "shopping",
+    "title": "Guest adds a variant to the cart",
+    "user_visible_behavior": "A shopper with no account can select a variant, choose a quantity and add it to the cart, and sees the cart reflect the new line.",
+    "depends_on": ["product-variant-selection"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: adding a selected variant with a quantity of 2 creates one cart line for that variant with quantity 2.",
+      "Provisional: adding the same variant again increases the existing line's quantity rather than duplicating it."
+    ],
+    "evidence": [],
+    "notes": "Guest cart must work without any sign-in (docs/user-and-access-model.md). Cart identity is session-scoped until payment links it to an account."
+  },
+  {
+    "id": "guest-cart-manage",
+    "area": "shopping",
+    "title": "Guest edits quantities and removes cart lines",
+    "user_visible_behavior": "The shopper can change a line's quantity, remove a line, and see line subtotals and the cart total update. The cart survives a page reload.",
+    "depends_on": ["guest-cart-add"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: changing a quantity updates that line's subtotal and the cart total.",
+      "Provisional: removing a line removes it and recalculates the total.",
+      "Provisional: reloading the page preserves the cart contents."
+    ],
+    "evidence": [],
+    "notes": "Quantity cannot exceed available stock; that constraint is enforced in cart-stock-limits. Design reference: the quantity steppers in stitch_image_based_application/carrito_pasarela_de_pago_simulada/."
+  },
+  {
+    "id": "cart-stock-limits",
+    "area": "shopping",
+    "title": "Cart respects available stock",
+    "user_visible_behavior": "A shopper cannot add or increase a line beyond the variant's available stock, and a line whose stock has dropped is marked and adjusted explicitly rather than failing silently at payment.",
+    "depends_on": ["guest-cart-manage"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: attempting to set a quantity above available stock is rejected and the UI shows why.",
+      "Provisional: when stock drops below a cart line's quantity, the line is visibly flagged and adjusted before checkout proceeds."
+    ],
+    "evidence": [],
+    "notes": "This is the UI/flow constraint. The concurrency guarantee (last unit not oversold across simultaneous checkouts) is stock-reservation."
+  },
+  {
+    "id": "checkout-contact-and-address",
+    "area": "checkout",
+    "title": "Shopper enters contact email and shipping address at checkout",
+    "user_visible_behavior": "The checkout collects a contact email and a shipping address from the shopper, validates required fields, and carries them forward to the rest of the flow.",
+    "depends_on": ["guest-cart-manage"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: submitting valid contact and address data advances the checkout and the values persist to later steps.",
+      "Provisional: missing required fields show inline validation and do not advance."
+    ],
+    "evidence": [],
+    "notes": "The email is the account key: it drives account-created-at-payment. Design reference: the 'Identification & Registration' and 'Address & Shipping' blocks in stitch_image_based_application/carrito_pasarela_de_pago_simulada/ (rewrite copy to English, see DESIGN.md)."
+  },
+  {
+    "id": "checkout-shipping-method",
+    "area": "checkout",
+    "title": "Shopper chooses a shipping method and sees its cost",
+    "user_visible_behavior": "The shopper can choose among available shipping methods, each showing its cost and delivery expectation, and the order total reflects the chosen method.",
+    "depends_on": ["checkout-contact-and-address"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: each shipping method shows its own cost and delivery expectation.",
+      "Provisional: switching methods updates the shipping line and the order total."
+    ],
+    "evidence": [],
+    "notes": "Shipping cost rules (flat rate, free above threshold, weight-based) are an open blocking question in docs/risks-and-open-questions.md. Resolve before or during this feature and record the answer."
+  },
+  {
+    "id": "checkout-sales-tax",
+    "area": "checkout",
+    "title": "Sales tax is calculated from the shipping address",
+    "user_visible_behavior": "The order summary shows a separate sales tax line calculated from the shipping address (state / ZIP), with catalog prices shown tax-exclusive, and the total equals subtotal plus shipping plus tax.",
+    "depends_on": ["checkout-shipping-method"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: changing the shipping address's state changes the calculated sales tax.",
+      "Provisional: the order summary shows tax as its own line and the total equals subtotal + shipping + tax.",
+      "Provisional: displayed catalog prices exclude tax."
+    ],
+    "evidence": [],
+    "notes": "Market is US/USD with sales tax added at checkout (confirmed). This contradicts the design asset, which shows IVA included in the price; see DESIGN.md 'Pricing and Tax Display'. Rate table/nexus is a blocking open question in docs/risks-and-open-questions.md."
+  },
+  {
+    "id": "payment-provider-abstraction",
+    "area": "payments",
+    "title": "PaymentProvider interface with a simulated implementation",
+    "user_visible_behavior": "Payments execute through a PaymentProvider interface whose simulated implementation can return success, failure and pending, and the checkout surfaces each outcome to the shopper.",
+    "depends_on": ["bootstrap-app-skeleton"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: the simulated provider can be driven to return success, failure and pending on demand.",
+      "Provisional: each outcome is surfaced distinctly in the checkout UI."
+    ],
+    "evidence": [],
+    "notes": "No real gateway in the MVP (docs/mvp-scope.md). The interface must be narrow and event-based so a real gateway can be added later without touching store code; real gateways confirm asynchronously, so design for pending now. See docs/technical-discovery.md 'Integrations'."
+  },
+  {
+    "id": "order-creation-on-payment",
+    "area": "orders",
+    "title": "A successful payment creates a paid order with frozen prices",
+    "user_visible_behavior": "When the simulated payment succeeds, an order is created in 'paid' state with frozen line prices, sales tax and shipping cost, and the shopper sees an order confirmation referencing that order.",
+    "depends_on": ["checkout-sales-tax", "payment-provider-abstraction"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: a successful payment creates exactly one order in 'paid' state.",
+      "Provisional: order lines, prices, tax and shipping match the values shown at checkout even if the catalog price changes afterwards.",
+      "Provisional: the confirmation screen shows the order reference and totals."
+    ],
+    "evidence": [],
+    "notes": "Order state machine is in docs/domain-model.md. Prices and tax are frozen at purchase time."
+  },
+  {
+    "id": "payment-failure-path",
+    "area": "payments",
+    "title": "A failed payment leaves no paid order and preserves the cart",
+    "user_visible_behavior": "When the simulated payment fails, the shopper sees a clear failure message, no paid order exists, no stock is permanently consumed, and the cart is still recoverable so the payment can be retried.",
+    "depends_on": ["order-creation-on-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: a failed payment produces no order in 'paid' state.",
+      "Provisional: stock is not permanently decremented after a failed payment.",
+      "Provisional: the cart still contains the intended lines and the payment can be retried to success."
+    ],
+    "evidence": [],
+    "notes": "This path is explicitly in the MVP validation plan (docs/mvp-scope.md, docs/build-brief.md). Also handle the 'pending' outcome without creating a paid order."
+  },
+  {
+    "id": "stock-reservation",
+    "area": "inventory",
+    "title": "The last unit of a variant cannot be oversold",
+    "user_visible_behavior": "When two shoppers attempt to buy the last unit of the same variant at the same time, exactly one order succeeds and the other is told the item is unavailable, with no negative or inconsistent stock.",
+    "depends_on": ["order-creation-on-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: a concurrency test with two simultaneous checkouts of the last unit yields exactly one paid order.",
+      "Provisional: the losing shopper gets a clear message and stock never goes below zero."
+    ],
+    "evidence": [],
+    "notes": "Use a transactional reservation or conditional update; see the implementation-time question on reservation strategy in docs/risks-and-open-questions.md. This is the concurrency guarantee behind cart-stock-limits."
+  },
+  {
+    "id": "account-created-at-payment",
+    "area": "identity",
+    "title": "Payment creates or links the account by email",
+    "user_visible_behavior": "When payment succeeds, an account is created for the contact email if none exists, or the order is attached to the existing account if that email is already registered. No second account is ever created for the same email.",
+    "depends_on": ["order-creation-on-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: a first-time email results in one new account owning the new order.",
+      "Provisional: a repeat email does not create a second account and the order attaches to the existing one."
+    ],
+    "evidence": [],
+    "notes": "Account is keyed by unique email (CONTEXT.md). The duplicate-email flow must preserve the guest cart across the sign-in handoff; see edge cases in docs/user-and-access-model.md."
+  },
+  {
+    "id": "account-quick-access-password",
+    "area": "identity",
+    "title": "Shopper can set an optional password at checkout",
+    "user_visible_behavior": "During checkout the shopper can choose to set a password for quick access, or skip it and still complete the purchase. The choice is reflected in the created account.",
+    "depends_on": ["account-created-at-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: completing checkout with a password set creates an account that can later sign in with that password.",
+      "Provisional: completing checkout without a password still creates the account and the order."
+    ],
+    "evidence": [],
+    "notes": "Password is optional by explicit decision (docs/user-and-access-model.md). How a password-less account later reaches its orders is blocking open question #1 in docs/risks-and-open-questions.md and must be resolved here or in account-signin-signout."
+  },
+  {
+    "id": "account-signin-signout",
+    "area": "identity",
+    "title": "Customer signs in and out",
+    "user_visible_behavior": "A customer with an account can sign in and sign out, and stays signed in across page loads until they sign out. A shopper without a password can still reach their account through the agreed mechanism.",
+    "depends_on": ["account-quick-access-password"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: signing in with correct credentials establishes a session that survives a page reload.",
+      "Provisional: signing out ends the session and protected content is no longer reachable.",
+      "Provisional: an account created without a password can still sign in via the agreed mechanism."
+    ],
+    "evidence": [],
+    "notes": "Resolves blocking open question #1 in docs/risks-and-open-questions.md (magic link vs email OTP vs forced password creation). There is no email verification and no password recovery in the MVP; that is a recorded production risk."
+  },
+  {
+    "id": "order-history",
+    "area": "orders",
+    "title": "Customer sees their order history",
+    "user_visible_behavior": "A signed-in customer sees a list of their own orders with lines, prices, sales tax and shipping, and can open one order to see its detail. Customers never see anyone else's orders.",
+    "depends_on": ["account-signin-signout", "order-creation-on-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: a signed-in customer sees exactly the orders they own, with correct lines and totals.",
+      "Provisional: a customer cannot reach another customer's order by id.",
+      "Provisional: a signed-out shopper cannot reach order history at all."
+    ],
+    "evidence": [],
+    "notes": "Ownership rules are in docs/user-and-access-model.md. Order totals must match the frozen values recorded at purchase."
+  },
+  {
+    "id": "order-confirmation-email",
+    "area": "notifications",
+    "title": "Order confirmation email is sent on a paid order",
+    "user_visible_behavior": "When an order becomes paid, a confirmation email is sent to the contact email with the order reference, lines and totals.",
+    "depends_on": ["order-creation-on-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: a paid order triggers exactly one confirmation email to the contact email.",
+      "Provisional: a failed payment triggers no confirmation email.",
+      "Provisional: the email content matches the frozen order totals."
+    ],
+    "evidence": [],
+    "notes": "Email sending provider and templates are an implementation-time question in docs/risks-and-open-questions.md. Do not include secrets or sensitive personal data in email logs."
+  },
+  {
+    "id": "admin-role-gate",
+    "area": "backoffice",
+    "title": "Admin role gates the backoffice",
+    "user_visible_behavior": "Only accounts with the admin role can reach backoffice routes; non-admin and signed-out users are refused. Admin routes and data are not otherwise exposed.",
+    "depends_on": ["account-signin-signout"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: an admin account can open the backoffice.",
+      "Provisional: a customer account and a signed-out shopper are both refused backoffice access.",
+      "Provisional: backoffice data is not readable without the admin role."
+    ],
+    "evidence": [],
+    "notes": "Roles are attributes of the account (docs/user-and-access-model.md). An account may hold both customer and admin roles. Revoking the admin role must take effect on the next request."
+  },
+  {
+    "id": "admin-product-create",
+    "area": "backoffice",
+    "title": "Admin creates a product with variants and stock",
+    "user_visible_behavior": "An admin can create a product with its core fields, add size/color variants and set per-variant stock, and the saved data is visible in the backoffice.",
+    "depends_on": ["admin-role-gate"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: creating a product with two variants and stock persists and is listed in the backoffice.",
+      "Provisional: stock is stored per variant, not per product.",
+      "Provisional: invalid input is rejected with a clear message."
+    ],
+    "evidence": [],
+    "notes": "Product/variant/stock model is in docs/domain-model.md. Out of scope here: bulk import, media pipeline beyond basic image upload."
+  },
+  {
+    "id": "admin-product-publish",
+    "area": "backoffice",
+    "title": "Admin publishes and archives products",
+    "user_visible_behavior": "An admin can move a product between draft, published and archived, and only published products appear in the storefront catalog and product detail.",
+    "depends_on": ["admin-product-create"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: publishing a draft product makes it appear in the storefront catalog.",
+      "Provisional: archiving a product removes it from the storefront and its detail URL returns not-found.",
+      "Provisional: a draft product is never visible in the storefront."
+    ],
+    "evidence": [],
+    "notes": "Product state machine is in docs/domain-model.md. This closes the admin half of the MVP's first vertical slice."
+  },
+  {
+    "id": "admin-order-list",
+    "area": "backoffice",
+    "title": "Admin lists all orders",
+    "user_visible_behavior": "An admin can see a list of every order across all customers with its reference, customer email, totals and current status.",
+    "depends_on": ["admin-role-gate", "order-creation-on-payment"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: the admin order list shows orders from all customers, not just the admin's own.",
+      "Provisional: each row shows reference, customer email, total and status."
+    ],
+    "evidence": [],
+    "notes": "Keep this read-only; state transitions are admin-order-fulfillment."
+  },
+  {
+    "id": "admin-order-fulfillment",
+    "area": "backoffice",
+    "title": "Admin moves an order through fulfillment",
+    "user_visible_behavior": "An admin can move a paid order through preparing, shipped and delivered, and the customer sees the current fulfillment state on that order.",
+    "depends_on": ["admin-order-list"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: an admin can transition a paid order through preparing, shipped and delivered in order.",
+      "Provisional: invalid transitions (for example, shipping an unpaid order) are rejected.",
+      "Provisional: the customer sees the updated fulfillment state in order history."
+    ],
+    "evidence": [],
+    "notes": "Fulfillment only applies once an order is paid (docs/domain-model.md). Cancelling after shipping is out of MVP scope."
+  },
+  {
+    "id": "chat-assistant",
+    "area": "ai",
+    "title": "Shopper talks to the chat assistant on the storefront",
+    "user_visible_behavior": "The shopper can open a chat panel on the storefront, ask a question about products, sizing, fabric or shipping, and receive a relevant answer generated by the configured LLM through the ChatAssistant interface.",
+    "depends_on": ["catalog-product-listing"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: asking a product, sizing, fabric and shipping question each returns a relevant answer.",
+      "Provisional: answers come from the real LLM provider behind the ChatAssistant interface.",
+      "Provisional: swapping the implementation behind the interface requires no UI change."
+    ],
+    "evidence": [],
+    "notes": "Provider selection is blocking open question #2/#5 in docs/risks-and-open-questions.md. Guest conversations may be unowned; see docs/user-and-access-model.md. Design reference: the 'Stylist IA' entry point in the design asset header, renamed per DESIGN.md brand mapping."
+  },
+  {
+    "id": "chat-assistant-guardrails",
+    "area": "ai",
+    "title": "Chat assistant does not invent store policies",
+    "user_visible_behavior": "When asked about shipping costs, return policy, prices or anything outside verified store data, the assistant answers from a verified source or says it does not know, and never fabricates a policy or a price.",
+    "depends_on": ["chat-assistant"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: asking for the shipping cost and the return policy returns either the verified value or an explicit 'I do not know', never a fabricated one.",
+      "Provisional: asking for a product price returns the actual catalog price.",
+      "Provisional: out-of-scope requests are declined without inventing content."
+    ],
+    "evidence": [],
+    "notes": "Blocking open question #4 in docs/risks-and-open-questions.md defines the allowed scope. This is a product-safety requirement, not a nice-to-have."
+  },
+  {
+    "id": "virtual-tryon-generation",
+    "area": "ai",
+    "title": "Shopper uploads a photo and sees a try-on result",
+    "user_visible_behavior": "On a product detail page the shopper can upload a photo, trigger the virtual try-on for the selected variant, and see the generated result of themselves wearing the garment.",
+    "depends_on": ["product-detail-page"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: uploading a valid photo and triggering a try-on returns and displays a generated result.",
+      "Provisional: the result corresponds to the currently selected size/color variant.",
+      "Provisional: results come from the real provider behind the TryOnProvider interface, swappable without UI changes."
+    ],
+    "evidence": [],
+    "notes": "Provider selection is blocking open question #2; photo consent and retention are blocking open question #3 in docs/risks-and-open-questions.md. Uploaded photos are sensitive personal data: do not log them, store them in controlled object storage, and enforce the agreed retention. Design reference: the try-on block in stitch_image_based_application/detalle_de_producto_probador_virtual_ia/."
+  },
+  {
+    "id": "virtual-tryon-failure",
+    "area": "ai",
+    "title": "Virtual try-on fails gracefully",
+    "user_visible_behavior": "When the photo is invalid, the provider times out or the provider errors, the shopper sees a clear message and can retry, and browsing and adding to cart remain unaffected.",
+    "depends_on": ["virtual-tryon-generation"],
+    "status": "not_started",
+    "verification": [
+      "Provisional: an invalid or oversized photo is rejected with a clear message before any provider call.",
+      "Provisional: a provider timeout or error surfaces a clear failure message and a retry affordance.",
+      "Provisional: the rest of the product page keeps working after a try-on failure."
+    ],
+    "evidence": [],
+    "notes": "Explicitly in the MVP validation plan (docs/build-brief.md, docs/mvp-scope.md). Define empty, loading and failure states; the design assets do not cover them (see DESIGN.md open design questions)."
+  }
+]

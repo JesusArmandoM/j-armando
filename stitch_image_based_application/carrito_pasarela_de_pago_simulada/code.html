@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+
+<html lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_blank" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-error": "#ffffff", "surface-container-lowest": "#ffffff", "outline-variant": "#c4c7c7", "surface-container": "#efeeeb", "surface-container-high": "#e9e8e5", "error": "#ba1a1a", "surface-container-low": "#f4f3f0", "inverse-on-surface": "#f2f1ee", "error-container": "#ffdad6", "primary-fixed-dim": "#c8c6c5", "on-secondary": "#ffffff", "surface-bright": "#faf9f6", "on-secondary-container": "#696159", "on-primary-fixed": "#1c1b1b", "surface-dim": "#dbdad7", "on-primary": "#ffffff", "primary": "#000000", "secondary-fixed": "#ece1d6", "on-secondary-fixed-variant": "#4c463e", "outline": "#747878", "inverse-surface": "#2f312f", "surface-tint": "#5f5e5e", "on-tertiary-fixed-variant": "#3a4951", "surface": "#faf9f6", "secondary": "#655d55", "tertiary-fixed": "#d5e5ef", "on-background": "#1a1c1a", "tertiary-container": "#0e1d25", "on-surface-variant": "#444748", "background": "#faf9f6", "surface-container-highest": "#e3e2e0", "primary-fixed": "#e5e2e1", "on-primary-container": "#858383", "tertiary": "#000000", "secondary-container": "#e9ded3", "on-tertiary-container": "#76868f", "on-secondary-fixed": "#201b14", "on-surface": "#1a1c1a", "on-tertiary-fixed": "#0e1d25", "on-primary-fixed-variant": "#474646", "secondary-fixed-dim": "#cfc5ba", "on-tertiary": "#ffffff", "primary-container": "#1c1b1b", "inverse-primary": "#c8c6c5", "surface-variant": "#e3e2e0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#b9c9d3" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-lg": "1.75rem", "space-md": "1rem", "gutter": "1.5rem", "space-2xl": "5rem", "space-sm": "0.5rem", "margin-md": "3rem", "margin": "1.5rem", "margin-lg": "5rem", "gutter-lg": "2.5rem", "space-xl": "3rem", "space-xs": "0.25rem" }, "fontFamily": { "label-caps": [ "Hanken Grotesk" ], "body-md": [ "Hanken Grotesk" ], "headline-lg": [ "Newsreader" ], "body-lg": [ "Hanken Grotesk" ], "headline-sm": [ "Newsreader" ], "headline-lg-mobile": [ "Newsreader" ], "headline-md": [ "Newsreader" ], "display-hero-mobile": [ "Newsreader" ], "body-sm": [ "Hanken Grotesk" ], "label-ai": [ "Hanken Grotesk" ], "display-hero": [ "Newsreader" ] }, "fontSize": { "label-caps": [ "0.6875rem", { "lineHeight": "1.2", "letterSpacing": "0.14em", "fontWeight": "600" } ], "body-md": [ "0.9375rem", { "lineHeight": "1.55", "letterSpacing": "0", "fontWeight": "400" } ], "headline-lg": [ "3rem", { "lineHeight": "1.15", "letterSpacing": "-0.02em", "fontWeight": "400" } ], "body-lg": [ "1.125rem", { "lineHeight": "1.6", "letterSpacing": "-0.01em", "fontWeight": "300" } ], "headline-sm": [ "1.375rem", { "lineHeight": "1.35", "letterSpacing": "0", "fontWeight": "500" } ], "headline-lg-mobile": [ "2rem", { "lineHeight": "1.2", "letterSpacing": "-0.015em", "fontWeight": "400" } ], "headline-md": [ "2rem", { "lineHeight": "1.25", "letterSpacing": "-0.01em", "fontWeight": "400" } ], "display-hero-mobile": [ "2.75rem", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "400" } ], "body-sm": [ "0.8125rem", { "lineHeight": "1.5", "letterSpacing": "0.01em", "fontWeight": "400" } ], "label-ai": [ "0.6875rem", { "lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "500" } ], "display-hero": [ "4.5rem", { "lineHeight": "1.05", "letterSpacing": "-0.03em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-surface font-body-md text-on-surface antialiased min-h-screen flex items-center justify-center p-margin"><main class="w-full max-w-xl bg-surface-container-lowest p-space-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="flex flex-col w-full">
+<!-- Progress Header -->
+<header class="mb-space-xl flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase block mb-space-xs">Adquisición Editorial — Colección 04</span>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Finalizar Compra</h1>
+</div>
+<div class="flex items-center gap-space-sm bg-surface-container-low px-space-md py-space-xs rounded-full">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-ai text-label-ai text-on-surface-variant">LUMEN CHECKOUT SECURE SYSTEM</span>
+</div>
+</header>
+<!-- Checkout Grid Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg items-start">
+<!-- Left Column: Checkout Steps -->
+<div class="lg:col-span-7 flex flex-col gap-space-xl">
+<!-- Step 1: Cart Items -->
+<section class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-space-sm">
+<span class="w-6 h-6 rounded-full bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center">01</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Artículos en la Orden</h2>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant tracking-widest uppercase">2 Piezas</span>
+</div>
+<div class="flex flex-col gap-space-md" id="cart-items-container">
+<!-- Item 1 -->
+<article class="flex gap-space-md p-space-md bg-surface-container-lowest rounded-lg shadow-sm" data-price="420" id="item-1">
+<div class="w-24 h-32 flex-shrink-0 bg-surface-container overflow-hidden rounded">
+<img class="w-full h-full object-cover" data-alt="High-end editorial fashion photography of an oversized tailored wool coat in muted charcoal grey, soft natural diffused gallery lighting, sculptural silhouette, neutral textured backdrop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbCYUJAyxdslEVt4bZP7iZ5qTHJhw0s7Hs0s2of7pSJctB6kaz4cY56Xhdvi13TwvA5iTGgSmsfLGxjMI_e-XTz03gvjLCYZ2Jz0zGvwmFbGsxWWyfDtZevfp4zL8CFnSPSHJLFkNeSfqrv9e7HtZ1Ur8M4_ZR7H8MllGGYOUAl-0Htm1WmPDx6do7McM5adP-hKAhYauY0si6FaQjjBDeYZy_7MVvsKTVzQKjaIoNWhbb10OZvdDS"/>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div class="flex justify-between items-start gap-space-sm">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Abrigo Estructurado Wool-Blend</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Talla: <span class="text-on-surface font-medium">M</span> • Carbón Grafito</p>
+<p class="font-label-ai text-label-ai text-secondary mt-1">Ajuste recomendado por LUMEN Lens • 98% Precisión</p>
+</div>
+<button aria-label="Eliminar artículo" class="text-on-surface-variant hover:text-error transition-colors p-1" onclick="removeItem('item-1', 420)" type="button">
+<span class="material-symbols-outlined text-base">delete</span>
+</button>
+</div>
+<div class="flex justify-between items-end mt-space-sm">
+<div class="flex items-center bg-surface-container-low rounded p-1 gap-space-xs">
+<button class="w-7 h-7 flex items-center justify-center bg-surface-container-lowest rounded text-on-surface hover:bg-surface-container transition-colors" onclick="updateQty('item-1-qty', -1, 420, 'item-1-subtotal')" type="button">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<span class="font-label-caps text-label-caps px-2 min-w-[20px] text-center" id="item-1-qty">1</span>
+<button class="w-7 h-7 flex items-center justify-center bg-surface-container-lowest rounded text-on-surface hover:bg-surface-container transition-colors" onclick="updateQty('item-1-qty', 1, 420, 'item-1-subtotal')" type="button">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<div class="text-right">
+<span class="font-body-md text-body-md text-on-surface font-medium" id="item-1-subtotal">420 €</span>
+</div>
+</div>
+</div>
+</article>
+<!-- Item 2 -->
+<article class="flex gap-space-md p-space-md bg-surface-container-lowest rounded-lg shadow-sm" data-price="190" id="item-2">
+<div class="w-24 h-32 flex-shrink-0 bg-surface-container overflow-hidden rounded">
+<img class="w-full h-full object-cover" data-alt="Minimalist luxury fashion photography of a raw silk architectural blouse in off-white ivory, studio ambient light, serene editorial styling with delicate textile folds" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBd_QE-O_JrYQUOnIijghbL2P5KT0J4nqz-aZ0UFIOFtk_uqggxMXwQntwAGTH6iehoYDUMKN8GZNFTgzJ6MJNlZ3jfuL2-M8G9UgJqww-GuhbXxztJAud6mOqQ9LCfui33wIG2tU9B6RmalWGlYhdTl7YZD3Ug37OtvX1UfZjGWnCUfMp-ov2oab1HZPJz-8OPLeyUbMJUUq9ltA-iduQf-dDF3eQfaz40kyv8d-q1boUU8BU4d1-U"/>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div class="flex justify-between items-start gap-space-sm">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Camisa de Seda Cruda Drapeada</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Talla: <span class="text-on-surface font-medium">S</span> • Marfil Puro</p>
+<p class="font-label-ai text-label-ai text-secondary mt-1">Confección en Lyon, Francia</p>
+</div>
+<button aria-label="Eliminar artículo" class="text-on-surface-variant hover:text-error transition-colors p-1" onclick="removeItem('item-2', 190)" type="button">
+<span class="material-symbols-outlined text-base">delete</span>
+</button>
+</div>
+<div class="flex justify-between items-end mt-space-sm">
+<div class="flex items-center bg-surface-container-low rounded p-1 gap-space-xs">
+<button class="w-7 h-7 flex items-center justify-center bg-surface-container-lowest rounded text-on-surface hover:bg-surface-container transition-colors" onclick="updateQty('item-2-qty', -1, 190, 'item-2-subtotal')" type="button">
+<span class="material-symbols-outlined text-sm">remove</span>
+</button>
+<span class="font-label-caps text-label-caps px-2 min-w-[20px] text-center" id="item-2-qty">1</span>
+<button class="w-7 h-7 flex items-center justify-center bg-surface-container-lowest rounded text-on-surface hover:bg-surface-container transition-colors" onclick="updateQty('item-2-qty', 1, 190, 'item-2-subtotal')" type="button">
+<span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<div class="text-right">
+<span class="font-body-md text-body-md text-on-surface font-medium" id="item-2-subtotal">190 €</span>
+</div>
+</div>
+</div>
+</article>
+</div>
+</section>
+<!-- Step 2: Identification & Guest Flow -->
+<section class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-6 h-6 rounded-full bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center">02</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Identificación &amp; Registro Flexible</h2>
+</div>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed font-label-ai text-label-ai px-space-sm py-1 rounded">Modo Invitado Activo</span>
+</div>
+<div class="p-space-md bg-surface-container-lowest rounded-lg mb-space-md">
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+            Puedes preparar tu pedido como <strong class="text-on-surface font-medium">invitado</strong>. Crearemos o iniciaremos tu cuenta al confirmar el pago para que puedas rastrear tus pedidos, consultar facturas y acceder al probador virtual cuando lo desees.
+          </p>
+</div>
+<div class="space-y-space-md">
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-1" for="checkout-email">Correo Electrónico</label>
+<input class="w-full bg-transparent border-b border-primary/20 focus:border-primary pb-2 font-body-md text-body-md text-on-surface outline-none transition-colors" id="checkout-email" placeholder="nombre@ejemplo.com" type="email" value="alexandra.vance@studio.com"/>
+</div>
+<div class="pt-space-xs">
+<div class="flex items-center justify-between mb-2">
+<label class="flex items-center gap-space-sm cursor-pointer select-none" for="create-account-toggle">
+<input checked="" class="w-4 h-4 rounded text-primary accent-primary cursor-pointer" id="create-account-toggle" onchange="togglePasswordField()" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Crear acceso rápido estableciendo una contraseña opcional</span>
+</label>
+</div>
+<div class="mt-space-sm transition-all duration-300" id="password-container">
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-1" for="checkout-password">Contraseña (Opcional)</label>
+<input class="w-full bg-transparent border-b border-primary/20 focus:border-primary pb-2 font-body-md text-body-md text-on-surface outline-none transition-colors" id="checkout-password" placeholder="Mínimo 8 caracteres" type="password" value="••••••••••••"/>
+<p class="font-label-ai text-label-ai text-on-surface-variant mt-1.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">info</span> Si se omite, se enviará una clave de acceso temporal de un solo uso por correo.
+              </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Step 3: Shipping & Delivery -->
+<section class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<div class="flex items-center gap-space-sm mb-space-md">
+<span class="w-6 h-6 rounded-full bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center">03</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Dirección &amp; Método de Envío</h2>
+</div>
+<!-- Simulated Address Summary Card -->
+<div class="p-space-md bg-surface-container-lowest rounded-lg mb-space-md flex justify-between items-start">
+<div class="space-y-1">
+<span class="font-label-caps text-label-caps text-secondary uppercase block">Destino de Entrega</span>
+<p class="font-body-md text-body-md text-on-surface font-medium">Alexandra Vance • Studio 4B</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Paseo de la Castellana 88, Escalera B, 4º Izq.</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">28046 Madrid, España • +34 611 204 889</p>
+</div>
+<button class="text-xs font-label-caps text-primary underline underline-offset-4 uppercase tracking-wider hover:opacity-75" type="button">Modificar</button>
+</div>
+<!-- Shipping Method Selector -->
+<div class="space-y-space-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-2">Velocidad de Envío</span>
+<label class="flex items-center justify-between p-space-md bg-surface-container-lowest rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-space-sm">
+<input checked="" class="w-4 h-4 accent-primary cursor-pointer" name="shipping-rate" onchange="updateShipping(0)" type="radio" value="0"/>
+<div>
+<span class="font-body-md text-body-md text-on-surface font-medium block">Envío Estándar Eco-Boutique</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Entrega en 2-3 días hábiles • Embalaje reciclado de alta densidad</span>
+</div>
+</div>
+<span class="font-label-caps text-label-caps text-secondary uppercase font-semibold">Gratis</span>
+</label>
+<label class="flex items-center justify-between p-space-md bg-surface-container-lowest rounded-lg cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="flex items-center gap-space-sm">
+<input class="w-4 h-4 accent-primary cursor-pointer" name="shipping-rate" onchange="updateShipping(25)" type="radio" value="25"/>
+<div>
+<span class="font-body-md text-body-md text-on-surface font-medium block">Servicio Express Siguiente Día</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Entrega garantizada mañana antes de las 14:00 • Courier Dedicado</span>
+</div>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-medium">+25 €</span>
+</label>
+</div>
+</section>
+<!-- Step 4: Simulated Payment Gateway -->
+<section class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-6 h-6 rounded-full bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center">04</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Pasarela de Pago Simulada</h2>
+</div>
+<span class="bg-surface-container-highest text-on-surface-variant font-label-caps text-label-caps px-2 py-0.5 rounded">Entorno de Pruebas</span>
+</div>
+<!-- Payment Tabs -->
+<div class="grid grid-cols-3 gap-space-xs mb-space-md">
+<button class="py-space-sm px-2 text-center rounded bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center gap-1 transition-all" id="tab-card" onclick="selectPaymentMethod('card')" type="button">
+<span class="material-symbols-outlined text-sm">credit_card</span>
+<span>Tarjeta</span>
+</button>
+<button class="py-space-sm px-2 text-center rounded bg-surface-container-lowest text-on-surface font-label-caps text-label-caps hover:bg-surface-container transition-all flex items-center justify-center gap-1" id="tab-apple" onclick="selectPaymentMethod('apple')" type="button">
+<span class="material-symbols-outlined text-sm">phone_iphone</span>
+<span>Apple Pay</span>
+</button>
+<button class="py-space-sm px-2 text-center rounded bg-surface-container-lowest text-on-surface font-label-caps text-label-caps hover:bg-surface-container transition-all flex items-center justify-center gap-1" id="tab-bizum" onclick="selectPaymentMethod('bizum')" type="button">
+<span class="material-symbols-outlined text-sm">bolt</span>
+<span>Bizum</span>
+</button>
+</div>
+<!-- Payment Content: Card (Active by default) -->
+<div class="space-y-space-md" id="payment-card-content">
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Número de Tarjeta (Modo Demo)</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest px-space-md py-space-sm rounded font-body-md text-body-md text-on-surface tracking-wider outline-none" readonly="" type="text" value="4242 •••• •••• 4242"/>
+<span class="absolute right-3 top-2.5 font-label-ai text-label-ai text-secondary bg-surface-container px-2 py-0.5 rounded">SIMULADA</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-md">
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Vencimiento</label>
+<input class="w-full bg-surface-container-lowest px-space-md py-space-sm rounded font-body-md text-body-md text-on-surface outline-none" readonly="" type="text" value="12/28"/>
+</div>
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">CVC / CVV</label>
+<input class="w-full bg-surface-container-lowest px-space-md py-space-sm rounded font-body-md text-body-md text-on-surface outline-none" readonly="" type="text" value="894"/>
+</div>
+</div>
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Titular de la Tarjeta</label>
+<input class="w-full bg-surface-container-lowest px-space-md py-space-sm rounded font-body-md text-body-md text-on-surface outline-none" type="text" value="Alexandra Vance"/>
+</div>
+</div>
+<!-- Payment Content: Alternative Mock -->
+<div class="hidden p-space-lg bg-surface-container-lowest rounded-lg text-center space-y-2" id="payment-alt-content">
+<span class="material-symbols-outlined text-3xl text-secondary">verified_user</span>
+<p class="font-headline-sm text-headline-sm text-on-surface" id="alt-title">Apple Pay / Touch ID</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">La autenticación biométrica y el token de pago seguro se simularán automáticamente al confirmar.</p>
+</div>
+<div class="mt-space-md flex items-center gap-space-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-sm">lock</span>
+<span class="font-label-ai text-label-ai">Transacción cifrada SHA-256 en Sandbox de Demostración</span>
+</div>
+</section>
+<!-- Primary Action CTA -->
+<div>
+<button class="w-full py-space-md px-space-xl bg-primary text-on-primary font-label-caps text-label-caps uppercase tracking-widest hover:bg-neutral-800 transition-all flex items-center justify-center gap-space-sm shadow-md rounded" id="submit-order-btn" onclick="executeOrder()" type="button">
+<span id="btn-text">Confirmar Pedido y Completar Pago Simulado</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+<p class="text-center font-label-ai text-label-ai text-on-surface-variant mt-2">
+          Al confirmar, aceptas nuestras condiciones de venta y autorizas la creación de tu perfil de seguimiento.
+        </p>
+</div>
+</div>
+<!-- Right Column: Sticky Summary & Guarantees -->
+<div class="lg:col-span-5 lg:sticky lg:top-8 flex flex-col gap-space-md">
+<!-- Order Summary Card -->
+<section class="bg-surface-container-low p-space-lg rounded-xl shadow-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-space-md">Resumen del Pedido</h2>
+<div class="space-y-space-sm pb-space-md">
+<div class="flex justify-between font-body-md text-body-md text-on-surface-variant">
+<span>Subtotal de artículos</span>
+<span class="text-on-surface font-medium" id="summary-subtotal">610 €</span>
+</div>
+<div class="flex justify-between font-body-md text-body-md text-on-surface-variant">
+<span>Envío estimado</span>
+<span class="text-secondary font-medium" id="summary-shipping">Gratis</span>
+</div>
+<div class="flex justify-between font-body-md text-body-md text-on-surface-variant">
+<span>Impuestos (21% IVA incluido)</span>
+<span class="text-on-surface font-medium" id="summary-tax">105,87 €</span>
+</div>
+</div>
+<div class="pt-space-md bg-surface-container-lowest -mx-space-lg -mb-space-lg p-space-lg rounded-b-xl mt-space-sm">
+<div class="flex justify-between items-baseline mb-space-xs">
+<span class="font-label-caps text-label-caps uppercase text-on-surface tracking-widest font-semibold">Total a Pagar</span>
+<span class="font-headline-md text-headline-md text-on-surface font-medium" id="summary-total">610 €</span>
+</div>
+<span class="font-label-ai text-label-ai text-on-surface-variant block">Moneda de facturación: EUR (€). Sin comisiones ocultas.</span>
+</div>
+</section>
+<!-- Luxury Guarantees & Features -->
+<section class="bg-surface-container-low p-space-lg rounded-xl shadow-sm space-y-space-md">
+<div class="flex items-start gap-space-sm">
+<div class="p-2 bg-surface-container-lowest rounded-full text-on-surface flex-shrink-0">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface text-base">Garantía de Satisfacción 30 Días</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Devolución gratuita a domicilio sin preguntas con recogida programada en conserjería.</p>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<div class="p-2 bg-surface-container-lowest rounded-full text-on-surface flex-shrink-0">
+<span class="material-symbols-outlined text-lg">view_in_ar</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface text-base">Probador Virtual y Cambios 1-Click</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Tu cuenta vinculada almacena tu silueta digital 3D para solicitar ajustes o tallas de reemplazo inmediatas.</p>
+</div>
+</div>
+<div class="flex items-start gap-space-sm">
+<div class="p-2 bg-surface-container-lowest rounded-full text-on-surface flex-shrink-0">
+<span class="material-symbols-outlined text-lg">shield</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface text-base">Autenticidad &amp; Pago Seguro</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Certificado de trazabilidad y custodia de datos bajo encriptación bancaria de grado militar.</p>
+</div>
+</div>
+</section>
+<!-- Editorial Quote Micro-card -->
+<div class="p-space-md bg-secondary-container rounded-lg">
+<p class="font-headline-sm text-headline-sm text-on-secondary-fixed text-sm italic">
+          “La elegancia reside en la precisión de las formas y en la ausencia de fricción.”
+        </p>
+<span class="font-label-caps text-label-caps text-on-secondary-fixed-variant uppercase mt-1 block">Atelier LUMEN • Cuaderno de Curation</span>
+</div>
+</div>
+</div>
+<!-- Order Confirmation Modal (Hidden by Default) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-space-md bg-black/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300" id="confirmation-modal">
+<div class="bg-surface-container-lowest max-w-lg w-full p-space-xl rounded-xl shadow-2xl relative transform scale-95 transition-transform duration-300" id="modal-card">
+<!-- Close Button -->
+<button aria-label="Cerrar modal" class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" onclick="closeConfirmation()" type="button">
+<span class="material-symbols-outlined">close</span>
+</button>
+<!-- Icon & Status -->
+<div class="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center mb-space-md mx-auto">
+<span class="material-symbols-outlined text-2xl text-primary">done_all</span>
+</div>
+<div class="text-center mb-space-lg">
+<span class="font-label-caps text-label-caps text-secondary tracking-widest uppercase block mb-1">Pago Simulado Exitoso</span>
+<h2 class="font-headline-lg text-headline-md text-on-surface">¡Gracias por tu compra, Alexandra!</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-2">
+          Tu orden ha sido procesada con éxito en el simulador. Hemos generado tu nueva cuenta de cliente con acceso completo.
+        </p>
+</div>
+<!-- Tracking & Account Summary Box -->
+<div class="bg-surface-container-low p-space-md rounded-lg space-y-space-sm mb-space-lg">
+<div class="flex justify-between items-center pb-2 border-b border-primary/10">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Número de Seguimiento</span>
+<span class="font-label-caps text-label-caps text-on-surface font-bold text-sm tracking-wider">#LUM-8921</span>
+</div>
+<div class="flex justify-between items-center pb-2 border-b border-primary/10">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Cuenta LUMEN Creada</span>
+<span class="font-body-sm text-body-sm text-on-surface font-medium">alexandra.vance@studio.com</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Entrega Prevista</span>
+<span class="font-body-sm text-body-sm text-on-surface font-medium">24 - 48 Horas Hábiles</span>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="flex flex-col sm:flex-row gap-space-sm">
+<button class="flex-1 py-space-sm px-space-md bg-primary text-on-primary font-label-caps text-label-caps uppercase tracking-wider text-center rounded hover:bg-neutral-800 transition-colors" onclick="closeConfirmation()" type="button">
+          Rastrear en Mi Perfil
+        </button>
+<button class="flex-1 py-space-sm px-space-md bg-surface-container-high text-on-surface font-label-caps text-label-caps uppercase tracking-wider text-center rounded hover:bg-surface-container-highest transition-colors" onclick="closeConfirmation()" type="button">
+          Volver a Colección
+        </button>
+</div>
+</div>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+    let shippingCost = 0;
+    const itemsData = {
+      'item-1': { price: 420, qty: 1 },
+      'item-2': { price: 190, qty: 1 }
+    };
+
+    function recalculateTotal() {
+      let subtotal = 0;
+      for (const key in itemsData) {
+        subtotal += itemsData[key].price * itemsData[key].qty;
+      }
+
+      const total = subtotal + shippingCost;
+      const tax = (total * 0.21 / 1.21).toFixed(2);
+
+      const subtotalEl = document.getElementById('summary-subtotal');
+      const totalEl = document.getElementById('summary-total');
+      const taxEl = document.getElementById('summary-tax');
+      const shippingEl = document.getElementById('summary-shipping');
+
+      if (subtotalEl) subtotalEl.textContent = `${subtotal} €`;
+      if (totalEl) totalEl.textContent = `${total} €`;
+      if (taxEl) taxEl.textContent = `${tax.replace('.', ',')} €`;
+      if (shippingEl) shippingEl.textContent = shippingCost === 0 ? 'Gratis' : `+${shippingCost} €`;
+    }
+
+    function updateQty(id, delta, unitPrice, subtotalId) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      let qty = parseInt(el.textContent, 10) + delta;
+      if (qty < 1) qty = 1;
+      el.textContent = qty;
+
+      const itemKey = id.replace('-qty', '');
+      if (itemsData[itemKey]) {
+        itemsData[itemKey].qty = qty;
+      }
+
+      const subtotalEl = document.getElementById(subtotalId);
+      if (subtotalEl) {
+        subtotalEl.textContent = `${qty * unitPrice} €`;
+      }
+      recalculateTotal();
+    }
+
+    function removeItem(rowId, price) {
+      const element = document.getElementById(rowId);
+      if (element) {
+        element.style.opacity = '0';
+        element.style.transform = 'translateY(-8px)';
+        element.style.transition = 'all 0.25s ease';
+        setTimeout(() => {
+          element.remove();
+          delete itemsData[rowId];
+          recalculateTotal();
+        }, 250);
+      }
+    }
+
+    function updateShipping(cost) {
+      shippingCost = cost;
+      recalculateTotal();
+    }
+
+    function togglePasswordField() {
+      const toggle = document.getElementById('create-account-toggle');
+      const container = document.getElementById('password-container');
+      if (!container || !toggle) return;
+      if (toggle.checked) {
+        container.classList.remove('hidden');
+      } else {
+        container.classList.add('hidden');
+      }
+    }
+
+    function selectPaymentMethod(type) {
+      const tabCard = document.getElementById('tab-card');
+      const tabApple = document.getElementById('tab-apple');
+      const tabBizum = document.getElementById('tab-bizum');
+      const cardContent = document.getElementById('payment-card-content');
+      const altContent = document.getElementById('payment-alt-content');
+      const altTitle = document.getElementById('alt-title');
+
+      const tabs = [tabCard, tabApple, tabBizum];
+      tabs.forEach(t => {
+        if (!t) return;
+        t.className = 'py-space-sm px-2 text-center rounded bg-surface-container-lowest text-on-surface font-label-caps text-label-caps hover:bg-surface-container transition-all flex items-center justify-center gap-1';
+      });
+
+      if (type === 'card') {
+        tabCard.className = 'py-space-sm px-2 text-center rounded bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center gap-1 transition-all';
+        cardContent.classList.remove('hidden');
+        altContent.classList.add('hidden');
+      } else {
+        const activeTab = type === 'apple' ? tabApple : tabBizum;
+        activeTab.className = 'py-space-sm px-2 text-center rounded bg-primary text-on-primary font-label-caps text-label-caps flex items-center justify-center gap-1 transition-all';
+        cardContent.classList.add('hidden');
+        altContent.classList.remove('hidden');
+        if (altTitle) {
+          altTitle.textContent = type === 'apple' ? 'Apple Pay / Face ID Simulado' : 'Bizum Instantáneo Simulado';
+        }
+      }
+    }
+
+    function executeOrder() {
+      const btn = document.getElementById('submit-order-btn');
+      const text = document.getElementById('btn-text');
+      if (btn && text) {
+        text.textContent = 'Procesando Encriptación...';
+        btn.disabled = true;
+        btn.classList.add('opacity-75');
+      }
+
+      setTimeout(() => {
+        if (btn && text) {
+          text.textContent = 'Confirmar Pedido y Completar Pago Simulado';
+          btn.disabled = false;
+          btn.classList.remove('opacity-75');
+        }
+        openConfirmation();
+      }, 900);
+    }
+
+    function openConfirmation() {
+      const modal = document.getElementById('confirmation-modal');
+      const card = document.getElementById('modal-card');
+      if (!modal || !card) return;
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+      }, 20);
+    }
+
+    function closeConfirmation() {
+      const modal = document.getElementById('confirmation-modal');
+      const card = document.getElementById('modal-card');
+      if (!modal || !card) return;
+      modal.classList.add('opacity-0');
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+    }
+  </script>
+</div></main></body></html>

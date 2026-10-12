@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+
+<html lang="es"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;1,400&amp;family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-error": "#ffffff", "surface-container-lowest": "#ffffff", "outline-variant": "#c4c7c7", "surface-container": "#efeeeb", "surface-container-high": "#e9e8e5", "error": "#ba1a1a", "surface-container-low": "#f4f3f0", "inverse-on-surface": "#f2f1ee", "error-container": "#ffdad6", "primary-fixed-dim": "#c8c6c5", "on-secondary": "#ffffff", "surface-bright": "#faf9f6", "on-secondary-container": "#696159", "on-primary-fixed": "#1c1b1b", "surface-dim": "#dbdad7", "on-primary": "#ffffff", "primary": "#000000", "secondary-fixed": "#ece1d6", "on-secondary-fixed-variant": "#4c463e", "outline": "#747878", "inverse-surface": "#2f312f", "surface-tint": "#5f5e5e", "on-tertiary-fixed-variant": "#3a4951", "surface": "#faf9f6", "secondary": "#655d55", "tertiary-fixed": "#d5e5ef", "on-background": "#1a1c1a", "tertiary-container": "#0e1d25", "on-surface-variant": "#444748", "background": "#faf9f6", "surface-container-highest": "#e3e2e0", "primary-fixed": "#e5e2e1", "on-primary-container": "#858383", "tertiary": "#000000", "secondary-container": "#e9ded3", "on-tertiary-container": "#76868f", "on-secondary-fixed": "#201b14", "on-surface": "#1a1c1a", "on-tertiary-fixed": "#0e1d25", "on-primary-fixed-variant": "#474646", "secondary-fixed-dim": "#cfc5ba", "on-tertiary": "#ffffff", "primary-container": "#1c1b1b", "inverse-primary": "#c8c6c5", "surface-variant": "#e3e2e0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#b9c9d3" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-lg": "1.75rem", "space-md": "1rem", "gutter": "1.5rem", "space-2xl": "5rem", "space-sm": "0.5rem", "margin-md": "3rem", "margin": "1.5rem", "margin-lg": "5rem", "gutter-lg": "2.5rem", "space-xl": "3rem", "space-xs": "0.25rem" }, "fontFamily": { "label-caps": [ "Hanken Grotesk" ], "body-md": [ "Hanken Grotesk" ], "headline-lg": [ "Newsreader" ], "body-lg": [ "Hanken Grotesk" ], "headline-sm": [ "Newsreader" ], "headline-lg-mobile": [ "Newsreader" ], "headline-md": [ "Newsreader" ], "display-hero-mobile": [ "Newsreader" ], "body-sm": [ "Hanken Grotesk" ], "label-ai": [ "Hanken Grotesk" ], "display-hero": [ "Newsreader" ] }, "fontSize": { "label-caps": [ "0.6875rem", { "lineHeight": "1.2", "letterSpacing": "0.14em", "fontWeight": "600" } ], "body-md": [ "0.9375rem", { "lineHeight": "1.55", "letterSpacing": "0", "fontWeight": "400" } ], "headline-lg": [ "3rem", { "lineHeight": "1.15", "letterSpacing": "-0.02em", "fontWeight": "400" } ], "body-lg": [ "1.125rem", { "lineHeight": "1.6", "letterSpacing": "-0.01em", "fontWeight": "300" } ], "headline-sm": [ "1.375rem", { "lineHeight": "1.35", "letterSpacing": "0", "fontWeight": "500" } ], "headline-lg-mobile": [ "2rem", { "lineHeight": "1.2", "letterSpacing": "-0.015em", "fontWeight": "400" } ], "headline-md": [ "2rem", { "lineHeight": "1.25", "letterSpacing": "-0.01em", "fontWeight": "400" } ], "display-hero-mobile": [ "2.75rem", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "400" } ], "body-sm": [ "0.8125rem", { "lineHeight": "1.5", "letterSpacing": "0.01em", "fontWeight": "400" } ], "label-ai": [ "0.6875rem", { "lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "500" } ], "display-hero": [ "4.5rem", { "lineHeight": "1.05", "letterSpacing": "-0.03em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-surface font-body-md text-on-surface antialiased selection:bg-surface-container-highest selection:text-primary"><header class="fixed top-0 inset-x-0 z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="w-full bg-surface-container-low px-gutter py-space-xs"><div class="max-w-[1600px] mx-auto flex items-center justify-between text-on-surface-variant"><div class="hidden md:flex items-center gap-space-sm font-label-caps text-label-caps uppercase"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span><span>LUMEN AI SIZING ENGINE ACTIVE</span></div><div class="w-full md:w-auto text-center font-label-caps text-label-caps uppercase tracking-wider"><span>Envíos de cortesía y probador dimensional virtual asistido</span></div><div class="hidden md:flex items-center gap-space-md font-label-caps text-label-caps uppercase"><span class="hover:text-on-surface transition-colors cursor-pointer">Concierge</span><span>ESP / EUR</span></div></div></div><div class="h-20 max-w-[1600px] mx-auto px-margin lg:px-margin-lg flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-md"><img alt="LUMEN STUDIO Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC07uZ7ELwIqosNfcn5eZhz3fxrYaEut74b4mJ70DNLzv0YxINXf1hNnmcXKO0t2avFXEVZG8aWVMkK-3rouPYVrzNe-nXxWn27eaUpp5cVBlMiYn6g3wvbYX3BD5VHWv4mFOL6jyduoW1O3gEcpHSfV2IJf3F0df6NCciBO9uIV1vOeB3FaM6jr1GopZzeKYMIleE5MAGAZiDCaTdFdYuVGvDYUmSW8Ow2wGpQk_PdWuwqRAlGsKua"/><span class="font-headline-sm text-headline-sm uppercase tracking-tight text-on-surface hidden sm:inline-block">LUMEN STUDIO</span></div><nav class="hidden lg:flex items-center gap-gutter" data-active-classes="text-on-surface font-medium border-b border-primary pb-0.5"><a class="font-label-caps text-label-caps uppercase text-on-surface-variant hover:text-on-surface transition-colors" data-path="coleccion" href="#">Colección</a><a class="font-label-caps text-label-caps uppercase text-on-surface-variant hover:text-on-surface transition-colors" data-path="novedades" href="#">Novedades</a><a aria-current="page" class="uppercase transition-colors text-on-surface font-medium border-b border-primary pb-0.5" data-path="prendas" href="#">Prendas</a><a class="font-label-caps text-label-caps uppercase text-on-surface-variant hover:text-on-surface transition-colors" data-path="probador-ia" href="#">Probador IA</a><a class="font-label-caps text-label-caps uppercase text-on-surface-variant hover:text-on-surface transition-colors" data-path="editorial" href="#">Editorial</a></nav><div class="flex items-center gap-space-md"><div class="relative hidden sm:flex items-center"><input class="w-44 md:w-56 bg-transparent border-b border-outline-variant py-space-xs font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-colors" placeholder="Buscar archivo o fibra..." type="search"/><button aria-label="Buscar" class="absolute right-0 text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]">search</span></button></div><button class="flex items-center gap-space-xs px-space-md py-space-sm bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-ai text-label-ai uppercase"><span class="material-symbols-outlined text-[16px]">auto_awesome</span><span class="hidden md:inline">Estilista IA</span></button><button aria-label="Cesta de compra" class="relative p-space-sm text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">shopping_bag</span><span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary text-on-primary font-label-caps text-[0.625rem] flex items-center justify-center leading-none">0</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-surface"><div class="flex flex-col w-full">
+<!-- Top Utility Ribbon / AI Status & Breadcrumbs -->
+<section class="w-full bg-surface-container-low py-space-sm px-margin lg:px-margin-lg">
+<div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-space-sm text-on-surface-variant font-label-caps text-label-caps tracking-wider uppercase">
+<div class="flex items-center gap-space-xs">
+<a class="hover:text-primary transition-colors" href="#">Colección Otoño/Invierno</a>
+<span>/</span>
+<a class="hover:text-primary transition-colors" href="#">Sastrería de Autor</a>
+<span>/</span>
+<span class="text-primary font-medium">Ref. LM-BLZ-094</span>
+</div>
+<div class="flex items-center gap-space-md">
+<span class="inline-flex items-center gap-space-xs bg-surface-container-highest px-space-sm py-space-xs text-primary font-label-ai text-label-ai">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+          Simulador Dimensional V4.2 Activo
+        </span>
+<span class="hidden sm:inline">Disponibilidad Inmediata Atelier Madrid</span>
+</div>
+</div>
+</section>
+<!-- Product Main Section (Editorial Asymmetrical Grid) -->
+<section class="w-full py-space-lg lg:py-space-xl px-margin lg:px-margin-lg">
+<div class="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg items-start">
+<!-- Left Column: Gallery & Micro-Thumbnails (7 Cols) -->
+<div class="lg:col-span-7 flex flex-col-reverse md:flex-row gap-gutter">
+<!-- Thumbnail strip -->
+<div class="flex md:flex-col gap-space-sm overflow-x-auto md:overflow-visible shrink-0 pb-2 md:pb-0">
+<button class="thumb-btn group relative w-16 h-24 md:w-20 md:h-28 overflow-hidden bg-surface-container focus:outline-none transition-all duration-300 opacity-100 shadow-sm" data-idx="0" onclick="switchHeroImage(0)">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Close-up fashion photography of an oversized merino wool and silk tailored blazer in ash ecru tone draped elegantly over a minimalist pedestal, natural soft light, luxury studio look" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDc4vGInV7hXzuSQGG4S0xmZqVC3oaYoRoLh08AmsiLBQBIH5ly21UtzCxY7Z5H_NEu-xyzgEYN389m2S7S_tDLHynfIO9cDaHGh6TQNRqcL4cBD0EK5jlQZ9NxxBlF8muHBkQtSRkwlZbMBKlE4ijEMfB85Qyb_pnhA-pxdgq6bFYxcw20A7YHMdRn5_lOe1AFVPkDlwDpYN2eChiBHkmlHff7qHZ_TrHRdjrO7Kv1dAbne4JXZrxl"/>
+<span class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors"></span>
+</button>
+<button class="thumb-btn group relative w-16 h-24 md:w-20 md:h-28 overflow-hidden bg-surface-container focus:outline-none transition-all duration-300 opacity-60 hover:opacity-90 shadow-sm" data-idx="1" onclick="switchHeroImage(1)">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Full body lookbook runway photograph of an editorial fashion model walking wearing oversized tailored blazer in light ash ecru and fluid silk trousers, clean architectural background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA3RekjMe-Kl3POcIG36yVVlCx7L8wi3l3KSUukbkLT7PePS5J4F8n9fuE4Ztmk4ZIlASMNHGrEpA3v0sYaFSC4klTdqZufkljs38Y1NyDbS3elEbS7TamylBkVWubus0fDeipBNtbQI_6kA6pISwv_UlyDDxDui37QR2P-SO0GYa6MFHQzHV_RQUfLKhzngp29kKp7t0sdml4xgqFeQ89G2FTMk83uP5vnTwBZ9Ca9ZYX2fbD64YMq"/>
+<span class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors"></span>
+</button>
+<button class="thumb-btn group relative w-16 h-24 md:w-20 md:h-28 overflow-hidden bg-surface-container focus:outline-none transition-all duration-300 opacity-60 hover:opacity-90 shadow-sm" data-idx="2" onclick="switchHeroImage(2)">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Side profile editorial shot of woman wearing structured oversized double-breasted blazer showing silhouette drape and sharp shoulder architecture, muted museum lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsGzCe-lOUbl__3WyAuyBK8fNhQkQ89H5UwN2GNaflpdyaoYYzsQSnuEMQYv_w4DtHUvM9kZQgXkJzuEb07S3USglBGJtq1Of4lA9_48rstNBuvSHKzoAC3zh3ZJeRWtXqDf6zzECKLAAusZCwW00XmdCTXp9vaszj7BL8XBEbK7blRHqDomEEbxbiesqQvYjtxm4A26d8Zg_uyeFn4ytWos5iAFsPO8R0buSOTC9PbphnBDDqtEEY"/>
+<span class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors"></span>
+</button>
+<button class="thumb-btn group relative w-16 h-24 md:w-20 md:h-28 overflow-hidden bg-surface-container focus:outline-none transition-all duration-300 opacity-60 hover:opacity-90 shadow-sm" data-idx="3" onclick="switchHeroImage(3)">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Macro textural detail photograph of woven virgin merino wool blended with raw mulberry silk, horn buttons, handcrafted stitch finish, high contrast textile craftsmanship" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBze72Fp4A_WCjGnZbhUAiioRiMQqlMlPw5084uZuTO9ldO4MYDGLzEaZytyrgxztMX1ivvgyR_h2JlAqruMHGDSVtfhFlzq_WQCFjI0ojUYfOq6xLO9F2YlDXP8IqjqwB2FOaievadrTj7QE52RyVx4QKNfWbb8DGsHsbzjmjHcE6OqY5CsLV3Wvckbu1Ykis4Cev4EEhhcdhHd1BZGiJL_BbzgH4U8p04wjy9IKJWvwr9X8t30_6o"/>
+<span class="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors"></span>
+</button>
+</div>
+<!-- Main Dynamic Hero Frame -->
+<div class="relative flex-1 bg-surface-container overflow-hidden group shadow-sm">
+<div class="relative w-full aspect-[3/4]">
+<img class="w-full h-full object-cover transition-all duration-700 group-hover:scale-[1.02]" data-alt="Editorial lookbook photograph of a woman wearing an oversized luxury tailored blazer in pale ash ecru wool and silk, architectural backdrop, cinematic natural light, minimalist high-end fashion catalog" id="main-product-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5AWzUBYk6LaMYLu9eQgUtuCMlyw7FeAs7nXAtMqifFDT-XYTwzDBKX3cJpbaN0nklcDrlEFq8OP74kw8AcHLsk-O3DrIZCY29hcB4UpHYjRw5e1x-Btri22HjdxdyufFyHV2jiYTEuj6N2LEWGQOOhtwy5hmuiioJ-dBnRPiJafMUHveGIjiUpX3R478MN2wKKn_0096uuGWLeMBdWMjlDe--arFlZfjkGEVZtSkw6gOOKtIOZEsW"/>
+<!-- Badges Floating Overlay -->
+<div class="absolute top-space-md left-space-md flex flex-col gap-space-xs z-10">
+<span class="bg-surface/90 backdrop-blur-md px-space-md py-space-xs font-label-caps text-label-caps text-primary tracking-widest uppercase shadow-sm">
+                Edición Limitada · Atelier 2025
+              </span>
+<span class="inline-flex items-center gap-space-xs bg-surface-container-lowest/80 backdrop-blur-md px-space-sm py-space-xs text-on-surface font-label-ai text-label-ai">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                Densidad Textil: 340 g/m²
+              </span>
+</div>
+<!-- AI Quick Try-on Overlay Trigger Pill -->
+<button class="absolute bottom-space-md right-space-md bg-surface/95 text-on-surface hover:bg-primary hover:text-on-primary transition-all duration-300 backdrop-blur-lg px-space-md py-space-sm shadow-md flex items-center gap-space-sm font-label-ai text-label-ai uppercase tracking-wider group/pill" onclick="scrollToTryOn()">
+<span class="material-symbols-outlined text-[18px] group-hover/pill:rotate-12 transition-transform">auto_awesome</span>
+<span>Ver simulación en tu figura</span>
+</button>
+</div>
+<!-- Subtle Photo Meta strip -->
+<div class="bg-surface-container-low px-space-md py-space-xs flex justify-between items-center text-on-surface-variant font-body-sm text-body-sm">
+<span>Modelo: 178 cm · Talla sugerida: 38 (M)</span>
+<span class="font-label-caps text-label-caps">Corte Unisex Relajado</span>
+</div>
+</div>
+</div>
+<!-- Right Column: Purchasing & Atelier Panel (5 Cols) -->
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+<!-- Header Info -->
+<div class="space-y-space-xs">
+<div class="flex items-center justify-between gap-space-sm">
+<span class="font-label-caps text-label-caps uppercase text-secondary tracking-widest">Sartorial Archives // Ref. LM-BLZ-094</span>
+<!-- Rating -->
+<div class="flex items-center gap-space-xs">
+<div class="flex text-primary">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface font-medium">4.9</span>
+<span class="font-body-sm text-body-sm text-outline">(64 críticas de prensa)</span>
+</div>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight leading-none pt-space-xs">
+            Blazer Oversize Lana Merino &amp; Seda
+          </h1>
+<div class="flex items-baseline gap-space-md pt-space-xs">
+<span class="font-headline-md text-headline-md text-primary font-normal">285 €</span>
+<span class="font-label-caps text-label-caps uppercase text-secondary">Tasas &amp; Envíos Asegurados Incluidos</span>
+</div>
+</div>
+<!-- Description Paragraph -->
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+          Estructura de sastrería desconstruida con hombrera semi-rígida y caída envolvente. Confeccionado artesanalmente en hilatura trazable de lana virgen merino extrafina con filamento de seda morera que otorga un tacto aterciopelado con brillo sutil. Botones de cuerno natural tallados a mano.
+        </p>
+<!-- Color Selector -->
+<div class="space-y-space-sm pt-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps uppercase text-on-surface">Tonalidad: <strong class="font-medium text-primary" id="selected-color-label">Crudo Ceniza</strong></span>
+<span class="font-label-ai text-label-ai text-secondary uppercase">Tintura Ecológica en Frío</span>
+</div>
+<div class="flex items-center gap-space-md">
+<button class="color-btn relative p-1 focus:outline-none transition-transform scale-105" onclick="setColor('Crudo Ceniza', this)" title="Crudo Ceniza">
+<span class="block w-9 h-9 bg-[#E6E3DC] shadow-inner transition-transform"></span>
+<span class="indicator absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-primary"></span>
+</button>
+<button class="color-btn relative p-1 focus:outline-none transition-transform opacity-75 hover:opacity-100" onclick="setColor('Negro Obsidiana', this)" title="Negro Obsidiana">
+<span class="block w-9 h-9 bg-[#171819] shadow-inner transition-transform"></span>
+<span class="indicator hidden absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-primary"></span>
+</button>
+<button class="color-btn relative p-1 focus:outline-none transition-transform opacity-75 hover:opacity-100" onclick="setColor('Tierra Caliza', this)" title="Tierra Caliza">
+<span class="block w-9 h-9 bg-[#C5BBAE] shadow-inner transition-transform"></span>
+<span class="indicator hidden absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-primary"></span>
+</button>
+</div>
+</div>
+<!-- Size Matrix & AI Guidance Callout -->
+<div class="space-y-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps uppercase text-on-surface">Seleccionar Talla</span>
+<button class="flex items-center gap-space-xs font-label-ai text-label-ai uppercase text-secondary hover:text-primary transition-colors" onclick="openSizeGuideModal()">
+<span class="material-symbols-outlined text-[15px]">straighten</span>
+<span>Tabla Biométrica de Medidas</span>
+</button>
+</div>
+<!-- Size options grid -->
+<div class="grid grid-cols-5 gap-space-xs">
+<button class="size-btn py-space-sm text-center bg-surface-container hover:bg-surface-container-high text-on-surface font-label-caps text-label-caps uppercase transition-colors" onclick="selectSize('36 (XS)', this)">
+              36 (XS)
+            </button>
+<button class="size-btn py-space-sm text-center bg-primary text-on-primary font-label-caps text-label-caps uppercase transition-colors relative shadow-sm" onclick="selectSize('38 (S)', this)">
+              38 (S)
+              <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-secondary-fixed"></span>
+</button>
+<button class="size-btn py-space-sm text-center bg-surface-container hover:bg-surface-container-high text-on-surface font-label-caps text-label-caps uppercase transition-colors" onclick="selectSize('40 (M)', this)">
+              40 (M)
+            </button>
+<button class="size-btn py-space-sm text-center bg-surface-container hover:bg-surface-container-high text-on-surface font-label-caps text-label-caps uppercase transition-colors" onclick="selectSize('42 (L)', this)">
+              42 (L)
+            </button>
+<button class="size-btn py-space-sm text-center bg-surface-container-low text-outline-variant font-label-caps text-label-caps uppercase cursor-not-allowed opacity-50 relative overflow-hidden" disabled="">
+              44 (XL)
+              <span class="absolute inset-0 flex items-center justify-center">
+<span class="w-full h-[1px] bg-outline rotate-45"></span>
+</span>
+</button>
+</div>
+<!-- AI Size recommendation card -->
+<div class="bg-surface-container-low p-space-md flex items-start gap-space-md shadow-sm">
+<span class="material-symbols-outlined text-primary text-[22px] shrink-0">fitbit</span>
+<div class="space-y-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-ai text-label-ai text-primary uppercase font-semibold">Predicción LUMEN Size Engine:</span>
+<span class="bg-surface-container-highest text-primary px-space-xs py-0.5 font-label-caps text-[0.625rem]">96% Confiabilidad</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                Para tu complexión habitual (1,76 m / 64 kg) recomendamos la <strong class="text-on-surface font-medium">Talla 38 (S)</strong> si deseas el fit editorial contemporáneo, o <strong class="text-on-surface font-medium">Talla 36 (XS)</strong> para una línea más ajustada al hombro.
+              </p>
+</div>
+</div>
+</div>
+<!-- Primary Action CTA Cluster -->
+<div class="space-y-space-sm pt-space-xs">
+<!-- Standout Virtual Try-on Trigger -->
+<button class="w-full group relative overflow-hidden bg-primary text-on-primary py-space-md px-space-lg flex items-center justify-between shadow-md hover:bg-surface-container-highest hover:text-primary transition-all duration-300" onclick="scrollToTryOn()">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[20px] text-tertiary-fixed group-hover:text-primary animate-pulse">auto_awesome</span>
+<div class="text-left">
+<span class="block font-label-caps text-label-caps tracking-widest uppercase">Probar con Probador Virtual IA</span>
+<span class="block font-body-sm text-[0.75rem] opacity-80 group-hover:opacity-100">Simulación fotorrealista de caída textil en segundos</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
+</button>
+<!-- Standard Add to Bag -->
+<div class="flex gap-space-sm">
+<button class="flex-1 bg-surface-container hover:bg-surface-container-high text-on-surface py-space-md px-space-lg font-label-caps text-label-caps uppercase tracking-wider transition-colors flex items-center justify-center gap-space-sm" id="btn-add-bag" onclick="addToBagFeedback()">
+<span class="material-symbols-outlined text-[18px]">shopping_bag</span>
+<span id="bag-btn-text">Añadir a la Cesta (285 €)</span>
+</button>
+<button aria-label="Añadir a favoritos" class="p-space-md bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+</div>
+</div>
+<!-- Accordions: Craftsmanship, Care & Courier -->
+<div class="space-y-space-xs pt-space-sm">
+<!-- Tab 1 -->
+<details class="group bg-surface-container-low transition-colors duration-200" open="">
+<summary class="flex cursor-pointer items-center justify-between p-space-md font-label-caps text-label-caps uppercase text-on-surface select-none">
+<span>Composición &amp; Cuidados de Taller</span>
+<span class="material-symbols-outlined text-[18px] transition-transform duration-300 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="px-space-md pb-space-md pt-0 font-body-sm text-body-sm text-on-surface-variant space-y-space-xs">
+<p>· 82% Lana virgen merino de pastoreo regenerativo certificado (Origen: Nueva Zelanda).</p>
+<p>· 18% Seda morera natural de acabado satinado mate.</p>
+<p>· Forro interior: 100% Cupro japonés transpirable antiestático.</p>
+<p>· Limpieza en seco especializada en solventes ecológicos. No usar secadora. Planchado al vapor a baja temperatura.</p>
+</div>
+</details>
+<!-- Tab 2 -->
+<details class="group bg-surface-container-low transition-colors duration-200">
+<summary class="flex cursor-pointer items-center justify-between p-space-md font-label-caps text-label-caps uppercase text-on-surface select-none">
+<span>Envíos, Devolución de Cortesía &amp; Embalaje</span>
+<span class="material-symbols-outlined text-[18px] transition-transform duration-300 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="px-space-md pb-space-md pt-0 font-body-sm text-body-sm text-on-surface-variant space-y-space-xs">
+<p>· Envío exprés asegurado en 24-48h con DHL Carbon Neutral.</p>
+<p>· Funda protectora de lino orgánico y percha de madera de haya incluidas sin cargo.</p>
+<p>· Devoluciones gratuitas a domicilio durante 30 días naturales con recogida concierge en su puerta.</p>
+</div>
+</details>
+<!-- Tab 3 -->
+<details class="group bg-surface-container-low transition-colors duration-200">
+<summary class="flex cursor-pointer items-center justify-between p-space-md font-label-caps text-label-caps uppercase text-on-surface select-none">
+<span>Trazabilidad &amp; Neutralidad de Carbono</span>
+<span class="material-symbols-outlined text-[18px] transition-transform duration-300 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="px-space-md pb-space-md pt-0 font-body-sm text-body-sm text-on-surface-variant space-y-space-xs">
+<p>Huella hídrica reducida en un 42% frente a procesos convencionales de tintorería. Confeccionado en series cortas numeradas en talleres artesanales de Oporto y Toledo.</p>
+</div>
+</details>
+</div>
+</div>
+</div>
+</section>
+<!-- Dedicated Virtual Try-On Studio Module (Interactive AI Fitting Room) -->
+<section class="w-full bg-surface-container-low py-space-2xl px-margin lg:px-margin-lg scroll-mt-20" id="tryon-module">
+<div class="max-w-[1600px] mx-auto space-y-space-xl">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md pb-space-md">
+<div class="space-y-space-xs max-w-2xl">
+<div class="flex items-center gap-space-xs font-label-ai text-label-ai text-secondary uppercase tracking-wider">
+<span class="material-symbols-outlined text-[18px]">auto_fix_high</span>
+<span>Probador Virtual Generativo LUMEN VTO-2</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+            Experimenta el drapeado en tu silueta antes de recibir la prenda.
+          </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+            Nuestro motor tensorial recalcula la caída y el pliegue de la lana merino según tu morfología exacta, respetando la iluminación ambiental y el volumen del corte oversize.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Privacidad:</span>
+<span class="font-body-sm text-body-sm bg-surface px-space-sm py-space-xs text-on-surface shadow-sm">
+            Fotografías eliminadas tras el renderizado
+          </span>
+</div>
+</div>
+<!-- Main Try-On Interactive Console -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter-lg bg-surface p-space-md lg:p-space-xl shadow-md">
+<!-- Left Interactive Setup & Input Panel (5 Cols) -->
+<div class="lg:col-span-5 flex flex-col justify-between space-y-space-lg">
+<div class="space-y-space-md">
+<!-- Source Selector Tabs -->
+<div class="flex gap-space-xs bg-surface-container-low p-space-xs">
+<button class="flex-1 py-space-sm text-center font-label-caps text-label-caps uppercase transition-colors bg-surface text-primary shadow-sm" id="tab-btn-upload" onclick="switchTryOnTab('upload')">
+                Subir Foto
+              </button>
+<button class="flex-1 py-space-sm text-center font-label-caps text-label-caps uppercase transition-colors text-on-surface-variant hover:text-on-surface" id="tab-btn-presets" onclick="switchTryOnTab('presets')">
+                Modelos de Muestra
+              </button>
+<button class="flex-1 py-space-sm text-center font-label-caps text-label-caps uppercase transition-colors text-on-surface-variant hover:text-on-surface" id="tab-btn-camera" onclick="switchTryOnTab('camera')">
+                Cámara en Vivo
+              </button>
+</div>
+<!-- TAB 1: Upload Dropzone -->
+<div class="space-y-space-md block" id="panel-upload">
+<div class="border-2 border-dashed border-outline-variant hover:border-primary transition-colors bg-surface-container-lowest p-space-xl text-center cursor-pointer flex flex-col items-center justify-center gap-space-sm group" id="dropzone-box" onclick="simulateUpload()">
+<div class="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-[28px]">cloud_upload</span>
+</div>
+<div class="space-y-space-xs">
+<p class="font-label-caps text-label-caps text-primary uppercase font-semibold">
+                    Arrastra tu foto de cuerpo entero o selfie de pie
+                  </p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                    JPG, PNG o HEIC de alta resolución (máx. 25 MB)
+                  </p>
+</div>
+<span class="font-label-ai text-label-ai text-secondary underline group-hover:text-primary transition-colors">
+                  o haz clic para explorar tus archivos
+                </span>
+</div>
+<div class="bg-surface-container-low p-space-sm flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm">
+<span class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-secondary">lightbulb</span>
+                  Recomendación: fondo despejado y postura erguida.
+                </span>
+<span class="font-label-caps text-[0.625rem] text-primary">Precisión +99%</span>
+</div>
+</div>
+<!-- TAB 2: Model Preset Presets -->
+<div class="space-y-space-sm hidden" id="panel-presets">
+<p class="font-label-caps text-label-caps text-on-surface-variant uppercase">
+                Selecciona una morfología similar a la tuya para prueba inmediata:
+              </p>
+<div class="grid grid-cols-3 gap-space-sm">
+<button class="preset-card group relative aspect-[3/4] bg-surface-container overflow-hidden focus:outline-none ring-2 ring-primary" onclick="selectPresetModel('model1')">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform" data-alt="Full body studio portrait of a woman 174cm wearing minimal neutral base layer top and trousers against clean ivory wall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBn71ml6i-rsCP4kpFvt7fHVxZnkHNDMpYkT_pAW21fiQNDM-tQmHTtC-eyr2Rg4oI0W4iciIOn0ySnbLbJ4rbwlLeSAhhZ6INgNVrJ-1Cm_oSAz4k1CFA3AetgVcjpi0_x1ECslJA5iJsXwT6vlX_Toz5ovxAvr9BLhRNjTR5WHUdIfiDrAyHScRlX9ItChKYl_FYDgY4vaqdd4yfLBdLlsLwti3uFUrJl02uoC1abT4PD6ZiIm4N5"/>
+<div class="absolute inset-x-0 bottom-0 bg-primary/80 backdrop-blur-sm p-1 text-center font-label-caps text-[0.625rem] text-on-primary">
+                    174 cm · Silueta A
+                  </div>
+</button>
+<button class="preset-card group relative aspect-[3/4] bg-surface-container overflow-hidden focus:outline-none hover:ring-1 hover:ring-primary" onclick="selectPresetModel('model2')">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform" data-alt="Full body studio portrait of a woman 168cm with athletic proportions in minimal white base tank top against warm grey wall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjab3t9aV4c2e89hZp3EMJhdiPMPUin168JlP8wsSOynvQQtwjabmFquT3Bz-sHSbcZS2FzXp43gHpvr6RGRSJipwjiBxCebntLhlKxy-W1e-N5UyMXcGdcEH5ewSSpzY5Gnpg_-E2EXx9rJ_LvqxgpwlHWCSvuylicPE_gk0KtRXhpossazFqcEDQys0Q8r-cpfYi_JEZGVORFezgKTqFlzm4_l3g7jgJnJlEPmMZz5Q9qzpcvaXy"/>
+<div class="absolute inset-x-0 bottom-0 bg-primary/80 backdrop-blur-sm p-1 text-center font-label-caps text-[0.625rem] text-on-primary">
+                    168 cm · Silueta H
+                  </div>
+</button>
+<button class="preset-card group relative aspect-[3/4] bg-surface-container overflow-hidden focus:outline-none hover:ring-1 hover:ring-primary" onclick="selectPresetModel('model3')">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform" data-alt="Full body studio portrait of a tall slender woman 182cm wearing black seamless bodysuit against minimal studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgws5PpHoUxHuhSxKZRqU565f7PlsLqJzmWWfKx0vG6sHaRyYRrUgG8p-DTX5x7e7fxSzNpeyQU1v-s01fjru2AmzlMLMgWvLLb3rOhEBNVQWNDSTfql1QsFRJpQVQb2_77t8OgHdt3hU3Ih4k0O9-8msNFbCKLwIPrdcS8pw0940vu0w9XmKUtr-0YL_ujCeYe9c4hq8Cohg2QeqF2QjLqIaadbiFt5D8kTWpN52vEXKk5_lhsh9o"/>
+<div class="absolute inset-x-0 bottom-0 bg-primary/80 backdrop-blur-sm p-1 text-center font-label-caps text-[0.625rem] text-on-primary">
+                    182 cm · Silueta V
+                  </div>
+</button>
+</div>
+</div>
+<!-- TAB 3: Live Camera -->
+<div class="space-y-space-md hidden text-center p-space-lg bg-surface-container-lowest" id="panel-camera">
+<div class="w-16 h-16 rounded-full bg-surface-container mx-auto flex items-center justify-center">
+<span class="material-symbols-outlined text-[32px] text-primary">videocam</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface">
+                Activa tu cámara web para un escaneo posicional de cuerpo entero con sensor de profundidad.
+              </p>
+<button class="bg-primary text-on-primary px-space-lg py-space-sm font-label-caps text-label-caps uppercase hover:bg-surface-container-highest hover:text-primary transition-colors" onclick="simulateCameraFeed()">
+                Permitir Cámara y Calibrar
+              </button>
+</div>
+</div>
+<!-- Parameter Controls in Try-On -->
+<div class="space-y-space-md bg-surface-container-low p-space-md">
+<span class="font-label-caps text-label-caps uppercase text-on-surface block font-semibold">Parámetros de Simulación</span>
+<div class="grid grid-cols-2 gap-space-md">
+<div>
+<label class="font-label-caps text-[0.6875rem] text-on-surface-variant uppercase block mb-1">Color a probar</label>
+<select class="w-full bg-surface border-0 p-space-sm font-body-sm text-body-sm text-on-surface focus:outline-none shadow-sm" id="vto-color-select" onchange="triggerReRender()">
+<option value="crudo">Crudo Ceniza</option>
+<option value="negro">Negro Obsidiana</option>
+<option value="tierra">Tierra Caliza</option>
+</select>
+</div>
+<div>
+<label class="font-label-caps text-[0.6875rem] text-on-surface-variant uppercase block mb-1">Talla a simular</label>
+<select class="w-full bg-surface border-0 p-space-sm font-body-sm text-body-sm text-on-surface focus:outline-none shadow-sm" id="vto-size-select" onchange="triggerReRender()">
+<option value="36">36 (XS) - Ajuste Fino</option>
+<option selected="" value="38">38 (S) - Caída Recomendada</option>
+<option value="40">40 (M) - Oversize Extremo</option>
+</select>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary py-space-md px-space-md font-label-caps text-label-caps uppercase flex items-center justify-center gap-space-sm hover:bg-surface-container-highest hover:text-primary transition-colors shadow-sm" id="btn-run-simulation" onclick="startAiSimulation()">
+<span class="material-symbols-outlined text-[18px]">motion_photos_auto</span>
+<span>Generar Simulación Fotorrealista</span>
+</button>
+</div>
+</div>
+<!-- Right Realistic Simulation Viewport & Compare Split (7 Cols) -->
+<div class="lg:col-span-7 flex flex-col gap-space-md">
+<div class="relative w-full aspect-[4/5] bg-surface-container overflow-hidden shadow-inner select-none" id="vto-stage">
+<!-- Real-time Loading Overlay State (Hidden by default, toggled via JS) -->
+<div class="hidden absolute inset-0 z-30 bg-surface/90 backdrop-blur-md flex flex-col items-center justify-center gap-space-md p-space-xl text-center" id="vto-loading">
+<div class="w-16 h-16 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+<div class="space-y-space-xs">
+<span class="font-label-ai text-label-ai uppercase tracking-wider text-primary block">Cálculo de drapeado tensorial</span>
+<p class="font-headline-sm text-headline-sm text-on-surface" id="loading-progress-text">Ajustando caída del tejido y proporciones...</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Calibrando refracción de seda morera y tensión de hombreras (Paso 3/4)</p>
+</div>
+<div class="w-64 h-1 bg-surface-container-high overflow-hidden">
+<div class="h-full bg-primary animate-pulse w-3/4 transition-all duration-300"></div>
+</div>
+</div>
+<!-- Base Canvas Images (Compare Slider Container) -->
+<div class="relative w-full h-full" id="slider-container">
+<!-- Rendered After (Virtual Try-on Applied) -->
+<div class="absolute inset-0 w-full h-full">
+<img class="w-full h-full object-cover" data-alt="Photorealistic virtual try-on render of a woman wearing the oversized ash ecru wool and silk blazer, perfectly draped around shoulders and torso with natural fabric creases and studio shadow" id="vto-after-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBldf9R0nJ8RnHSjcPd_jOn3Ky5mMrdcBkpVXWF8h19zmKo6BvYoa3uzhTGXyvu6nebMHQesJEtHZc1P0VqjHJG5Pps-dKvV8sqQJp-AVGzDtvnASeehWegVcrWuwT1rLziZbIqXDPog8V4pD26-pRGwv1h7TIpcS5GQFi2uFqiL2ljmRGFW2ORSyJzmQdAHo2dA70ItFX3qKZDi5gAtJ4uxB_K6nmD1fBuOewVjoET_LILzkBtr0cH"/>
+<span class="absolute top-space-md right-space-md bg-surface/90 backdrop-blur-md px-space-sm py-space-xs font-label-caps text-[0.625rem] text-primary uppercase shadow-sm">
+                  Simulación IA · Talla 38 (S)
+                </span>
+</div>
+<!-- Before Image with Clip Path controlled by divider -->
+<div class="absolute inset-0 w-full h-full overflow-hidden transition-all duration-75" id="before-wrapper" style="width: 50%;">
+<img class="absolute inset-0 max-w-none w-full h-full object-cover" data-alt="Studio photograph of a person wearing a simple neutral off-white mock neck top and tailored base trousers standing upright before trying on the jacket" id="vto-before-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9TwhmeuBqaSHvhQYqtaVldmMRWmvF-wfb70VMLkCgZabBLGfC69Y9JajQvH0ypGX6TttV-RBTumCbBwpmdpOVhEa92YKaifFNMErFM0fiWEjhmS7Y2U4S7A3TaWEmTA1XVzKFAW0Ns6WbHePf4KGcjYXAQsfM5qzJkpgTBAcACsn_xKgqH7pZJPuVOwaCFaVEVNMKJyilBO30hkQakaxAkqfOsyql0m1P11Ltl7Pe3lX14ZPSnJUO" style="width: 200%; max-width: none;"/>
+<span class="absolute top-space-md left-space-md bg-primary/80 backdrop-blur-md px-space-sm py-space-xs font-label-caps text-[0.625rem] text-on-primary uppercase shadow-sm">
+                  Tu Foto Original
+                </span>
+</div>
+<!-- Interactive Drag Handle Divider -->
+<div class="absolute top-0 bottom-0 w-0.5 bg-on-surface cursor-ew-resize z-20 flex items-center justify-center" id="slider-handle" style="left: 50%;">
+<div class="w-8 h-8 rounded-full bg-surface shadow-lg flex items-center justify-center text-primary border border-outline-variant hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</div>
+</div>
+</div>
+<!-- Floating Micro Metric HUD on Top -->
+<div class="absolute bottom-space-md left-space-md right-space-md z-10 flex flex-wrap items-center justify-between gap-space-sm pointer-events-none">
+<div class="bg-surface/90 backdrop-blur-md px-space-md py-space-xs flex items-center gap-space-md shadow-sm pointer-events-auto">
+<div>
+<span class="font-label-caps text-[0.625rem] text-secondary uppercase block">Holgura en Busto</span>
+<span class="font-body-sm text-body-sm font-semibold text-primary">+5.2 cm (Óptima)</span>
+</div>
+<div class="w-px h-6 bg-outline-variant"></div>
+<div>
+<span class="font-label-caps text-[0.625rem] text-secondary uppercase block">Largo Manga</span>
+<span class="font-body-sm text-body-sm font-semibold text-primary">Sobre muñeca (100%)</span>
+</div>
+</div>
+<span class="bg-surface/90 backdrop-blur-md px-space-sm py-space-xs font-label-ai text-label-ai text-secondary pointer-events-auto">
+                Desliza la barra para comparar
+              </span>
+</div>
+</div>
+<!-- Post Simulation Bottom Controls -->
+<div class="flex flex-wrap items-center justify-between gap-space-md pt-space-xs">
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-space-sm bg-surface-container hover:bg-surface-container-high text-on-surface font-label-caps text-label-caps uppercase transition-colors flex items-center gap-space-xs" onclick="saveLookNotification()">
+<span class="material-symbols-outlined text-[16px]">file_download</span>
+<span>Guardar Look en Archivo</span>
+</button>
+<button class="p-space-sm bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors" onclick="shareLookModal()" title="Compartir estilismo">
+<span class="material-symbols-outlined text-[18px]">share</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="bg-primary text-on-primary hover:bg-surface-container-highest hover:text-primary transition-colors px-space-lg py-space-sm font-label-caps text-label-caps uppercase flex items-center gap-space-xs shadow-sm" onclick="directCheckoutVTO()">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span>Comprar Talla Recomendada (38)</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Complete the Look / Stylist AI Recommendations -->
+<section class="w-full py-space-2xl px-margin lg:px-margin-lg">
+<div class="max-w-[1600px] mx-auto space-y-space-xl">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-sm pb-space-md">
+<div class="space-y-space-xs">
+<div class="flex items-center gap-space-xs font-label-ai text-label-ai text-secondary uppercase">
+<span class="material-symbols-outlined text-[16px]">auto_awesome</span>
+<span>Comisariado Algorítmico de Armario Cápsula</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">
+            Coordinados por Stylist IA
+          </h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-xl">
+            Piezas seleccionadas en sintonía tonal, peso de caída y compatibilidad volumétrica para acompañar al Blazer Oversize de lana merino.
+          </p>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-caps text-label-caps uppercase text-secondary">Estilo Sugerido:</span>
+<span class="font-label-caps text-label-caps uppercase text-primary font-semibold">Minimalismo Arquitectónico 03</span>
+</div>
+</div>
+<!-- Coordinated Products 3-Column Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter-lg">
+<!-- Rec Card 1 -->
+<div class="group flex flex-col bg-surface shadow-sm">
+<div class="relative aspect-[3/4] bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="High fashion photograph of wide leg fluid trousers in charcoal virgin wool with high waist tailoring matching with an oversized ecru blazer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCoCcdXCdKG7X-jYRgVn_N8ZjpGe3WMfvaJJT7H6HcAmO6Rnc28wB8GHPnkutKFnHkqea4CPQ3NvLxSFFE03kPM4KNetsCmzppiVPNkGSe77WnAIrNQbvguGks12kxM2onje46x27sCA5jEtwyML4n_qH6M8vZ6YOtyCd7pgQDLyv-RGBMJ4mlJ3iS2S8BnjzpESO6cWwotKnjy70fixZKwoEYmEWQ5KBpFXYmPuqE9iMB_6T47mTe3"/>
+<div class="absolute top-space-sm left-space-sm bg-surface/90 backdrop-blur-md px-space-sm py-space-xs font-label-caps text-[0.625rem] text-primary uppercase">
+              Match 98% · Contraste Tonal
+            </div>
+<button class="absolute bottom-space-sm right-space-sm bg-primary text-on-primary w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md" onclick="quickAddCoord('Pantalón Fluido Plisado')">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="p-space-md flex flex-col justify-between flex-1 space-y-space-xs">
+<div class="flex justify-between items-baseline">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Pantalón Sartorial</span>
+<span class="font-body-sm text-body-sm font-semibold text-primary">195 €</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Pantalón Fluido Doble Pliegue</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Lana fría merino de 180 g/m² con caída recta prolongada.</p>
+<div class="pt-space-xs font-label-ai text-label-ai text-secondary uppercase">
+              Stylist Note: Equilibra la silueta amplia de los hombros.
+            </div>
+</div>
+</div>
+<!-- Rec Card 2 -->
+<div class="group flex flex-col bg-surface shadow-sm">
+<div class="relative aspect-[3/4] bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Still life editorial luxury photograph of a fine rib knit turtleneck sweater in off-white cashmere and silk draped on minimalist block" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnECRe79joLSIaYletFxkisstEM75Sg3R8PLI3G4daqpTPQ4u3ILBev86NPz8lSzBRMRT1mTulPnVOAGN4UY5H8WE6BIwGRr7kkNG2DfKCA68Qrc3v2VvEeHiix3sv1A5n6OLIZI-WBajoNkqFUjZQHv7EcP77DqCS8n6gVkBnkPjg78KkoGay59bRawAwL_7qi7GjH8_DivDuU2jrXQVsVUQ390mDICHh0Sa-WOWxBkAI_8Fn4Z1J"/>
+<div class="absolute top-space-sm left-space-sm bg-surface/90 backdrop-blur-md px-space-sm py-space-xs font-label-caps text-[0.625rem] text-primary uppercase">
+              Match 99% · Base Ideal
+            </div>
+<button class="absolute bottom-space-sm right-space-sm bg-primary text-on-primary w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md" onclick="quickAddCoord('Cuello Vuelto Cachemira')">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="p-space-md flex flex-col justify-between flex-1 space-y-space-xs">
+<div class="flex justify-between items-baseline">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Punto de Autor</span>
+<span class="font-body-sm text-body-sm font-semibold text-primary">160 €</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Jersey Cuello Alto Seda &amp; Cachemira</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Punto canalé fino con tacto segunda piel ultra transpirable.</p>
+<div class="pt-space-xs font-label-ai text-label-ai text-secondary uppercase">
+              Stylist Note: Capa base sin abultar el corte de la sisa.
+            </div>
+</div>
+</div>
+<!-- Rec Card 3 -->
+<div class="group flex flex-col bg-surface shadow-sm">
+<div class="relative aspect-[3/4] bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Fashion product still photograph of architectural black leather square-toe boots with stacked block heel on warm limestone floor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXs2Y-bciJzmKedAwGmvfQLVv9V53GQohE_enOoyqWOcdqF9ASrtlMtkedVxPUSnEB-Z7Z1GPv0OnxpNt2UugpMmx8pZA7V5jeusXxgi2GshnrDjl8dX9OMl1-Bfkz9yXuDfaMLtQi8reSl4WAwrcRFLRXGOwvxVuKcQz4Thmc26h9m-QzJ2MtbBmwQgw6oaj6GxmI7ruVu3VF4mj2ldRxExOwXqR7tio65dJNk5zMUhFyEE4Wfd2F"/>
+<div class="absolute top-space-sm left-space-sm bg-surface/90 backdrop-blur-md px-space-sm py-space-xs font-label-caps text-[0.625rem] text-primary uppercase">
+              Match 94% · Geometría Pura
+            </div>
+<button class="absolute bottom-space-sm right-space-sm bg-primary text-on-primary w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md" onclick="quickAddCoord('Botín Geométrico Cuero')">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+<div class="p-space-md flex flex-col justify-between flex-1 space-y-space-xs">
+<div class="flex justify-between items-baseline">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Calzado Escultórico</span>
+<span class="font-body-sm text-body-sm font-semibold text-primary">340 €</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Botín Puntera Cuadrada Nappa</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Piel curtida vegetal de curtidores florentinos con tacón bloque de 45 mm.</p>
+<div class="pt-space-xs font-label-ai text-label-ai text-secondary uppercase">
+              Stylist Note: Aporta peso y aplomo a la caída del blazer.
+            </div>
+</div>
+</div>
+</div>
+<!-- Complete Bundle CTA Box -->
+<div class="bg-surface-container p-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md shadow-sm">
+<div class="space-y-space-xs text-center md:text-left">
+<span class="font-label-caps text-label-caps uppercase text-primary font-semibold">Cápsula Editorial Completa (4 Piezas)</span>
+<p class="font-body-md text-body-md text-on-surface-variant">
+            Adquiere el total look (Blazer + Pantalón + Jersey + Botines) con cortesía especial de estilismo privado y funda de viaje de atelier.
+          </p>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="text-right hidden sm:block">
+<span class="font-headline-sm text-headline-sm text-primary">980 €</span>
+<span class="font-body-sm text-[0.75rem] text-secondary line-through block">1.180 €</span>
+</div>
+<button class="bg-primary text-on-primary hover:bg-surface-container-highest hover:text-primary transition-colors py-space-md px-space-lg font-label-caps text-label-caps uppercase whitespace-nowrap shadow-sm" onclick="addFullBundle()">
+            Adquirir Cápsula Coordinada
+          </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Notification Toast Floater (Dynamic Micro-Interaction) -->
+<div class="fixed bottom-space-lg right-space-lg z-50 bg-primary text-on-primary px-space-lg py-space-md shadow-2xl flex items-center gap-space-sm transform translate-y-32 opacity-0 transition-all duration-300 pointer-events-none" id="vto-toast">
+<span class="material-symbols-outlined text-[20px] text-tertiary-fixed">check</span>
+<span class="font-body-sm text-body-sm tracking-wide" id="toast-message">Prenda añadida a la cesta</span>
+</div>
+<!-- Inline Micro-Interactions Script -->
+<script>
+    // 1. Image Thumbnail Switcher
+    const heroImage = document.getElementById('main-product-img');
+    const thumbButtons = document.querySelectorAll('.thumb-btn');
+    
+    function switchHeroImage(index) {
+      thumbButtons.forEach((btn, i) => {
+        if (i === index) {
+          btn.classList.add('opacity-100');
+          btn.classList.remove('opacity-60');
+        } else {
+          btn.classList.remove('opacity-100');
+          btn.classList.add('opacity-60');
+        }
+      });
+      // Gentle opacity flicker for visual feedback
+      if (heroImage) {
+        heroImage.style.opacity = '0.5';
+        setTimeout(() => {
+          heroImage.style.opacity = '1';
+        }, 150);
+      }
+    }
+
+    // 2. Color Selection
+    function setColor(colorName, btnElem) {
+      document.getElementById('selected-color-label').innerText = colorName;
+      document.querySelectorAll('.color-btn').forEach(btn => {
+        btn.classList.remove('scale-105');
+        btn.classList.add('opacity-75');
+        const ind = btn.querySelector('.indicator');
+        if (ind) ind.classList.add('hidden');
+      });
+      btnElem.classList.add('scale-105');
+      btnElem.classList.remove('opacity-75');
+      const ind = btnElem.querySelector('.indicator');
+      if (ind) ind.classList.remove('hidden');
+
+      // Sync with Virtual Try-On dropdown if matching
+      const vtoSelect = document.getElementById('vto-color-select');
+      if (vtoSelect) {
+        if (colorName.includes('Crudo')) vtoSelect.value = 'crudo';
+        if (colorName.includes('Negro')) vtoSelect.value = 'negro';
+        if (colorName.includes('Caliza')) vtoSelect.value = 'tierra';
+      }
+      showToast('Tonalidad cambiada a: ' + colorName);
+    }
+
+    // 3. Size Selection
+    function selectSize(sizeName, btnElem) {
+      document.querySelectorAll('.size-btn').forEach(btn => {
+        if (!btn.disabled) {
+          btn.className = 'size-btn py-space-sm text-center bg-surface-container hover:bg-surface-container-high text-on-surface font-label-caps text-label-caps uppercase transition-colors';
+        }
+      });
+      btnElem.className = 'size-btn py-space-sm text-center bg-primary text-on-primary font-label-caps text-label-caps uppercase transition-colors relative shadow-sm';
+      showToast('Talla seleccionada: ' + sizeName);
+    }
+
+    // 4. Smooth Scroll to Virtual Try On
+    function scrollToTryOn() {
+      const el = document.getElementById('tryon-module');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // 5. Try-On Tab Switching
+    function switchTryOnTab(tabId) {
+      const tabs = ['upload', 'presets', 'camera'];
+      tabs.forEach(t => {
+        const panel = document.getElementById('panel-' + t);
+        const btn = document.getElementById('tab-btn-' + t);
+        if (t === tabId) {
+          panel.classList.remove('hidden');
+          panel.classList.add('block');
+          btn.className = 'flex-1 py-space-sm text-center font-label-caps text-label-caps uppercase transition-colors bg-surface text-primary shadow-sm';
+        } else {
+          panel.classList.add('hidden');
+          panel.classList.remove('block');
+          btn.className = 'flex-1 py-space-sm text-center font-label-caps text-label-caps uppercase transition-colors text-on-surface-variant hover:text-on-surface';
+        }
+      });
+    }
+
+    // 6. Interactive Before / After Split Slider
+    const sliderContainer = document.getElementById('slider-container');
+    const beforeWrapper = document.getElementById('before-wrapper');
+    const sliderHandle = document.getElementById('slider-handle');
+    let isDragging = false;
+
+    function setSliderPos(xPct) {
+      const clamped = Math.max(5, Math.min(95, xPct));
+      if (beforeWrapper) beforeWrapper.style.width = clamped + '%';
+      if (sliderHandle) sliderHandle.style.left = clamped + '%';
+    }
+
+    if (sliderContainer) {
+      const handleMove = (e) => {
+        if (!isDragging) return;
+        const rect = sliderContainer.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const offset = clientX - rect.left;
+        const pct = (offset / rect.width) * 100;
+        setSliderPos(pct);
+      };
+
+      sliderContainer.addEventListener('mousedown', () => isDragging = true);
+      window.addEventListener('mouseup', () => isDragging = false);
+      sliderContainer.addEventListener('mousemove', handleMove);
+
+      sliderContainer.addEventListener('touchstart', () => isDragging = true);
+      window.addEventListener('touchend', () => isDragging = false);
+      sliderContainer.addEventListener('touchmove', handleMove);
+    }
+
+    // 7. Virtual Simulation Loading State Trigger
+    function startAiSimulation() {
+      const loading = document.getElementById('vto-loading');
+      const progressText = document.getElementById('loading-progress-text');
+      if (!loading) return;
+      loading.classList.remove('hidden');
+
+      const messages = [
+        "Escaneando postura corporal y puntos articulares...",
+        "Calculando peso de lana merino (340 g/m²)...",
+        "Generando iluminación y caída tridimensional...",
+        "Renderizado completado con éxito."
+      ];
+
+      let step = 0;
+      const interval = setInterval(() => {
+        step++;
+        if (step < messages.length) {
+          progressText.innerText = messages[step];
+        } else {
+          clearInterval(interval);
+          loading.classList.add('hidden');
+          showToast('Simulación IA completada. Compara el drapeado.');
+        }
+      }, 700);
+    }
+
+    function simulateUpload() {
+      showToast('Cargando fotografía de alta resolución...');
+      setTimeout(() => {
+        startAiSimulation();
+      }, 500);
+    }
+
+    function selectPresetModel(modelKey) {
+      showToast('Modelo de muestra cargado. Ajustando simulación...');
+      startAiSimulation();
+    }
+
+    function simulateCameraFeed() {
+      showToast('Acceso a cámara concedido. Posiciónate de pie frente al visor.');
+      setTimeout(() => {
+        startAiSimulation();
+      }, 1000);
+    }
+
+    function triggerReRender() {
+      startAiSimulation();
+    }
+
+    // 8. Toast Helper
+    function showToast(message) {
+      const toast = document.getElementById('vto-toast');
+      const text = document.getElementById('toast-message');
+      if (!toast || !text) return;
+      text.innerText = message;
+      toast.classList.remove('translate-y-32', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-32', 'opacity-0');
+      }, 3200);
+    }
+
+    // 9. Purchasing Cart Actions
+    function addToBagFeedback() {
+      const btn = document.getElementById('bag-btn-text');
+      if (btn) btn.innerText = 'Añadido a la Cesta ✓';
+      showToast('Blazer Lana Merino & Seda añadido a su bolsa de compras.');
+      setTimeout(() => {
+        if (btn) btn.innerText = 'Añadir a la Cesta (285 €)';
+      }, 2500);
+    }
+
+    function directCheckoutVTO() {
+      showToast('Talla 38 (S) enviada a su carrito con las coordenadas de corte VTO.');
+    }
+
+    function saveLookNotification() {
+      showToast('Look guardado en tu archivo digital de cliente.');
+    }
+
+    function shareLookModal() {
+      showToast('Enlace de estilismo privado copiado al portapapeles.');
+    }
+
+    function openSizeGuideModal() {
+      showToast('Guía Biométrica: Hombro 44cm, Pecho 108cm, Largo 78cm.');
+    }
+
+    function quickAddCoord(item) {
+      showToast(item + ' añadido al pedido coordinado.');
+    }
+
+    function addFullBundle() {
+      showToast('Cápsula de 4 prendas agregada con cortesía editorial.');
+    }
+  </script>
+</div></main><footer class="w-full bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-space-2xl pb-space-xl"><div class="max-w-[1600px] mx-auto px-margin lg:px-margin-lg"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-gutter-lg pb-space-2xl"><div class="lg:col-span-5 flex flex-col justify-between gap-space-lg"><div class="space-y-space-md"><span class="font-headline-sm text-headline-sm uppercase text-on-surface tracking-tight block">LUMEN STUDIO</span><p class="font-body-md text-body-md text-on-surface-variant max-w-md">Sastrería computacional, siluetas contemporáneas y comisariado textil de autor. La intersección entre la sensibilidad artesanal y la inteligencia generativa.</p></div><div class="space-y-space-sm max-w-md"><span class="font-label-caps text-label-caps uppercase text-on-surface block">Diario Editorial &amp; Acceso Privado</span><div class="flex items-center"><input class="flex-1 bg-transparent border-b border-outline-variant py-space-sm font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-colors" placeholder="Su dirección de correo electrónico" type="email"/><button class="px-space-lg py-space-sm bg-primary text-on-primary font-label-caps text-label-caps uppercase hover:bg-surface-container-highest hover:text-primary transition-colors">Suscribir</button></div></div></div><div class="lg:col-span-2 space-y-space-md"><span class="font-label-caps text-label-caps uppercase text-on-surface block">Colecciones</span><ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant"><li><a class="hover:text-on-surface transition-colors" data-path="coleccion" href="#">Línea Permanente</a></li><li><a class="hover:text-on-surface transition-colors" data-path="novedades" href="#">Cápsula de Invierno</a></li><li><a class="hover:text-on-surface transition-colors" data-path="prendas" href="#">Piezas Estructuradas</a></li><li><a class="hover:text-on-surface transition-colors" data-path="probador-ia" href="#">Atelier Digital</a></li><li><a class="hover:text-on-surface transition-colors" data-path="editorial" href="#">Monografías</a></li></ul></div><div class="lg:col-span-2 space-y-space-md"><span class="font-label-caps text-label-caps uppercase text-on-surface block">Asistencia &amp; Concierge</span><ul class="space-y-space-sm font-body-sm text-body-sm text-on-surface-variant"><li><a class="hover:text-on-surface transition-colors" href="#">Guía de Proporciones IA</a></li><li><a class="hover:text-on-surface transition-colors" href="#">Seguimiento de Envío</a></li><li><a class="hover:text-on-surface transition-colors" href="#">Devoluciones de Cortesía</a></li><li><a class="hover:text-on-surface transition-colors" href="#">Cita en Showroom</a></li><li><a class="hover:text-on-surface transition-colors" href="#">Contacto Directo</a></li></ul></div><div class="lg:col-span-3 space-y-space-md"><span class="font-label-caps text-label-caps uppercase text-on-surface block">Seguimiento de Pedido</span><p class="font-body-sm text-body-sm text-on-surface-variant">Introduzca su referencia de pedido para consultar el estado del flete en tiempo real.</p><div class="flex items-center"><input class="flex-1 bg-transparent border-b border-outline-variant py-space-sm font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-colors" placeholder="Ref: LM-90210" type="text"/><button aria-label="Localizar pedido" class="p-space-sm text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[20px]">arrow_forward</span></button></div></div></div><div class="pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md font-label-caps text-label-caps uppercase text-on-surface-variant"><p>© 2025 LUMEN STUDIO. Todos los derechos reservados.</p><div class="flex items-center gap-space-lg"><span>Términos del Servicio</span><span>Privacidad de Datos</span><span>Autenticidad Textil</span></div></div></div></footer></body></html>

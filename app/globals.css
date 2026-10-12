@@ -1,0 +1,91 @@
+:root {
+  /* Palette — see DESIGN.md. Chosen from the prose intent (#121212 ink, #F9F8F5
+     canvas) rather than the design-system front matter (#000000 primary), because
+     the prose explicitly forbids pure digital black. This conflict is listed as an
+     open design question in DESIGN.md and is unresolved. */
+  --color-canvas: #f9f8f5;
+  --color-ink: #121212;
+  --color-stone: #766e65;
+  --color-steel: #2b3a42;
+  --color-hairline: rgba(18, 18, 18, 0.08);
+  --color-hairline-strong: rgba(18, 18, 18, 0.2);
+
+  --font-serif: var(--font-newsreader), "Newsreader", Georgia, serif;
+  --font-sans: var(--font-hanken), "Hanken Grotesk", system-ui, sans-serif;
+
+  /* Architectural, razor-sharp forms. Only AI pips and color swatches may round. */
+  --radius: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Landing page (placeholder shell) ---- */
+
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5rem 1.5rem;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.landing__eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  margin: 0 0 1.75rem;
+}
+
+.landing__title {
+  font-family: var(--font-serif);
+  font-size: clamp(2.75rem, 8vw, 4.5rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.landing__lede {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 300;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  max-width: 34rem;
+  margin: 1.75rem 0 0;
+}
+
+.landing__meta {
+  margin: 3rem 0 0;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--color-hairline);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: var(--color-stone);
+}
