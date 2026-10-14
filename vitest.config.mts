@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
@@ -7,6 +8,11 @@ import react from "@vitejs/plugin-react";
 //        booted by db/tests/global-setup.ts (no Docker, no system PostgreSQL).
 // `pnpm test` runs both.
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./", import.meta.url)),
+    },
+  },
   test: {
     projects: [
       {
