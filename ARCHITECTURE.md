@@ -4,7 +4,7 @@ Runtime and tooling boundaries for **J. Armando**. Update this file when domains
 
 ## Status
 
-The application shell and the PostgreSQL data layer exist, and the catalog storefront renders published products. The `/catalog` listing is a dynamic Server Component whose filter and sort state lives entirely in URL query params (shareable, back/forward-friendly); cart, checkout, orders, identity and AI are not implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
+The application shell, the PostgreSQL data layer, the catalog storefront (listing with URL-driven filtering/sorting) and the product detail page exist. The `PaymentProvider` port and its simulated adapter are realised in `payments/` (port, adapter, outcome mapping) with a presentational checkout outcome surface; the checkout page itself, cart, orders, identity, AI and virtual try-on are not implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
 
 ## Toolchain Pin
 
@@ -46,10 +46,17 @@ Do not rely on training-data knowledge of Next.js. Read the relevant guide under
 app/                     Next.js App Router routes and UI
   layout.tsx             Root layout: html/body, global fonts, metadata
   page.tsx               Landing page (placeholder shell)
+  catalog/               Catalog listing route + product card (+ URL-driven filters)
+  products/[slug]/       Product detail route (/products/[slug]) + not-found state
+  checkout/              Checkout UI (payment outcome surface; the route arrives with checkout-*)
   globals.css            Design tokens and base styles
   page.test.tsx          Landing page smoke test
-  catalog/               Catalog grid route (/catalog)
-  products/[slug]/       Product detail route (/products/[slug]) + not-found state
+payments/                Payment port + simulated adapter (framework-agnostic; no next/react/db)
+  payment-provider.ts    Port types, PaymentEvent union, PaymentProvider interface
+  simulated-provider.ts  Deterministic simulated adapter (succeed/fail/pending)
+  payment-outcome.ts     Pure event -> presentation view mapping
+lib/                     Shared framework-agnostic helpers (no next/react/db)
+  money.ts               USD formatter used by the data layer and the mapper
 db/                      Data layer: Drizzle schema, migrations, seed, scripts
   schema/                Table + enum definitions (catalog, account, cart, order)
   migrations/            Generated SQL migrations (committed; never hand-edited)
@@ -119,12 +126,12 @@ The automated gate must stay self-contained on machines with no Docker and no sy
 
 ## Layering Intent
 
-Not yet realised in code, but this is the direction to preserve:
+The layering direction to preserve:
 
 - **UI (App Router routes)** → calls application services → **domain** → **ports** (interfaces) → **adapters** (real implementations).
-- External capabilities sit behind ports so they can be swapped or simulated without touching store code. Two are already specified:
-  - `PaymentProvider` — simulated in the MVP, real gateway later (`docs/specs/` for `payment-provider-abstraction`).
-  - `TryOnProvider` and `ChatAssistant` — real external services behind their own interfaces.
+- External capabilities sit behind ports so they can be swapped or simulated without touching store code.
+- **`PaymentProvider` is realised** (2026-10-14, `payment-provider-abstraction`): the framework-agnostic port (`PaymentOutcome`, the `PaymentEvent` discriminated union `payment.succeeded | payment.failed | payment.pending`, and the single-method `PaymentProvider.createPayment`) lives in `payments/payment-provider.ts`; the deterministic simulated adapter is `payments/simulated-provider.ts` (`createSimulatedPaymentProvider`, id `"simulated"`); the pure outcome mapping is `payments/payment-outcome.ts` (`describePaymentOutcome`, which carries integer `amountCents` and renders `amountLabel`); and the presentational checkout surface is `app/checkout/payment-outcome.tsx`. None of these modules import `next`/`react`/`db` code, so a real gateway can replace the simulation behind the same interface without touching the mapper or component. Money formatting is shared: the pure `formatPriceUSD` lives in the framework-agnostic `lib/money.ts` and is imported by the mapper and re-exported by `db/catalog.ts`. Asynchronous confirmation is designed in now: `pending` is a first-class event, not collapsed into a boolean.
+- `TryOnProvider` and `ChatAssistant` remain specified but not yet realised — real external services behind their own interfaces.
 - Catalog, cart and order rules belong in the domain layer, not in React components or route handlers.
 - Storage goes through the Drizzle data-access layer in `db/` (ADR 0002); features depend on `db/` repositories, never on raw `pg` access.
 
