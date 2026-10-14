@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Newsreader } from "next/font/google";
+import { ChatPanel } from "./chat/chat-panel";
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -29,7 +30,10 @@ export default function RootLayout({
       lang="en"
       className={`${newsreader.variable} ${hankenGrotesk.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <ChatPanel />
+      </body>
     </html>
   );
 }

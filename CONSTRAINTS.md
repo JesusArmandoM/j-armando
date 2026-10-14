@@ -17,3 +17,9 @@ Durable MUST / MUST NOT rules for **J. Armando**. Future features must respect t
 ## Automated tests
 
 4. **The automated test suite MUST stay self-contained**: it MUST NOT require Docker, a system PostgreSQL installation or any configured database. DB integration tests use the ephemeral embedded PostgreSQL 17 server started per run (`db/tests/global-setup.ts`). Reason: `./init.sh` must stay green and restartable on any machine; this machine has neither Docker nor PostgreSQL (verified 2026-10-11).
+
+5. **The automated suite MUST NOT make live calls to external AI providers and MUST NOT require their API keys.** Provider adapters must accept an injectable `fetch` (or equivalent transport seam) so their request/response contract can be proved offline. Reason: `./init.sh` must stay deterministic, free and key-free on any machine; introduced by `chat-assistant` (the OpenAI adapter is tested with an injected `fetch` and an in-process HTTP server).
+
+## AI providers
+
+6. **External AI capabilities MUST sit behind a repo-owned port** (interface) and be reached only through it; concrete providers are adapters behind the port. The UI and route handlers MUST depend on the port, not on a provider. Reason: providers must be swappable/simulatable without touching store code (`ARCHITECTURE.md` → Layering Intent). `ChatAssistant` (`lib/chat/`) is the first realised port; `payment-provider-abstraction` and virtual try-on follow the same rule.
