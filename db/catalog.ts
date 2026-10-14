@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, lte, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import { category, product, productImage, variant } from "./schema/index.ts";
@@ -12,7 +13,9 @@ import type {
   ProductImage,
   ProductStatus,
   Variant,
+  VariantSize,
 } from "./schema/index.ts";
+import { variantSize } from "./schema/index.ts";
 
 // Thin catalog repository: insert + read through the Drizzle data-access layer
 // (docs/adr/0002-drizzle-data-access-layer.md). Catalog and backoffice features
@@ -112,11 +115,101 @@ export function formatPriceUSD(cents: number): string {
   }).format(cents / 100);
 }
 
+/** Supported catalog orderings (see app/catalog/filter-params.ts). */
+export const CATALOG_SORTS = ["newest", "price-asc", "price-desc", "name"] as const;
+export type CatalogSort = (typeof CATALOG_SORTS)[number];
+
 /**
- * Returns all published products with their primary image and category name.
- * Draft and archived products are strictly omitted.
+ * Filter/ordering contract of the catalog listing. Every field is optional so
+ * the existing unfiltered call shape keeps working; `sort` is resolved to
+ * `newest` when absent by the page's `parseCatalogSearchParams`.
  */
-export async function listPublishedCatalogProducts(db: Db): Promise<CatalogProductSummary[]> {
+export interface CatalogFilters {
+  category?: string;
+  size?: VariantSize;
+  color?: string;
+  maxPrice?: number;
+  sort?: CatalogSort;
+}
+
+export interface CatalogFilterOptions {
+  categories: { slug: string; name: string }[];
+  sizes: VariantSize[];
+  colors: string[];
+}
+
+/** Ordering applied when no (or an invalid) sort is requested. */
+const DEFAULT_CATALOG_SORT: CatalogSort = "newest";
+
+/** Maps a sort key to the Drizzle ORDER BY clauses (all tie-break by name). */
+function catalogOrderBy(sort: CatalogSort): SQL[] {
+  switch (sort) {
+    case "price-asc":
+      return [asc(product.basePriceCents), asc(product.name)];
+    case "price-desc":
+      return [desc(product.basePriceCents), asc(product.name)];
+    case "name":
+      return [asc(product.name)];
+    case "newest":
+    default:
+      return [desc(product.createdAt), asc(product.name)];
+  }
+}
+
+/**
+ * Returns published products with their primary image and category name,
+ * optionally narrowed by category / size / color / max price and reordered.
+ * Draft and archived products are strictly omitted under every combination.
+ *
+ * Size and color match through **independent** non-discontinued variant
+ * subqueries, and out-of-stock variants still count (availability, not stock,
+ * decides visibility). Price filter/order uses the product base price.
+ */
+export async function listPublishedCatalogProducts(
+  db: Db,
+  filters: CatalogFilters = {},
+): Promise<CatalogProductSummary[]> {
+  const conditions = [eq(product.status, "published")];
+
+  if (filters.category) {
+    conditions.push(eq(category.slug, filters.category));
+  }
+  if (filters.size) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(variant)
+          .where(
+            and(
+              eq(variant.productId, product.id),
+              eq(variant.size, filters.size),
+              eq(variant.discontinued, false),
+            ),
+          ),
+      ),
+    );
+  }
+  if (filters.color) {
+    conditions.push(
+      exists(
+        db
+          .select({ one: sql`1` })
+          .from(variant)
+          .where(
+            and(
+              eq(variant.productId, product.id),
+              eq(variant.color, filters.color),
+              eq(variant.discontinued, false),
+            ),
+          ),
+      ),
+    );
+  }
+  if (typeof filters.maxPrice === "number") {
+    conditions.push(lte(product.basePriceCents, filters.maxPrice * 100));
+  }
+
   const products = await db
     .select({
       id: product.id,
@@ -131,8 +224,8 @@ export async function listPublishedCatalogProducts(db: Db): Promise<CatalogProdu
     })
     .from(product)
     .innerJoin(category, eq(category.id, product.categoryId))
-    .where(eq(product.status, "published"))
-    .orderBy(asc(category.sortOrder), asc(product.name));
+    .where(and(...conditions))
+    .orderBy(...catalogOrderBy(filters.sort ?? DEFAULT_CATALOG_SORT));
 
   if (products.length === 0) {
     return [];
@@ -168,6 +261,49 @@ export async function listPublishedCatalogProducts(db: Db): Promise<CatalogProdu
     categorySlug: p.categorySlug,
     primaryImage: primaryImageMap.get(p.id) ?? null,
   }));
+}
+
+/**
+ * Facet options present in the published catalog, derived only from published,
+ * non-discontinued data so no option yields an empty result set. Categories
+ * follow `category.sortOrder`; sizes follow the XS→XL enum order; colors are
+ * alphabetical.
+ */
+export async function listPublishedCatalogFilterOptions(db: Db): Promise<CatalogFilterOptions> {
+  const categoryRows = await db
+    .selectDistinct({
+      slug: category.slug,
+      name: category.name,
+      sortOrder: category.sortOrder,
+    })
+    .from(category)
+    .innerJoin(product, eq(product.categoryId, category.id))
+    .where(eq(product.status, "published"))
+    .orderBy(asc(category.sortOrder));
+
+  const sizeRows = await db
+    .selectDistinct({ size: variant.size })
+    .from(variant)
+    .innerJoin(product, eq(product.id, variant.productId))
+    .where(and(eq(product.status, "published"), eq(variant.discontinued, false)));
+
+  const sizeOrder = new Map(variantSize.enumValues.map((size, index) => [size, index]));
+  const sizes = sizeRows
+    .map((row) => row.size)
+    .sort((a, b) => (sizeOrder.get(a) ?? 0) - (sizeOrder.get(b) ?? 0));
+
+  const colorRows = await db
+    .selectDistinct({ color: variant.color })
+    .from(variant)
+    .innerJoin(product, eq(product.id, variant.productId))
+    .where(and(eq(product.status, "published"), eq(variant.discontinued, false)))
+    .orderBy(asc(variant.color));
+
+  return {
+    categories: categoryRows.map((row) => ({ slug: row.slug, name: row.name })),
+    sizes,
+    colors: colorRows.map((row) => row.color),
+  };
 }
 
 /**
