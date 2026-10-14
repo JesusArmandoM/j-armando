@@ -4,7 +4,7 @@ Runtime and tooling boundaries for **J. Armando**. Update this file when domains
 
 ## Status
 
-The application shell and the PostgreSQL data layer exist; no product behavior (catalog, cart, checkout, orders, identity, AI) is implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
+The application shell and the PostgreSQL data layer exist, and the catalog storefront renders published products. The `/catalog` listing is a dynamic Server Component whose filter and sort state lives entirely in URL query params (shareable, back/forward-friendly); cart, checkout, orders, identity and AI are not implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
 
 ## Toolchain Pin
 
@@ -22,11 +22,12 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
 ## Runtime Surface
 
 - **Framework:** Next.js `16.4.0`, App Router, React `19.3.0`.
-- **Rendering:** `/` prerenders as static content. DB-backed routes are `force-dynamic` and render on demand.
+- **Rendering:** `/` prerenders as static content. DB-backed routes (`/catalog`, `/products/[slug]`) are `force-dynamic` and render on demand. Next 16 `searchParams` is a `Promise<Record<string, string | string[] | undefined>>` that a page `await`s.
 - **Route surface (public, read-only):**
   - `/` — landing page.
-  - `/catalog` — published product grid (dynamic; `catalog-product-listing`).
+  - `/catalog` — published product grid (dynamic; `catalog-product-listing`) with URL-driven filter/sort state (`catalog-filtering`).
   - `/products/[slug]` — published product detail by public slug (dynamic; `product-detail-page`). Draft, archived and unknown slugs call `notFound()` (HTTP 404).
+- **Catalog listing state:** filter/sort state (category, size, color, max price, sort) lives only in the URL query string — no client store. The page parses it (`app/catalog/filter-params.ts`), fetches through the repository, and a client toolbar pushes new `/catalog?...` history entries via `next/navigation`'s `useRouter`. Reset navigates to the bare `/catalog`.
 - **Deployment target:** Vercel (see `docs/technical-discovery.md`). Not configured here beyond framework defaults.
 
 ### Next.js 16 has breaking changes

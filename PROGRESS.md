@@ -5,21 +5,21 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa`
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none in implementation. `product-detail-page` is `accepted` (implemented + self-verified 2026-10-14; independently validated and committed 2026-10-14)
-- Current next ready feature: `product-variant-selection` and `catalog-filtering` are both dependency-ready (`product-detail-page` and `catalog-product-listing` are `accepted`); `product-variant-selection` is next in `feature_list.json` order and needs `planner`
+- Current feature in flight: none in implementation. `product-detail-page` and `catalog-filtering` are both `accepted` (implemented + self-verified 2026-10-14; independently validated and committed 2026-10-14)
+- Current next ready feature: `product-variant-selection` (depends on `product-detail-page`, accepted; needs `planner`) is next in `feature_list.json` order; `chat-assistant-guardrails` (depends on `chat-assistant`, accepted) also follows
 - Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question is resolved — see *Resolved*)
-- Last verified at: 2026-10-14, independent `feature-validator` acceptance of `product-detail-page` (verdict ACCEPT): `./init.sh` exit 0 — 9 test files / 28 tests incl. 6 DB integration files over embedded PostgreSQL 17 and 3 UI files — `pnpm build` exit 0 with dynamic `/products/[slug]` route; live-HTTP matrix: `/products/longline-wool-overcoat` 200, `/products/cropped-tweed-jacket` / `/products/satin-evening-gown` / `/products/no-such-slug` 404
+- Last verified at: 2026-10-14, `product-detail-page` and `catalog-filtering` both independently accepted (`feature-validator`, ACCEPT each) and merged into `main`; the rebased combined tree re-verified: `./init.sh` exit 0 — 12 test files / 74 tests incl. DB integration files over embedded PostgreSQL 17 and UI files — `pnpm build` exit 0 with dynamic `/catalog` and `/products/[slug]` routes
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer bootstrapped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script). No storefront behavior yet. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Phase: **application shell + PostgreSQL data layer + storefront catalog shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script); the storefront catalog at `/catalog` lists published products and supports URL-driven filtering (category/size/color/max price) and sorting. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking, never starts a dev server and never touches a database. `pnpm build` produces a static production build without `DATABASE_URL`.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 in two projects — `ui` (jsdom + Testing Library) and `db` (node, embedded PostgreSQL 17 per run). No browser E2E harness yet.
 - Data layer: Drizzle ORM (`drizzle-orm` + `drizzle-kit` over `pg`) — ADR 0002. Money is integer cents, USD, tax-exclusive; migrations are generated once and never edited; the seed is insert-if-missing and never overwrites rows (`CONSTRAINTS.md`).
 - Planned stack: Next.js (App Router) + TypeScript + PostgreSQL, Vercel + managed Postgres (Neon vs Supabase still undecided; everything connects through `DATABASE_URL`). See `docs/technical-discovery.md`.
 - Market: United States, USD, sales tax added at checkout. UI copy and documentation in English.
-- Feature inventory: 30 session-sized features in `feature_list.json`; `bootstrap-app-skeleton` and `bootstrap-database-schema` accepted, the rest not started.
+- Feature inventory: 30 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing` and `catalog-filtering` accepted, the rest not started.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -173,4 +173,36 @@ These must be answered before or during the relevant features. Full detail in `d
 - Independent validation (feature-validator, 2026-10-14): verdict **ACCEPT** (no revise loop needed). Reproduced the full gate (`./init.sh` exit 0, 9 files / 28 tests; `pnpm build` exit 0 with `DATABASE_URL` unset, `/products/[slug]` dynamic ƒ) and the live-HTTP matrix over a disposable embedded PostgreSQL 17 (published 200; draft/archived/unknown 404). Confirmed the repository query filter/ordering, unchanged `getProductBySlug`, `notFound()` outside try/catch, `formatPriceUSD`-only money, no migration edits, and no out-of-scope behavior. Security and durable-docs checks clean; acceptance scenarios 1-5 pass.
 - Acceptance persisted: `feature_list.json` → `product-detail-page.status: accepted` + validator evidence; committed as `feat: complete product-detail-page`.
 - Next best step: take `product-variant-selection` (depends on `product-detail-page`, now `accepted`) — run `planner` first (no spec exists). `catalog-filtering` is also dependency-ready.
+
+### Session 009
+
+- Date: 2026-10-14
+- Goal: Implement `catalog-filtering` (shopper narrows and orders the catalog listing) per `docs/specs/catalog-filtering.md`. Implementer role; no commit (the orchestrator commits after independent validation).
+- Completed:
+  - Confirmed the Next.js 16 signatures in `node_modules/next/dist/docs/` before coding: page `searchParams` is `Promise<Record<string, string | string[] | undefined>>` (`01-app/01-getting-started/03-layouts-and-pages.md`) and client navigation uses `useRouter` from `next/navigation` with `router.push(href, { scroll })` adding a history entry (`01-app/03-api-reference/04-functions/use-router.md`).
+  - Data layer (`db/catalog.ts`): `listPublishedCatalogProducts(db, filters?)` now takes `CatalogFilters` (`category`, `size`, `color`, `maxPrice`, `sort`) — category `eq(category.slug)`, size/color via independent correlated `EXISTS` subqueries over **non-discontinued** variants, max price via `lte(basePriceCents, maxPrice * 100)`, always `status = published`; ordering `newest` (createdAt desc, name asc), `price-asc`/`price-desc` (base price, name asc), `name`. Added `listPublishedCatalogFilterOptions(db)` returning categories/sizes/colors derived from published, non-discontinued data only.
+  - URL plumbing: new pure `app/catalog/filter-params.ts` (`CATALOG_SORTS`, `CatalogSort`, `CatalogFilters`, `CATALOG_SIZES`, `CATALOG_MAX_PRICE_PRESETS`, `parseCatalogSearchParams`, `buildCatalogQuery`, `hasActiveFilters`). No React, no DB.
+  - UI: new client `app/catalog/filter-bar.tsx` (labeled native selects + conditional Reset link, `router.push` → new history entry); reworked `app/catalog/page.tsx` (async, `await searchParams`, filtered fetch + options, result count, filtered-empty vs catalog-empty states); added zero-radius toolbar/results/filtered-empty styles to `app/globals.css`.
+  - Tests: `db/tests/catalog-filtering.test.ts` (facets, combinations, four sorts with controlled `createdAt`, draft/archived exclusion, discontinued and independent size/color semantics, out-of-stock match, options), `app/catalog/filter-params.test.ts`, `app/catalog/filter-bar.test.tsx` (mocked `next/navigation`), and updated `app/catalog/page.test.tsx`.
+- Verification run: `pnpm typecheck` exit 0; `pnpm lint` exit 0; `pnpm test` exit 0 (10 files / 63 tests); `pnpm build` exit 0 with dynamic `/catalog`; `./init.sh` exit 0. Manual transcript via `pnpm db:devdb` (port 49213) + `pnpm db:migrate`/`db:seed`/`db:verify` + `pnpm dev`: rendered `/catalog` checks for `?category=coats&sort=price-asc` (1 garment, reset shown), `?size=L&maxPrice=150` (2 garments), `?sort=bogus` (6, reset hidden, newest fallback), `?color=Navy` (1), `?category=blazers&size=M` (1), `?maxPrice=150&sort=price-desc` (2, price desc), bare `/catalog` (6, reset hidden) — no draft/archived appeared. Cleanup: worktree devdb process + embedded dirs removed; no listener left on port 3000 by this feature.
+- Evidence captured: `feature_list.json` → `catalog-filtering.evidence` (6 entries) and `verification` replaced with concrete, test-backed statements.
+- Files or artifacts updated: `db/catalog.ts`, `db/tests/catalog-filtering.test.ts`, `app/catalog/filter-params.ts`, `app/catalog/filter-params.test.ts`, `app/catalog/filter-bar.tsx`, `app/catalog/filter-bar.test.tsx`, `app/catalog/page.tsx`, `app/catalog/page.test.tsx`, `app/globals.css`, `ARCHITECTURE.md` (minor Status/Runtime-Surface note), `feature_list.json`, this file.
+- Known risk or unresolved issue for the validator: (1) the repo has no browser E2E harness, so back/forward behavior is asserted structurally (URL-driven state + `router.push` new entry) and via the manual transcript rather than an automated browser test — this matches the repo convention. (2) The max-price control is a fixed presets list (`$100/$150/$200/$250/$300`), a documented non-goal to avoid a range/numeric entry. (3) Seed product `createdAt` values are effectively identical (same seed transaction), so `newest` ordering on the demo data is tie-broken by name; deterministic `newest` ordering is proven in the DB test with explicit timestamps. (4) A pre-existing Turbopack tracing warning about dynamic `fs` access in `db/env.ts` appears in `pnpm build`; not introduced by this feature. (5) A stale gitignored `.env` (feature-isolated, `DATABASE_URL` on port 5432) exists in the worktree but is unreachable; the transcript used the disposable embedded PostgreSQL instead. The six blocking discovery questions are unchanged.
+- Next best step: run `feature-validator` against `docs/specs/catalog-filtering.md`. Then take `product-detail-page`.
+
+### Session 010
+
+- Date: 2026-10-14
+- Date: 2026-10-14
+- Goal: Run `feature-flow` (until-accepted) for `catalog-filtering` end-to-end: plan → implement → independently validate → persist acceptance → commit. No push, no PR.
+- Completed:
+  - `planner` → spec `docs/specs/catalog-filtering.md` (9 acceptance scenarios; URL query-param model, data-access changes, server/client split, sort semantics, reset behavior).
+  - `implementer` → URL-driven filtering and sorting on `/catalog` (see Session 008) with self-verification green; status set to `passing`.
+  - `validator` (round 1) → **ACCEPT**. All 9 acceptance scenarios reproduced independently; no Critical/High/Medium findings; two Low informational notes only.
+  - Acceptance persisted: `feature_list.json` → `catalog-filtering.status: accepted` plus validator evidence; `PROGRESS.md` Current Verified State and Project State refreshed.
+- Verification run (independent, by the validator): `pnpm test` 10 files / 63 tests green; `pnpm lint` / `pnpm typecheck` exit 0; `./init.sh` exit 0; `pnpm build` exit 0 with `.env` removed and `DATABASE_URL` unset (`/catalog` dynamic); live `pnpm db:devdb` + migrate/seed/verify + `pnpm dev` transcript covering every facet, all four sorts, reset, invalid params and draft/archived exclusion.
+- Evidence captured: `feature_list.json` → `catalog-filtering.evidence` (7 entries incl. the validator acceptance line); this session log.
+- Files or artifacts updated: `db/catalog.ts`, `db/tests/catalog-filtering.test.ts`, `app/catalog/filter-params.ts`, `app/catalog/filter-params.test.ts`, `app/catalog/filter-bar.tsx`, `app/catalog/filter-bar.test.tsx`, `app/catalog/page.tsx`, `app/catalog/page.test.tsx`, `app/globals.css`, `ARCHITECTURE.md`, `docs/specs/catalog-filtering.md`, `feature_list.json`, this file.
+- Known risk or unresolved issue: no browser E2E harness exists, so back/forward is asserted structurally (`router.push`/`Link` add history entries) plus the manual transcript — repo convention. Max price is a fixed preset list (documented non-goal). Seed `createdAt` values are effectively identical, so `newest` on demo data is tie-broken by name; deterministic `newest` is proven in the DB test with explicit timestamps. The six blocking discovery questions are unchanged.
+- Next best step: take `product-detail-page` (depends on `catalog-product-listing`, accepted; needs `planner`).
 

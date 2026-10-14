@@ -8,6 +8,10 @@ vi.mock("@/db/client.ts", () => ({
   getDb: vi.fn(() => ({})),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 const mockProducts: catalogDb.CatalogProductSummary[] = [
   {
     id: "prod-1",
@@ -39,6 +43,25 @@ const mockProducts: catalogDb.CatalogProductSummary[] = [
   },
 ];
 
+const mockOptions: catalogDb.CatalogFilterOptions = {
+  categories: [
+    { slug: "coats", name: "Coats" },
+    { slug: "blazers", name: "Blazers" },
+  ],
+  sizes: ["XS", "S", "M", "L", "XL"],
+  colors: ["Camel", "Ivory"],
+};
+
+function mockData(
+  products: catalogDb.CatalogProductSummary[],
+  options: catalogDb.CatalogFilterOptions = mockOptions,
+) {
+  vi.spyOn(catalogDb, "listPublishedCatalogProducts").mockResolvedValueOnce(products);
+  vi.spyOn(catalogDb, "listPublishedCatalogFilterOptions").mockResolvedValueOnce(options);
+}
+
+const EMPTY_PARAMS: Record<string, string | string[] | undefined> = {};
+
 describe("ProductCard component", () => {
   it("renders product name, category, image, and formatted USD price", () => {
     render(<ProductCard product={mockProducts[0]} />);
@@ -57,30 +80,79 @@ describe("ProductCard component", () => {
 });
 
 describe("CatalogPage component", () => {
-  it("renders products in the responsive grid", async () => {
-    vi.spyOn(catalogDb, "listPublishedCatalogProducts").mockResolvedValueOnce(mockProducts);
+  it("renders products in the responsive grid with a plural count", async () => {
+    mockData(mockProducts);
 
-    const ui = await CatalogPage();
+    const ui = await CatalogPage({ searchParams: Promise.resolve(EMPTY_PARAMS) });
     render(ui);
 
     expect(screen.getByRole("heading", { level: 1, name: "Collection" })).toBeTruthy();
     const grid = screen.getByTestId("catalog-grid");
-    expect(grid).toBeTruthy();
     expect(grid.className).toContain("catalog__grid");
 
     const cards = screen.getAllByTestId("product-card");
     expect(cards).toHaveLength(2);
     expect(screen.getByText("Longline Wool Overcoat")).toBeTruthy();
     expect(screen.getByText("Double-Breasted Linen Blazer")).toBeTruthy();
+    expect(screen.getByTestId("catalog-results-count").textContent).toBe("2 garments");
   });
 
-  it("renders empty state when no published products exist", async () => {
-    vi.spyOn(catalogDb, "listPublishedCatalogProducts").mockResolvedValueOnce([]);
+  it("renders the singular count for one result", async () => {
+    mockData([mockProducts[0]]);
 
-    const ui = await CatalogPage();
+    const ui = await CatalogPage({
+      searchParams: Promise.resolve({ category: "coats" }),
+    });
+    render(ui);
+
+    expect(screen.getByTestId("catalog-results-count").textContent).toBe("1 garment");
+  });
+
+  it("renders the filter bar with the current selection", async () => {
+    mockData(mockProducts);
+
+    const ui = await CatalogPage({
+      searchParams: Promise.resolve({ category: "coats", sort: "price-asc" }),
+    });
+    render(ui);
+
+    expect((screen.getByLabelText("Category") as HTMLSelectElement).value).toBe("coats");
+    expect((screen.getByLabelText("Sort") as HTMLSelectElement).value).toBe("price-asc");
+    expect(screen.getByRole("link", { name: "Reset" }).getAttribute("href")).toBe("/catalog");
+  });
+
+  it("renders the catalog-empty state when no products and no filters", async () => {
+    mockData([]);
+
+    const ui = await CatalogPage({ searchParams: Promise.resolve(EMPTY_PARAMS) });
     render(ui);
 
     expect(screen.getByTestId("catalog-empty")).toBeTruthy();
     expect(screen.getByText("No garments currently available")).toBeTruthy();
+    expect(screen.queryByTestId("catalog-filtered-empty")).toBeNull();
+  });
+
+  it("renders a distinct filtered-empty state when filters match nothing", async () => {
+    mockData([]);
+
+    const ui = await CatalogPage({
+      searchParams: Promise.resolve({ size: "XS", color: "Chartreuse" }),
+    });
+    render(ui);
+
+    expect(screen.getByTestId("catalog-filtered-empty")).toBeTruthy();
+    expect(screen.getByText("No matching garments")).toBeTruthy();
+    expect(screen.queryByTestId("catalog-empty")).toBeNull();
+    expect(screen.getByTestId("catalog-results-count").textContent).toBe("0 garments");
+  });
+
+  it("falls back gracefully when the database is unavailable", async () => {
+    vi.spyOn(catalogDb, "listPublishedCatalogProducts").mockRejectedValueOnce(new Error("no db"));
+    vi.spyOn(catalogDb, "listPublishedCatalogFilterOptions").mockRejectedValueOnce(new Error("no db"));
+
+    const ui = await CatalogPage({ searchParams: Promise.resolve(EMPTY_PARAMS) });
+    render(ui);
+
+    expect(screen.getByTestId("catalog-empty")).toBeTruthy();
   });
 });
