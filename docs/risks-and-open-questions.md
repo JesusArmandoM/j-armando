@@ -23,11 +23,11 @@ These must be answered before implementation planning is final.
 - Object storage provider and access-control model for try-on photos.
 - Admin authentication: same account model with an `admin` role, or a separate admin identity.
 - Backoffice product data model details: composition, care, imagery per variant, SKU generation.
-- Whether `pending` payment state is exposed to the shopper or collapsed to a single "processing" message.
 
 ## Resolved
 
 - **ORM / data-access layer choice** — resolved 2026-10-12 by `bootstrap-database-schema`: **Drizzle ORM** (`drizzle-orm` + `drizzle-kit` over `pg`), with schema in `db/schema/` and committed SQL migrations in `db/migrations/`. See `adr/0002-drizzle-data-access-layer.md`. The managed provider (Neon vs Supabase) intentionally stays undecided — everything connects through `DATABASE_URL`.
+- **Whether `pending` payment state is exposed or collapsed** — resolved 2026-10-14 by `payment-provider-abstraction`: `pending` is **surfaced distinctly** to the shopper, not collapsed into a single generic "processing" message. `pending` is a first-class `payment.pending` event (`payments/payment-provider.ts`) mapped to its own view ("Payment pending") in `payments/payment-outcome.ts` and rendered by `app/checkout/payment-outcome.tsx`; it is never presented as success or failure. This keeps the async-confirmation reality of a future real gateway visible in the UI.
 
 ## Later / Not MVP
 

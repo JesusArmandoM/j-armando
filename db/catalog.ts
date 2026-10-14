@@ -107,13 +107,12 @@ export interface ProductDetail {
   images: ProductDetailImage[];
 }
 
-/** Formats integer cents into a USD currency string (e.g. 24900 -> "$249.00"). */
-export function formatPriceUSD(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+/**
+ * Re-exported for existing catalog consumers. The implementation is the shared
+ * framework-agnostic formatter in `lib/money.ts`, so the data layer and the
+ * payment mapper format money identically.
+ */
+export { formatPriceUSD } from "../lib/money.ts";
 
 /** Supported catalog orderings (see app/catalog/filter-params.ts). */
 export const CATALOG_SORTS = ["newest", "price-asc", "price-desc", "name"] as const;

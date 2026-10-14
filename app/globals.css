@@ -649,3 +649,65 @@ body {
   opacity: 0.88;
 }
 
+/* ---- Payment Outcome ---- */
+
+.payment-outcome {
+  max-width: 36rem;
+  padding: 1.75rem 1.5rem;
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius);
+}
+
+.payment-outcome__title {
+  font-family: var(--font-serif);
+  font-size: 1.375rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+  color: var(--color-ink);
+}
+
+.payment-outcome__message {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-stone);
+  margin: 0;
+}
+
+.payment-outcome__amount {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--color-ink);
+  margin: 0 0 0.75rem;
+}
+
+.payment-outcome__retry {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  margin: 1rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-hairline);
+}
+
+/* Each outcome is distinguished by border treatment and copy, not colour alone. */
+.payment-outcome--succeeded {
+  border-top-width: 4px;
+  border-top-color: var(--color-ink);
+}
+
+.payment-outcome--failed {
+  border-left-width: 4px;
+  border-left-color: var(--color-ink);
+}
+
+.payment-outcome--pending {
+  border-style: dashed;
+}
