@@ -17,7 +17,7 @@ Project: **J. Armando**. Glossary terms are defined in `../CONTEXT.md`. Split ou
 | Database | **PostgreSQL** (managed) | Relational fit for products/variants/stock/orders; transactions for stock correctness. |
 | ORM / access | **Drizzle ORM** (`drizzle-orm` + `drizzle-kit` over `pg`) | Decided in `bootstrap-database-schema`; see `adr/0002-drizzle-data-access-layer.md`. TypeScript-first schema, reviewable SQL migrations, swappable driver behind `DATABASE_URL`. |
 | Styling | To be decided | Must be able to express the design system's zero-radius editorial language and its tokens. |
-| AI | LLM provider behind `ChatAssistant`; external try-on service behind `TryOnProvider` | Both swappable and simulatable without touching store code. |
+| AI | LLM provider behind `ChatAssistant` — first adapter is OpenAI Chat Completions; external try-on service behind `TryOnProvider` | Both swappable and simulatable without touching store code. |
 
 ## Data and Storage
 
@@ -40,7 +40,7 @@ Special storage considerations:
 
 | Integration | Purpose | MVP status |
 | --- | --- | --- |
-| **LLM provider** (OpenAI / Anthropic / Google) | Chat Assistant | Real, behind `ChatAssistant`. |
+| **LLM provider** — **OpenAI Chat Completions** | Chat Assistant | Real, behind `ChatAssistant` (`lib/chat/`). Key `OPENAI_API_KEY`, model `CHAT_ASSISTANT_MODEL` (default `gpt-4o-mini`), optional `OPENAI_BASE_URL`. The automated suite exercises the adapter with an injected `fetch` and an in-process HTTP server — never a live call. |
 | **Virtual try-on service** (specialised external provider) | Virtual Try-On | Real, behind `TryOnProvider`. |
 | **Payment Provider** | Charge for orders | **Simulated** implementation of the same interface a real gateway would implement later. |
 | **Object storage** (e.g. S3/R2-compatible) | Product images, try-on photos | Required. |
@@ -70,7 +70,7 @@ A real payment gateway is deliberately deferred; the `PaymentProvider` interface
 - Unit tests for domain rules: stock reservation, price/tax calculation, order state transitions, cart merge rules.
 - Integration tests for checkout against a fake `PaymentProvider`, including the failure path.
 - End-to-end tests for the first vertical slice in `mvp-scope.md` (browse → detail → cart → checkout → order history).
-- Contract-level tests for `ChatAssistant` and `TryOnProvider` so a provider swap cannot silently break the UI.
+- Contract-level tests for `ChatAssistant` and `TryOnProvider` so a provider swap cannot silently break the UI. The `ChatAssistant` contract is proved offline: the OpenAI adapter is exercised with an injected `fetch` and an in-process HTTP server that speaks the Chat Completions contract (no live network, no API key).
 - Load/concurrency check on the last-unit-in-stock scenario.
 
 ## Observability

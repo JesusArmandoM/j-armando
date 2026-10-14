@@ -5,21 +5,21 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa`
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none in implementation. `product-detail-page`, `catalog-filtering` and `payment-provider-abstraction` are all `accepted` (independently validated 2026-10-14)
-- Current next ready feature: `product-variant-selection` (depends on `product-detail-page`, accepted; needs `planner`) is next in `feature_list.json` order; `order-creation-on-payment` still needs `checkout-sales-tax`
-- Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question is resolved — see *Resolved*)
-- Last verified at: 2026-10-14, `product-detail-page` and `catalog-filtering` merged into `main` and re-verified (12 test files / 74 tests); `payment-provider-abstraction` independently accepted after one repair (`feature-validator`, ACCEPT): `./init.sh` exit 0 — 10 test files / 29 tests, `pnpm build` exit 0 (no new route)
+- Current feature in flight: none in implementation. `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are all `accepted` (independently validated 2026-10-14)
+- Current next ready feature: `product-variant-selection` (depends on `product-detail-page`, accepted; needs `planner`) is next in `feature_list.json` order; `chat-assistant-guardrails` (depends on `chat-assistant`, accepted) and `order-creation-on-payment` (needs `checkout-sales-tax`) also follow
+- Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question and the chat LLM-provider question are resolved — see *Resolved*)
+- Last verified at: 2026-10-14, `product-detail-page`, `catalog-filtering` and `payment-provider-abstraction` merged into `main` and re-verified; `chat-assistant` independently accepted (`feature-validator`, ACCEPT): `./init.sh` exit 0 — 18 test files / 107 tests, `pnpm build` exit 0 without `OPENAI_API_KEY`
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog (listing, filtering, detail) shipped; payments port realised**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script); the storefront `/catalog` lists published products with URL-driven filtering/sorting and `/products/[slug]` renders product detail; `payments/` holds the framework-agnostic `PaymentProvider` port, simulated adapter and outcome mapper with a presentational `app/checkout/` outcome surface. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Phase: **application shell + PostgreSQL data layer + storefront catalog (listing, filtering, detail) + payments port + chat assistant shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script); the storefront `/catalog` lists published products with URL-driven filtering/sorting and `/products/[slug]` renders product detail; `payments/` holds the framework-agnostic `PaymentProvider` port, simulated adapter and outcome mapper with a presentational `app/checkout/` outcome surface; the storefront chat panel talks to `POST /api/chat` behind the `lib/chat/` `ChatAssistant` port + OpenAI adapter. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking, never starts a dev server and never touches a database. `pnpm build` produces a static production build without `DATABASE_URL`.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 in two projects — `ui` (jsdom + Testing Library) and `db` (node, embedded PostgreSQL 17 per run). No browser E2E harness yet.
 - Data layer: Drizzle ORM (`drizzle-orm` + `drizzle-kit` over `pg`) — ADR 0002. Money is integer cents, USD, tax-exclusive; migrations are generated once and never edited; the seed is insert-if-missing and never overwrites rows (`CONSTRAINTS.md`).
 - Planned stack: Next.js (App Router) + TypeScript + PostgreSQL, Vercel + managed Postgres (Neon vs Supabase still undecided; everything connects through `DATABASE_URL`). See `docs/technical-discovery.md`.
 - Market: United States, USD, sales tax added at checkout. UI copy and documentation in English.
-- Feature inventory: 30 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page` and `payment-provider-abstraction` accepted, the rest not started.
+- Feature inventory: 30 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `payment-provider-abstraction` and `chat-assistant` accepted, the rest not started.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -30,7 +30,7 @@ These must be answered before or during the relevant features. Full detail in `d
 1. Sign-in mechanism for accounts created without a password (magic link / email OTP / forced password creation).
 2. Virtual try-on provider selection (quality, latency, cost, data-processing terms).
 3. Photo consent and retention policy (privacy-critical).
-4. Chat assistant scope and guardrails.
+4. Chat assistant guardrails behaviour (products/sizing/fabric/shipping scope is settled; verified-policy/price-grounding refusal is owned by `chat-assistant-guardrails`).
 5. Shipping cost rules (flat rate / free above threshold / weight-based).
 6. Sales tax rate table and whether nexus tracking is needed.
 
@@ -224,4 +224,21 @@ These must be answered before or during the relevant features. Full detail in `d
 - Files or artifacts updated: `payments/payment-provider.ts`, `payments/simulated-provider.ts`, `payments/payment-outcome.ts`, `lib/money.ts`, `db/catalog.ts`, `payments/simulated-provider.test.ts`, `payments/payment-outcome.test.ts`, `app/checkout/payment-outcome.tsx`, `app/checkout/payment-outcome.test.tsx`, `app/globals.css`, `ARCHITECTURE.md`, `docs/risks-and-open-questions.md`, `feature_list.json`, this file, plus `docs/specs/payment-provider-abstraction.md`.
 - Known risk or unresolved issue: none blocking. Scope kept deliberately narrow — no order creation, DB writes, checkout page/route, account or stock logic, no real gateway. Interactive retry and the provider `cancelled` outcome are deferred to later features (recorded in the spec → Open Questions). The six blocking discovery questions are unchanged. Non-blocking validator note: `PROGRESS.md` line 5 still lists the main-repo root rather than this worktree path — pre-existing, outside this feature's scope.
 - Next best step: `payment-provider-abstraction` is accepted and committed; take `catalog-filtering` (needs `planner`) or another dependency-ready feature.
+
+### Session 012
+
+- Date: 2026-10-14
+- Goal: Run `feature-flow` (until-accepted) for `chat-assistant` only, in the dedicated worktree `feature/chat-assistant`. Scope strictly the `chat-assistant` feature (not `chat-assistant-guardrails`).
+- Completed:
+  - Planner → spec `docs/specs/chat-assistant.md` (5 acceptance scenarios mapped to the feature's 3 verification bullets; LLM provider decision resolved as OpenAI Chat Completions behind a repo-owned `ChatAssistant` port; ephemeral conversations; self-contained offline test seam).
+  - Implementer → full implementation. Port `lib/chat/chat-assistant.ts`; real OpenAI adapter `lib/chat/openai-chat-assistant.ts` (`POST {baseUrl}/chat/completions`, bearer auth, typed `ChatAssistantError`, injectable `fetch`/`baseUrl`/`model`); env-driven lazy factory `lib/chat/index.ts`; route `app/api/chat/route.ts`; client panel `app/chat/chat-panel.tsx` mounted in `app/layout.tsx`; `.chat-*` styles; docs (`ARCHITECTURE.md`, `CONSTRAINTS.md`, `docs/risks-and-open-questions.md`, `docs/technical-discovery.md`, ADR 0003).
+  - Tests (+3 files / +21 tests, all `ui`): adapter contract tests with injected `fetch` + an in-process `node:http` integration test over real HTTP; route tests (400/503/502, exact forwarding, adapter swap); panel tests (scenarios 1, 3, 4, 5).
+  - Validator (independent) → **ACCEPT** (finding R1 accepted as a documented non-blocking environmental residual; see below).
+  - Acceptance persisted: `feature_list.json` → `chat-assistant.status: accepted` + independent-validator evidence; this session entry.
+  - Commit: `feat: complete chat-assistant` (local only; not pushed, no PR — the orchestrator publishes).
+- Verification run: `./init.sh` exit 0 (10 test files / 38 tests, `OPENAI_API_KEY` unset; was 7/17); `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm build` exit 0 with the provider key unset (`/api/chat` and `/catalog` dynamic). Scenario tests named for 1, 3, 4, 5; scenario 2 wiring proven offline two ways (injected `fetch` contract test + real HTTP loopback server). No live LLM call in the gate. Validator re-ran the gate, the key-free build and the focused chat suites independently.
+- Evidence captured: `feature_list.json` → `chat-assistant.verification` (6 concrete strings) and `.evidence` (10 entries incl. the independent-validator line).
+- Files or artifacts updated: created `lib/chat/{chat-assistant,openai-chat-assistant,index}.ts`, `lib/chat/openai-chat-assistant.test.ts`, `app/api/chat/{route.ts,route.test.ts}`, `app/chat/{chat-panel.tsx,chat-panel.test.tsx}`, `docs/adr/0003-chat-assistant-llm-provider.md`, `docs/specs/chat-assistant.md`; modified `app/layout.tsx`, `app/globals.css`, `.env.example`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `docs/risks-and-open-questions.md`, `docs/technical-discovery.md`, `feature_list.json`, this file.
+- Known risk or unresolved issue: **R1 — live real-provider transcript is UNVERIFIED** because no `OPENAI_API_KEY` exists in this environment (only `PORT` and `DATABASE_URL` in `.env`). Accepted as a documented, non-blocking environmental residual: the exact reproducible manual command is recorded in `feature_list.json` rather than a fabricated transcript, scenario 2's request contract is standard and independently exercised over real HTTP, and a repair brief would not be executable. Required follow-up before public launch or before `chat-assistant-guardrails` relies on live behavior. No guardrails/refusal/price-grounding implemented (owned by `chat-assistant-guardrails`); conversations ephemeral (no DB).
+- Next best step: take `chat-assistant-guardrails` (depends on `chat-assistant`, now `accepted`) — it needs `planner`.
 
