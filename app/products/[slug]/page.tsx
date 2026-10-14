@@ -1,0 +1,100 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { getDb } from "@/db/client.ts";
+import { formatPriceUSD, getPublishedProductBySlug } from "@/db/catalog.ts";
+import type { ProductDetail } from "@/db/catalog.ts";
+
+import { ProductGallery } from "./product-gallery";
+
+export const dynamic = "force-dynamic";
+
+interface ProductDetailPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: ProductDetailPageProps) {
+  const { slug } = await params;
+
+  let product: ProductDetail | undefined;
+  try {
+    product = await getPublishedProductBySlug(getDb(), slug);
+  } catch (error) {
+    console.error("Failed to load product metadata:", error);
+  }
+
+  return {
+    title: product ? `${product.name} — J. Armando` : "Product not found — J. Armando",
+  };
+}
+
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const { slug } = await params;
+
+  let product: ProductDetail | undefined;
+  try {
+    product = await getPublishedProductBySlug(getDb(), slug);
+  } catch (error) {
+    // Graceful fallback when DATABASE_URL is not provisioned or the DB is unreachable.
+    console.error("Failed to load product detail:", error);
+  }
+
+  // notFound() must be called outside the try/catch above: it works by throwing
+  // a NEXT_HTTP_ERROR_FALLBACK;404 signal that a surrounding catch would swallow.
+  if (!product) {
+    notFound();
+  }
+
+  const formattedPrice = formatPriceUSD(product.basePriceCents);
+
+  return (
+    <main className="product-detail" data-testid="product-detail">
+      <nav className="product-detail__breadcrumbs" aria-label="Breadcrumb">
+        <Link href="/" className="product-detail__breadcrumb-link">
+          J. Armando
+        </Link>
+        <span className="product-detail__breadcrumb-separator">/</span>
+        <Link href="/catalog" className="product-detail__breadcrumb-link">
+          Collection
+        </Link>
+        <span className="product-detail__breadcrumb-separator">/</span>
+        <span className="product-detail__breadcrumb-current">{product.name}</span>
+      </nav>
+
+      <div className="product-detail__layout">
+        <div className="product-detail__media">
+          <ProductGallery images={product.images} productName={product.name} />
+        </div>
+
+        <div className="product-detail__commentary">
+          <p className="product-detail__category">{product.categoryName}</p>
+          <h1 className="product-detail__title">{product.name}</h1>
+          <p className="product-detail__price" data-testid="product-price">
+            {formattedPrice}
+            <span className="product-detail__price-note">
+              {" "}
+              USD, tax-exclusive. Sales tax calculated at checkout.
+            </span>
+          </p>
+
+          <p className="product-detail__description">{product.description}</p>
+
+          <dl className="product-detail__specs">
+            <div className="product-detail__spec">
+              <dt className="product-detail__spec-label">Composition</dt>
+              <dd className="product-detail__spec-value" data-testid="product-composition">
+                {product.composition}
+              </dd>
+            </div>
+            <div className="product-detail__spec">
+              <dt className="product-detail__spec-label">Care</dt>
+              <dd className="product-detail__spec-value" data-testid="product-care">
+                {product.care}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </main>
+  );
+}

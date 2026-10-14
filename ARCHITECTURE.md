@@ -22,7 +22,11 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
 ## Runtime Surface
 
 - **Framework:** Next.js `16.4.0`, App Router, React `19.3.0`.
-- **Rendering:** static for now. `/` prerenders as static content.
+- **Rendering:** `/` prerenders as static content. DB-backed routes are `force-dynamic` and render on demand.
+- **Route surface (public, read-only):**
+  - `/` — landing page.
+  - `/catalog` — published product grid (dynamic; `catalog-product-listing`).
+  - `/products/[slug]` — published product detail by public slug (dynamic; `product-detail-page`). Draft, archived and unknown slugs call `notFound()` (HTTP 404).
 - **Deployment target:** Vercel (see `docs/technical-discovery.md`). Not configured here beyond framework defaults.
 
 ### Next.js 16 has breaking changes
@@ -43,6 +47,8 @@ app/                     Next.js App Router routes and UI
   page.tsx               Landing page (placeholder shell)
   globals.css            Design tokens and base styles
   page.test.tsx          Landing page smoke test
+  catalog/               Catalog grid route (/catalog)
+  products/[slug]/       Product detail route (/products/[slug]) + not-found state
 db/                      Data layer: Drizzle schema, migrations, seed, scripts
   schema/                Table + enum definitions (catalog, account, cart, order)
   migrations/            Generated SQL migrations (committed; never hand-edited)

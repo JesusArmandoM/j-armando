@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa`
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none in implementation. `catalog-product-listing` is `accepted` (independently validated 2026-10-13) and committed
-- Current next ready feature: `catalog-filtering` (depends on `catalog-product-listing`, now `accepted`; needs `planner`)
-- Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question is now resolved — see *Resolved*)
-- Last verified at: 2026-10-13, independent `feature-validator` acceptance (verdict ACCEPT): `./init.sh` exit 0 — 7 test files / 17 tests incl. 5 DB integration test files over embedded PostgreSQL 17 and 2 UI test files — `pnpm build` exit 0 with dynamic `/catalog` route, all 4 acceptance scenarios green
+- Current feature in flight: none in implementation. `product-detail-page` is `accepted` (implemented + self-verified 2026-10-14; independently validated and committed 2026-10-14)
+- Current next ready feature: `product-variant-selection` and `catalog-filtering` are both dependency-ready (`product-detail-page` and `catalog-product-listing` are `accepted`); `product-variant-selection` is next in `feature_list.json` order and needs `planner`
+- Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question is resolved — see *Resolved*)
+- Last verified at: 2026-10-14, independent `feature-validator` acceptance of `product-detail-page` (verdict ACCEPT): `./init.sh` exit 0 — 9 test files / 28 tests incl. 6 DB integration files over embedded PostgreSQL 17 and 3 UI files — `pnpm build` exit 0 with dynamic `/products/[slug]` route; live-HTTP matrix: `/products/longline-wool-overcoat` 200, `/products/cropped-tweed-jacket` / `/products/satin-evening-gown` / `/products/no-such-slug` 404
 
 ## Project State
 
@@ -153,4 +153,24 @@ These must be answered before or during the relevant features. Full detail in `d
 - Evidence captured: recorded in `feature_list.json` → `catalog-product-listing.evidence`.
 - Files or artifacts updated: `db/catalog.ts`, `db/tests/catalog-listing.test.ts`, `app/catalog/product-card.tsx`, `app/catalog/page.tsx`, `app/catalog/page.test.tsx`, `app/globals.css`, `app/page.tsx`, `docs/specs/catalog-product-listing.md`, `vitest.config.mts`, `feature_list.json`, this file.
 - Next best step: take `catalog-filtering` (depends on `catalog-product-listing`, now `accepted`).
+
+### Session 008
+
+- Date: 2026-10-14
+- Goal: Implement `product-detail-page` (Shopper opens a product detail page) per `docs/specs/product-detail-page.md`.
+- Completed:
+  - Data access: added `getPublishedProductBySlug(db, slug)` + `ProductDetail`/`ProductDetailImage` to `db/catalog.ts` (published-only filter, inner join on category, images ordered by `position` ascending). `getProductBySlug` was left status-agnostic and unchanged. No migration added — every column already exists.
+  - Route: `app/products/[slug]/page.tsx` — async server component, `export const dynamic = "force-dynamic"`, async `params: Promise<{ slug: string }>` (Next 16 signature confirmed in `node_modules/next/dist/docs/`), graceful `try/catch` around the query and `notFound()` called **outside** it, `generateMetadata()` returning the product name. Renders breadcrumb (`J. Armando` → `/catalog` → name), gallery and commentary column (name, `formatPriceUSD` price labelled USD tax-exclusive, description, composition/care block).
+  - Gallery: `app/products/[slug]/product-gallery.tsx` (`"use client"`, thumbnail selection, alt text on every `<img>`, `next/image` `unoptimized`, placeholder fallback when a product has no images).
+  - Not-found: `app/products/[slug]/not-found.tsx` — English zero-radius editorial state ("This garment is no longer available") linking back to `/catalog`.
+  - Styles: added `.product-detail*`, `.product-gallery*` and `.product-not-found*` blocks to `app/globals.css` (serif heading, hairline dividers, zero radius, single-column mobile / asymmetric 3:2 imagery–commentary split on desktop).
+  - Docs: `ARCHITECTURE.md` Runtime Surface now lists the route surface incl. `/products/[slug]` (public, read-only, dynamic) and Repository Layout lists `app/catalog/` + `app/products/[slug]/`.
+  - Tests: `db/tests/product-detail.test.ts` (5 tests) and `app/products/[slug]/page.test.tsx` (6 tests) covering acceptance scenarios 1–4.
+- Verification run: `./init.sh` exit 0 (9 test files / 28 tests, up from 7/17); `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm build` exit 0 with `DATABASE_URL` unset (route table shows `/products/[slug]` as dynamic ƒ). Real-HTTP smoke over a disposable embedded PostgreSQL 17 (`pnpm db:devdb` → `db:migrate` → `db:seed` → `db:verify` → `pnpm dev` with exported `DATABASE_URL`): `/products/longline-wool-overcoat` → 200 (name, `$349.00`, `tax-exclusive`, composition, all three product images); `/products/cropped-tweed-jacket`, `/products/satin-evening-gown`, `/products/no-such-slug` → 404 (branded not-found, no draft/archived data). Dev server and devdb stopped; port 3000 free; embedded-pg temp dir removed.
+- Evidence captured: `feature_list.json` → `product-detail-page.verification` (5 lines) and `.evidence` (5 lines).
+- Files or artifacts updated: `db/catalog.ts`, `db/tests/product-detail.test.ts`, `app/products/[slug]/page.tsx`, `app/products/[slug]/product-gallery.tsx`, `app/products/[slug]/not-found.tsx`, `app/products/[slug]/page.test.tsx`, `app/globals.css`, `ARCHITECTURE.md`, `feature_list.json`, this file.
+- Known risk or unresolved issue: none new. Non-blocking: the Turbopack build prints a pre-existing tracing warning from `db/env.ts` (loaded via `db/client.ts`), unrelated to this feature; scope intentionally excludes variant selection, add-to-cart, try-on, fit predictor and cross-sell. Validator non-blocking notes: a stale gitignored `.env` sits in this worktree (ignored by the gate, harmless) and the scenario-2 image-order assertion is adequate rather than adversarial.
+- Independent validation (feature-validator, 2026-10-14): verdict **ACCEPT** (no revise loop needed). Reproduced the full gate (`./init.sh` exit 0, 9 files / 28 tests; `pnpm build` exit 0 with `DATABASE_URL` unset, `/products/[slug]` dynamic ƒ) and the live-HTTP matrix over a disposable embedded PostgreSQL 17 (published 200; draft/archived/unknown 404). Confirmed the repository query filter/ordering, unchanged `getProductBySlug`, `notFound()` outside try/catch, `formatPriceUSD`-only money, no migration edits, and no out-of-scope behavior. Security and durable-docs checks clean; acceptance scenarios 1-5 pass.
+- Acceptance persisted: `feature_list.json` → `product-detail-page.status: accepted` + validator evidence; committed as `feat: complete product-detail-page`.
+- Next best step: take `product-variant-selection` (depends on `product-detail-page`, now `accepted`) — run `planner` first (no spec exists). `catalog-filtering` is also dependency-ready.
 

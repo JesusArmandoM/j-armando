@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import { category, product, productImage, variant } from "./schema/index.ts";
@@ -84,6 +84,26 @@ export interface CatalogProductSummary {
   } | null;
 }
 
+export interface ProductDetailImage {
+  path: string;
+  altText: string;
+  position: number;
+}
+
+export interface ProductDetail {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  composition: string;
+  care: string;
+  basePriceCents: number;
+  currency: string;
+  categoryName: string;
+  categorySlug: string;
+  images: ProductDetailImage[];
+}
+
 /** Formats integer cents into a USD currency string (e.g. 24900 -> "$249.00"). */
 export function formatPriceUSD(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -148,5 +168,63 @@ export async function listPublishedCatalogProducts(db: Db): Promise<CatalogProdu
     categorySlug: p.categorySlug,
     primaryImage: primaryImageMap.get(p.id) ?? null,
   }));
+}
+
+/**
+ * Returns the full detail payload for a single **published** product, or
+ * `undefined` when the slug does not exist or the product is draft/archived.
+ * Images are returned ordered by `position` ascending. Draft and archived
+ * products are strictly unreachable through this query.
+ */
+export async function getPublishedProductBySlug(
+  db: Db,
+  slug: string,
+): Promise<ProductDetail | undefined> {
+  const rows = await db
+    .select({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      description: product.description,
+      composition: product.composition,
+      care: product.care,
+      basePriceCents: product.basePriceCents,
+      currency: product.currency,
+      categoryName: category.name,
+      categorySlug: category.slug,
+    })
+    .from(product)
+    .innerJoin(category, eq(category.id, product.categoryId))
+    .where(and(eq(product.slug, slug), eq(product.status, "published")))
+    .limit(1);
+
+  const found = rows[0];
+  if (!found) {
+    return undefined;
+  }
+
+  const images = await db
+    .select({
+      path: productImage.path,
+      altText: productImage.altText,
+      position: productImage.position,
+    })
+    .from(productImage)
+    .where(eq(productImage.productId, found.id))
+    .orderBy(asc(productImage.position));
+
+  return {
+    id: found.id,
+    slug: found.slug,
+    name: found.name,
+    description: found.description,
+    composition: found.composition,
+    care: found.care,
+    basePriceCents: found.basePriceCents,
+    currency: found.currency,
+    categoryName: found.categoryName,
+    categorySlug: found.categorySlug,
+    images,
+  };
 }
 
