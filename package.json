@@ -11,6 +11,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "dev:phone": "next build && next start -p 3001",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
