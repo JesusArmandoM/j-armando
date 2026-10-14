@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import { category, product, productImage, variant } from "./schema/index.ts";
@@ -68,3 +68,85 @@ export function deriveVariantAvailability(
   if (value.discontinued) return "discontinued";
   return value.stockQty > 0 ? "available" : "out_of_stock";
 }
+
+export interface CatalogProductSummary {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  basePriceCents: number;
+  currency: string;
+  categoryName: string;
+  categorySlug: string;
+  primaryImage: {
+    path: string;
+    altText: string;
+  } | null;
+}
+
+/** Formats integer cents into a USD currency string (e.g. 24900 -> "$249.00"). */
+export function formatPriceUSD(cents: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(cents / 100);
+}
+
+/**
+ * Returns all published products with their primary image and category name.
+ * Draft and archived products are strictly omitted.
+ */
+export async function listPublishedCatalogProducts(db: Db): Promise<CatalogProductSummary[]> {
+  const products = await db
+    .select({
+      id: product.id,
+      slug: product.slug,
+      name: product.name,
+      description: product.description,
+      basePriceCents: product.basePriceCents,
+      currency: product.currency,
+      categoryName: category.name,
+      categorySlug: category.slug,
+      categorySortOrder: category.sortOrder,
+    })
+    .from(product)
+    .innerJoin(category, eq(category.id, product.categoryId))
+    .where(eq(product.status, "published"))
+    .orderBy(asc(category.sortOrder), asc(product.name));
+
+  if (products.length === 0) {
+    return [];
+  }
+
+  const productIds = products.map((p) => p.id);
+  const images = await db
+    .select({
+      productId: productImage.productId,
+      path: productImage.path,
+      altText: productImage.altText,
+      position: productImage.position,
+    })
+    .from(productImage)
+    .where(inArray(productImage.productId, productIds))
+    .orderBy(asc(productImage.position));
+
+  const primaryImageMap = new Map<string, { path: string; altText: string }>();
+  for (const img of images) {
+    if (!primaryImageMap.has(img.productId)) {
+      primaryImageMap.set(img.productId, { path: img.path, altText: img.altText });
+    }
+  }
+
+  return products.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    description: p.description,
+    basePriceCents: p.basePriceCents,
+    currency: p.currency,
+    categoryName: p.categoryName,
+    categorySlug: p.categorySlug,
+    primaryImage: primaryImageMap.get(p.id) ?? null,
+  }));
+}
+

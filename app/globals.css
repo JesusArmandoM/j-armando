@@ -89,3 +89,232 @@ body {
   letter-spacing: 0.01em;
   color: var(--color-stone);
 }
+
+.landing__actions {
+  margin-top: 2.25rem;
+}
+
+.landing__button {
+  display: inline-block;
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.875rem 2rem;
+  transition: opacity 0.2s ease;
+}
+
+.landing__button:hover {
+  opacity: 0.88;
+}
+
+/* ---- Catalog Page ---- */
+
+.catalog {
+  min-height: 100vh;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 6rem;
+}
+
+.catalog__header {
+  margin-bottom: 3.5rem;
+  border-bottom: 1px solid var(--color-hairline);
+  padding-bottom: 2.5rem;
+}
+
+.catalog__breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+}
+
+.catalog__breadcrumb-link {
+  color: var(--color-stone);
+  text-decoration: none;
+}
+
+.catalog__breadcrumb-link:hover {
+  color: var(--color-ink);
+}
+
+.catalog__breadcrumb-separator {
+  color: var(--color-stone);
+}
+
+.catalog__breadcrumb-current {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.catalog__eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  margin: 0 0 1rem;
+}
+
+.catalog__title {
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.catalog__lede {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--color-stone);
+  max-width: 38rem;
+  margin: 1rem 0 0;
+}
+
+/* Responsive grid per DESIGN.md: 1 col on mobile, 2-3 on tablet, 4 on desktop */
+.catalog__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .catalog__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .catalog__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .catalog__grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3rem 1.75rem;
+  }
+}
+
+/* Product Card */
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card__link {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+}
+
+.product-card__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: #f0eee8;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-card__link:hover .product-card__image {
+  transform: scale(1.03);
+}
+
+.product-card__info {
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.product-card__category {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  margin: 0;
+}
+
+.product-card__title {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.product-card__price {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  margin: 0.25rem 0 0;
+}
+
+/* Empty State */
+
+.catalog__empty {
+  padding: 5rem 1.5rem;
+  text-align: center;
+  border: 1px dashed var(--color-hairline-strong);
+  margin: 2rem 0;
+}
+
+.catalog__empty-title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.catalog__empty-description {
+  font-family: var(--font-sans);
+  color: var(--color-stone);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+/* Catalog Footer */
+
+.catalog__footer {
+  margin-top: 5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.catalog__footer-meta {
+  font-size: 0.8125rem;
+  color: var(--color-stone);
+  margin: 0;
+}
+

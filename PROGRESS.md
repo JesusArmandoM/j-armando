@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa`
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none in implementation. `bootstrap-database-schema` is `accepted` (independently validated 2026-10-12 after one revise/repair loop) and committed
-- Current next ready feature: `catalog-product-listing` (depends on `bootstrap-database-schema`, now `accepted`; no spec yet — needs `planner`)
+- Current feature in flight: none in implementation. `catalog-product-listing` is `accepted` (independently validated 2026-10-13) and committed
+- Current next ready feature: `catalog-filtering` (depends on `catalog-product-listing`, now `accepted`; needs `planner`)
 - Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question is now resolved — see *Resolved*)
-- Last verified at: 2026-10-12, independent `feature-validator` re-validation (verdict ACCEPT): F1 re-verified against a real database, `./init.sh` twice exit 0 — 5 test files / 11 tests incl. 9 DB integration tests against embedded PostgreSQL 17 — `pnpm build` exit 0 with no database, seed idempotency/non-destructiveness re-confirmed, migration byte-identical to `db/schema/`, clean-checkout run green
+- Last verified at: 2026-10-13, independent `feature-validator` acceptance (verdict ACCEPT): `./init.sh` exit 0 — 7 test files / 17 tests incl. 5 DB integration test files over embedded PostgreSQL 17 and 2 UI test files — `pnpm build` exit 0 with dynamic `/catalog` route, all 4 acceptance scenarios green
 
 ## Project State
 
@@ -133,3 +133,24 @@ These must be answered before or during the relevant features. Full detail in `d
 - Files or artifacts updated: all `bootstrap-database-schema` implementation/doc files plus `feature_list.json` and this file.
 - Known risk or unresolved issue: the env-file precedence split (`.env` wins for `db:migrate`, `.env.local` for `db:seed`/`db:verify`) is documented, not normalized. Non-blocking validator note: drizzle-kit swallows connection errors (silent exit 1) — upstream behavior. Six discovery questions unchanged.
 - Next best step: take `catalog-product-listing` (first dependency-ready feature) — run `planner` first (no spec exists).
+
+### Session 007
+
+- Date: 2026-10-13
+- Goal: Orchestrate GitHub Flow and Feature Flow for `catalog-product-listing` (Shopper sees a grid of published products).
+- Completed:
+  - Spec written: `docs/specs/catalog-product-listing.md` covering 4 acceptance scenarios, responsive grid requirements, and zero-radius editorial design tokens.
+  - Data access query added: `listPublishedCatalogProducts(db)` and `formatPriceUSD(cents)` in `db/catalog.ts`. Strictly filters for `published` status and retrieves each product's primary image and category name.
+  - Integration test suite created: `db/tests/catalog-listing.test.ts` (3 tests) verifying only the 6 published products appear, draft and archived products are excluded, image paths/alt text are attached, and USD price formatting is accurate.
+  - UI components created: `app/catalog/product-card.tsx` and `app/catalog/page.tsx` with responsive grid layout (1 col mobile, 2-3 col tablet, 4 col desktop per `DESIGN.md`), editorial header, empty state fallback, and link from landing page.
+  - UI test suite created: `app/catalog/page.test.tsx` (3 tests) verifying product card rendering, links to `/products/[slug]`, responsive grid classes, and empty state.
+  - Independent validation: verdict ACCEPT. All 4 acceptance scenarios pass; scope discipline verified (no filters, search, or cart buttons); security verified (Drizzle query builder); responsive CSS tested.
+- Verification run:
+  - `./init.sh` exit 0 (7 test files, 17 tests passed: 5 DB integration test files over embedded PostgreSQL 17 + 2 UI test files).
+  - `pnpm lint` exit 0 (zero ESLint errors, zero warnings).
+  - `pnpm typecheck` exit 0 (zero TypeScript errors).
+  - `pnpm build` exit 0 (Next.js Turbopack production build prerenders `/`, `/_not-found`, and dynamic `/catalog`).
+- Evidence captured: recorded in `feature_list.json` → `catalog-product-listing.evidence`.
+- Files or artifacts updated: `db/catalog.ts`, `db/tests/catalog-listing.test.ts`, `app/catalog/product-card.tsx`, `app/catalog/page.tsx`, `app/catalog/page.test.tsx`, `app/globals.css`, `app/page.tsx`, `docs/specs/catalog-product-listing.md`, `vitest.config.mts`, `feature_list.json`, this file.
+- Next best step: take `catalog-filtering` (depends on `catalog-product-listing`, now `accepted`).
+

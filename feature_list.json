@@ -55,13 +55,21 @@
     "title": "Shopper sees a grid of published products",
     "user_visible_behavior": "The catalog page shows each published product exactly once with its image, name and price in a responsive grid. Draft and archived products are not visible.",
     "depends_on": ["bootstrap-database-schema"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: with seeded data containing published, draft and archived products, only the published ones render on the catalog page.",
-      "Provisional: each product appears exactly once and shows name, image and price."
+      "With seeded data containing published, draft and archived products, only the 6 published ones render on the catalog page: verified in db/tests/catalog-listing.test.ts 'scenario 1: returns only published products and omits draft and archived products'.",
+      "Each product card displays its name, primary image, formatted USD price and links to its product detail page (/products/[slug]): verified in app/catalog/page.test.tsx 'ProductCard component' and 'CatalogPage component'.",
+      "Responsive layout displays 1 column on small screens, 2-3 on medium, 4 on desktop (per DESIGN.md grid specs): styled in app/globals.css (.catalog__grid responsive media queries) and tested in app/catalog/page.test.tsx.",
+      "Empty state renders cleanly when no published products exist: verified in app/catalog/page.test.tsx and db/tests/catalog-listing.test.ts."
     ],
-    "evidence": [],
-    "notes": "Design reference: stitch_image_based_application/cat_logo_colecci_n_editorial/. Copy must be English and prices USD (see DESIGN.md). Do not build the excluded merchandising features (capsules, newsletter) from that screen."
+    "evidence": [
+      "./init.sh (2026-10-13): exit 0. install + lint + typecheck + test all passed; vitest: 7 test files, 17 tests passed (5 DB integration tests over embedded PostgreSQL 17 + 2 UI test files).",
+      "pnpm build (2026-10-13): exit 0. Next.js 16.4.0 (Turbopack) production build successfully generates routes /, /_not-found, and dynamic /catalog.",
+      "Integration tests: db/tests/catalog-listing.test.ts confirms listPublishedCatalogProducts returns exactly the 6 published products, excluding draft items ('cropped-tweed-jacket', 'ribbed-knit-cardigan') and archived ('satin-evening-gown'), with primary images and correct USD price formatting.",
+      "UI tests: app/catalog/page.test.tsx confirms product card rendering, links to /products/[slug], formatted prices, responsive grid container, and empty state.",
+      "Independent validation (github-flow validator, 2026-10-13): verdict ACCEPT. All 4 acceptance scenarios from docs/specs/catalog-product-listing.md pass cleanly with 17/17 tests green; scope discipline preserved (no filters/sort); security clean (Drizzle query builder); responsive CSS per DESIGN.md."
+    ],
+    "notes": "Design reference: stitch_image_based_application/cat_logo_colecci_n_editorial/. Copy is English and prices USD (see DESIGN.md). Excluded merchandising features (capsules, newsletter) deferred to post-MVP."
   },
   {
     "id": "catalog-filtering",

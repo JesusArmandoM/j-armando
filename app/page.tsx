@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Page() {
   return (
     <main className="landing">
@@ -8,9 +10,15 @@ export default function Page() {
         silhouettes &mdash; architectural tailoring, quiet materials, and an
         exact fit.
       </p>
+      <div className="landing__actions">
+        <Link href="/catalog" className="landing__button">
+          Explore Collection
+        </Link>
+      </div>
       <p className="landing__meta">
         Free standard shipping across the United States. Prices in USD.
       </p>
     </main>
   );
 }
+
