@@ -14,9 +14,20 @@ export interface ChatAnswer {
   content: string;
 }
 
+/**
+ * Optional grounding passed by the guardrail decorator. `verifiedFacts` are the
+ * only authoritative store facts for this answer; `instructions` are grounding
+ * and refusal rules. Providers must treat both as system-level context and must
+ * never merge user message text into it.
+ */
+export interface ChatAnswerContext {
+  verifiedFacts?: readonly string[];
+  instructions?: string;
+}
+
 /** The storefront-facing chat capability. */
 export interface ChatAssistant {
-  answer(messages: ChatMessage[]): Promise<ChatAnswer>;
+  answer(messages: ChatMessage[], context?: ChatAnswerContext): Promise<ChatAnswer>;
 }
 
 /**

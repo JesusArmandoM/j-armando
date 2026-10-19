@@ -4,7 +4,7 @@ Runtime and tooling boundaries for **J. Armando**. Update this file when domains
 
 ## Status
 
-The application shell, the PostgreSQL data layer, the catalog storefront (listing with URL-driven filtering/sorting) and the product detail page exist. The `PaymentProvider` port and its simulated adapter are realised in `payments/` (port, adapter, outcome mapping) with a presentational checkout outcome surface; the storefront chat assistant is realised behind the `ChatAssistant` port in `lib/chat/` (provider-agnostic port, OpenAI adapter, env-driven factory) with `POST /api/chat` and the `app/chat/` panel. The checkout page itself, cart, orders, identity, virtual try-on and payments against a real gateway are not implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
+The application shell, the PostgreSQL data layer, the catalog storefront (listing with URL-driven filtering/sorting) and the product detail page exist. The `PaymentProvider` port and its simulated adapter are realised in `payments/` (port, adapter, outcome mapping) with a presentational checkout outcome surface; the storefront chat assistant is realised behind the `ChatAssistant` port in `lib/chat/` (provider-agnostic port, OpenAI adapter, env-driven factory) with `POST /api/chat` and the `app/chat/` panel. Chat answers are guarded deterministically: policy facts come from a repo-owned knowledge module, prices from published catalog rows, and unrelated requests are refused before the LLM is called (`docs/adr/0004-chat-assistant-guardrails.md`). The checkout page itself, cart, orders, identity, virtual try-on and payments against a real gateway are not implemented yet. See `feature_list.json` for what is planned and `docs/technical-discovery.md` for the technology decisions.
 
 ## Toolchain Pin
 
@@ -27,6 +27,7 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
   - `/` — landing page.
   - `/catalog` — published product grid (dynamic; `catalog-product-listing`) with URL-driven filter/sort state (`catalog-filtering`).
   - `/products/[slug]` — published product detail by public slug (dynamic; `product-detail-page`) with size/color variant selection (`product-variant-selection`). Draft, archived and unknown slugs call `notFound()` (HTTP 404).
+  - `POST /api/chat` — stateless chat endpoint (dynamic; `chat-assistant`), guarded before the provider is called (`chat-assistant-guardrails`). Malformed body → 400, unconfigured provider → 503, provider error → 502.
 - **Catalog listing state:** filter/sort state (category, size, color, max price, sort) lives only in the URL query string — no client store. The page parses it (`app/catalog/filter-params.ts`), fetches through the repository, and a client toolbar pushes new `/catalog?...` history entries via `next/navigation`'s `useRouter`. Reset navigates to the bare `/catalog`.
 - **Product variant selection state:** the detail page exposes only non-discontinued variants (ordered size then color). Selection is client view state initialized from `?size=&color=` on the server (`parseVariantSelection`) so price and availability update instantly; after a change the client selector mirrors the canonical values into the URL with `window.history.replaceState` (no navigation, no new history entry, no scroll jump). Out-of-stock/unoffered pairs are rejected by both the parser and the selector.
 - **Deployment target:** Vercel (see `docs/technical-discovery.md`). Not configured here beyond framework defaults.
@@ -53,14 +54,15 @@ app/                     Next.js App Router routes and UI
   globals.css            Design tokens and base styles
   page.test.tsx          Landing page smoke test
   chat/                  Chat panel client component (+ test)
-  api/chat/              POST /api/chat route handler (+ test)
+  api/chat/              POST /api/chat route + guardrail composition (+ tests)
 payments/                Payment port + simulated adapter (framework-agnostic; no next/react/db)
   payment-provider.ts    Port types, PaymentEvent union, PaymentProvider interface
   simulated-provider.ts  Deterministic simulated adapter (succeed/fail/pending)
   payment-outcome.ts     Pure event -> presentation view mapping
 lib/                     Application-layer ports and shared framework-agnostic helpers (no next/react/db)
   money.ts               USD formatter used by the data layer and the mapper
-  chat/                  ChatAssistant port, OpenAI adapter, env factory (+ tests)
+  chat/                  ChatAssistant port, OpenAI adapter, guardrail decorator, env factory (+ tests)
+    guardrails/          Repo-owned store knowledge, intents, product matching, answer guard
 db/                      Data layer: Drizzle schema, migrations, seed, scripts
   schema/                Table + enum definitions (catalog, account, cart, order)
   migrations/            Generated SQL migrations (committed; never hand-edited)
@@ -134,7 +136,8 @@ Partially realised in code; this is the direction to preserve:
 
 - **UI (App Router routes)** → calls application services → **domain** → **ports** (interfaces) → **adapters** (real implementations).
 - External capabilities sit behind ports so they can be swapped or simulated without touching store code:
-  - **`ChatAssistant` — realised** in `lib/chat/`: the port (`chat-assistant.ts`) is provider-agnostic; `openai-chat-assistant.ts` is the OpenAI Chat Completions adapter; `index.ts` is the env-driven factory (`getChatAssistant()`). The UI (`app/chat/chat-panel.tsx`) talks only to `POST /api/chat` and imports only the port types, so swapping the adapter needs no UI change.
+  - **`ChatAssistant` — realised** in `lib/chat/`: the port (`chat-assistant.ts`) is provider-agnostic and now carries an optional `ChatAnswerContext` (`verifiedFacts`, `instructions`); `openai-chat-assistant.ts` is the OpenAI Chat Completions adapter; `index.ts` is the env-driven factory (`getChatAssistant()`). The UI (`app/chat/chat-panel.tsx`) talks only to `POST /api/chat` and imports only the port types, so swapping the adapter needs no UI change.
+  - **Chat guardrails — realised** (2026-10-19, `chat-assistant-guardrails`): `guarded-chat-assistant.ts` is a `ChatAssistant` decorator. It answers policy questions verbatim from the repo-owned `guardrails/store-knowledge.ts`, prices only from the published-only `listPublishedProductFacts` query in `db/catalog.ts` (integer cents formatted by `lib/money.ts`), and out-of-scope/prompt-injection asks with a fixed refusal — all without invoking the provider. Only in-scope product/sizing/fabric/care conversation reaches the adapter, with verified facts injected as system context; `guardrails/answer-guard.ts` discards replies containing unverified dollar amounts. `app/api/chat/composition.ts` wires knowledge, the lazy DB reader and the lazy provider; importing it opens no pool and needs no key. Policy/price facts are never sourced from the LLM (ADR 0004, `CONSTRAINTS.md`).
   - **`PaymentProvider` — realised** (2026-10-14, `payment-provider-abstraction`): the framework-agnostic port (`PaymentOutcome`, the `PaymentEvent` discriminated union `payment.succeeded | payment.failed | payment.pending`, and the single-method `PaymentProvider.createPayment`) lives in `payments/payment-provider.ts`; the deterministic simulated adapter is `payments/simulated-provider.ts` (`createSimulatedPaymentProvider`, id `"simulated"`); the pure outcome mapping is `payments/payment-outcome.ts` (`describePaymentOutcome`, which carries integer `amountCents` and renders `amountLabel`); and the presentational checkout surface is `app/checkout/payment-outcome.tsx`. None of these modules import `next`/`react`/`db` code, so a real gateway can replace the simulation behind the same interface without touching the mapper or component. Money formatting is shared: the pure `formatPriceUSD` lives in the framework-agnostic `lib/money.ts` and is imported by the mapper and re-exported by `db/catalog.ts`. Asynchronous confirmation is designed in now: `pending` is a first-class event, not collapsed into a boolean.
   - **`TryOnProvider` — not yet realised**: a real external service behind its own interface (the virtual try-on slice).
 - Catalog, cart and order rules belong in the domain layer, not in React components or route handlers.
@@ -151,6 +154,8 @@ The chat provider is configured through environment variables, read lazily at re
 | `OPENAI_BASE_URL` | no | `https://api.openai.com/v1` | Endpoint root, for a compatible gateway. |
 
 The automated test suite never calls the live provider: the adapter is exercised with an injected `fetch` and an in-process HTTP server (`CONSTRAINTS.md`).
+
+The provider is only reached for in-scope conversation. Policy, price and out-of-scope answers are produced deterministically by `lib/chat/guarded-chat-assistant.ts` and work even when `OPENAI_API_KEY` is missing. There is no additional provider, vector store or retrieval service for chat; the verified source is the code-reviewed knowledge module plus the catalog database (ADR 0004).
 
 ## Known Open Points
 

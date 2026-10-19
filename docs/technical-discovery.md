@@ -40,7 +40,7 @@ Special storage considerations:
 
 | Integration | Purpose | MVP status |
 | --- | --- | --- |
-| **LLM provider** — **OpenAI Chat Completions** | Chat Assistant | Real, behind `ChatAssistant` (`lib/chat/`). Key `OPENAI_API_KEY`, model `CHAT_ASSISTANT_MODEL` (default `gpt-4o-mini`), optional `OPENAI_BASE_URL`. The automated suite exercises the adapter with an injected `fetch` and an in-process HTTP server — never a live call. |
+| **LLM provider** — **OpenAI Chat Completions** | Chat Assistant | Real, behind `ChatAssistant` (`lib/chat/`). Key `OPENAI_API_KEY`, model `CHAT_ASSISTANT_MODEL` (default `gpt-4o-mini`), optional `OPENAI_BASE_URL`. Answers are grounded deterministically: policies come from the repo-owned `lib/chat/guardrails/store-knowledge.ts`, prices from published catalog rows, and policy/price/out-of-scope asks never reach the provider (`docs/adr/0004-chat-assistant-guardrails.md`); no extra provider or retrieval service is added. The automated suite exercises the adapter with an injected `fetch` and an in-process HTTP server — never a live call. |
 | **Virtual try-on service** (specialised external provider) | Virtual Try-On | Real, behind `TryOnProvider`. |
 | **Payment Provider** | Charge for orders | **Simulated** implementation of the same interface a real gateway would implement later. |
 | **Object storage** (e.g. S3/R2-compatible) | Product images, try-on photos | Required. |

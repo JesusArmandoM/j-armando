@@ -1,6 +1,6 @@
 import { ChatAssistantError } from "@/lib/chat/chat-assistant.ts";
 import type { ChatMessage } from "@/lib/chat/chat-assistant.ts";
-import { getChatAssistant } from "@/lib/chat/index.ts";
+import { answerChat } from "./composition.ts";
 
 // The only server seam the chat UI knows. The panel POSTs `{ messages }` here
 // and gets `{ reply }` back; it never learns which provider is configured.
@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const answer = await getChatAssistant().answer(messages);
+    const answer = await answerChat(messages);
     return Response.json({ reply: answer.content });
   } catch (error) {
     if (error instanceof ChatAssistantError) {
