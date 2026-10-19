@@ -3,17 +3,30 @@ import { count, inArray } from "drizzle-orm";
 import { closeDb, getHandle } from "./client.ts";
 import type { Db } from "./client.ts";
 import { isMainModule } from "./main.ts";
-import { seedCategories, seedProducts } from "./seed-data.ts";
-import { category, product, productImage, variant } from "./schema/index.ts";
+import {
+  seedCategories,
+  seedProducts,
+  seedShippingMethods,
+  seedSizeCharts,
+} from "./seed-data.ts";
+import {
+  category,
+  product,
+  productImage,
+  shippingMethod,
+  sizeChart,
+  variant,
+} from "./schema/index.ts";
 
 /**
  * Loads the demo catalog (db/seed-data.ts) into the database.
  *
  * Semantics are strictly insert-if-missing (`ON CONFLICT DO NOTHING`) on the
  * natural keys `category.slug`, `product.slug`, `variant (product_id, size,
- * color)` and `product_image (product_id, position)`, inside one transaction.
- * The seed never updates and never deletes rows: re-running it never
- * duplicates rows and never overwrites manual edits (see CONSTRAINTS.md).
+ * color)`, `product_image (product_id, position)`, `size_chart (category_id,
+ * size)` and `shipping_method.slug`, inside one transaction. The seed never
+ * updates and never deletes rows: re-running it never duplicates rows and never
+ * overwrites manual edits (see CONSTRAINTS.md).
  */
 export async function seedCatalog(db: Db): Promise<void> {
   await db.transaction(async (tx) => {
@@ -28,6 +41,19 @@ export async function seedCatalog(db: Db): Promise<void> {
         .onConflictDoNothing({ target: category.slug });
     }
 
+    for (const seedMethod of seedShippingMethods) {
+      await tx
+        .insert(shippingMethod)
+        .values({
+          slug: seedMethod.slug,
+          name: seedMethod.name,
+          description: seedMethod.description,
+          costCents: seedMethod.costCents,
+          deliveryEstimate: seedMethod.deliveryEstimate,
+        })
+        .onConflictDoNothing({ target: shippingMethod.slug });
+    }
+
     const categoryRows = await tx
       .select({ id: category.id, slug: category.slug })
       .from(category)
@@ -38,6 +64,21 @@ export async function seedCatalog(db: Db): Promise<void> {
         ),
       );
     const categoryIds = new Map(categoryRows.map((row) => [row.slug, row.id]));
+
+    for (const seedChart of seedSizeCharts) {
+      const categoryId = categoryIds.get(seedChart.categorySlug);
+      if (!categoryId) {
+        throw new Error(`seed category not found: ${seedChart.categorySlug}`);
+      }
+      await tx
+        .insert(sizeChart)
+        .values({
+          categoryId,
+          size: seedChart.size,
+          measurements: seedChart.measurements,
+        })
+        .onConflictDoNothing({ target: [sizeChart.categoryId, sizeChart.size] });
+    }
 
     for (const seedProduct of seedProducts) {
       const categoryId = categoryIds.get(seedProduct.categorySlug);
@@ -118,6 +159,8 @@ if (isMainModule(import.meta.url)) {
     console.log(`  products:   ${counts.products}`);
     console.log(`  variants:   ${counts.variants}`);
     console.log(`  images:     ${counts.images}`);
+    console.log(`  size charts: ${counts.sizeCharts}`);
+    console.log(`  shipping methods: ${counts.shippingMethods}`);
   } finally {
     await closeDb();
   }
@@ -129,15 +172,21 @@ export async function readCatalogRowCounts(db: Db): Promise<{
   products: number;
   variants: number;
   images: number;
+  sizeCharts: number;
+  shippingMethods: number;
 }> {
   const [categories] = await db.select({ n: count() }).from(category);
   const [products] = await db.select({ n: count() }).from(product);
   const [variants] = await db.select({ n: count() }).from(variant);
   const [images] = await db.select({ n: count() }).from(productImage);
+  const [sizeCharts] = await db.select({ n: count() }).from(sizeChart);
+  const [shippingMethods] = await db.select({ n: count() }).from(shippingMethod);
   return {
     categories: categories.n,
     products: products.n,
     variants: variants.n,
     images: images.n,
+    sizeCharts: sizeCharts.n,
+    shippingMethods: shippingMethods.n,
   };
 }

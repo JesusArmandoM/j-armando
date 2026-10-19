@@ -34,6 +34,10 @@ const overcoat: ProductFact = {
   care: "Dry clean only.",
   basePriceCents: 34900,
   currency: "USD",
+  categorySlug: "coats",
+  categoryName: "Coats",
+  variants: [{ size: "M", color: "Camel", stockQty: 14 }],
+  sizeChart: [],
 };
 
 function factAnswer(id: string): string {
@@ -73,7 +77,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/chat", () => {
-  it("answers a shipping-cost question with the verified unknown copy and no provider key", async () => {
+  it("answers a shipping-cost question with the verified copy and no provider key", async () => {
     const response = await POST(chatRequest("How much does shipping cost?"));
 
     expect(response.status).toBe(200);
@@ -101,7 +105,9 @@ describe("POST /api/chat", () => {
     }));
     getAssistantMock.mockReturnValue({ answer: answerSpy });
 
-    const response = await POST(chatRequest("How does sizing work?"));
+    const response = await POST(
+      chatRequest("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -146,7 +152,9 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 503 when an in-scope question needs an unconfigured provider", async () => {
-    const response = await POST(chatRequest("How does sizing run?"));
+    const response = await POST(
+      chatRequest("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toHaveProperty("error");
@@ -159,7 +167,9 @@ describe("POST /api/chat", () => {
       }),
     });
 
-    const response = await POST(chatRequest("How does sizing run?"));
+    const response = await POST(
+      chatRequest("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toHaveProperty("error");
@@ -171,7 +181,9 @@ describe("POST /api/chat", () => {
     }));
     getAssistantMock.mockReturnValue({ answer: answerSpy });
 
-    const response = await POST(chatRequest("How does sizing work?"));
+    const response = await POST(
+      chatRequest("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({

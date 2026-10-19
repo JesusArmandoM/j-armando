@@ -527,6 +527,65 @@ body {
   margin: 0;
 }
 
+.product-detail__size-guide {
+  margin: 1.5rem 0 2rem;
+  border-top: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.product-detail__size-guide-summary {
+  padding: 1rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.product-detail__size-guide-note {
+  margin: 0 0 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--color-stone);
+}
+
+.product-detail__size-guide-table-wrap {
+  overflow-x: auto;
+  padding-bottom: 1.25rem;
+}
+
+.product-detail__size-guide-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-ink);
+}
+
+.product-detail__size-guide-table th,
+.product-detail__size-guide-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--color-hairline);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.product-detail__size-guide-table thead th {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.product-detail__size-guide-table tbody th {
+  font-weight: 600;
+}
+
 /* ---- Product Variant Selector ---- */
 
 .product-variant {

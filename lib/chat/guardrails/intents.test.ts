@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   OUT_OF_SCOPE_REPLY,
   hasPriceIntent,
+  hasProductInfoIntent,
+  hasSizingIntent,
   isOutOfScope,
   matchPolicyTopics,
 } from "./intents.ts";
@@ -25,9 +27,19 @@ describe("policy intent routing", () => {
       "Do you ship free?",
       "Do you ship free over $100?",
       "What are your shipping rates?",
+      "Do you offer free shipping?",
     ]) {
       expect(matchPolicyTopics(question).map((fact) => fact.id)).toEqual(["shipping-cost"]);
     }
+  });
+
+  it("keeps promotions when the shopper actually names a promotion", () => {
+    expect(matchPolicyTopics("Do you have any offers?").map((fact) => fact.id)).toEqual([
+      "promotions",
+    ]);
+    expect(
+      matchPolicyTopics("Do you offer a discount on shipping?").map((fact) => fact.id),
+    ).toEqual(["shipping-cost", "promotions"]);
   });
 
   it("still routes a market question to the market fact", () => {
@@ -60,6 +72,44 @@ describe("price intent", () => {
       "Tell me about the linen blazer.",
     ]) {
       expect(hasPriceIntent(question)).toBe(false);
+    }
+  });
+});
+
+describe("product follow-up intents", () => {
+  it("detects sizing and fit questions", () => {
+    for (const question of [
+      "What sizes does the coat come in?",
+      "How does sizing run?",
+      "Does the overcoat fit true to size?",
+      "What are the measurements?",
+      "Do you have a size chart?",
+    ]) {
+      expect(hasSizingIntent(question)).toBe(true);
+    }
+  });
+
+  it("detects style, material, care and availability questions", () => {
+    for (const question of [
+      "What styles do you have for coats?",
+      "What is the overcoat made of?",
+      "How should I care for the blazer?",
+      "What colors does the sweater come in?",
+      "Is the dress available?",
+      "Tell me about the overcoat.",
+    ]) {
+      expect(hasProductInfoIntent(question)).toBe(true);
+    }
+  });
+
+  it("does not treat price, policy or unrelated questions as product info", () => {
+    for (const question of [
+      "How much is the overcoat?",
+      "Do you offer free shipping?",
+      "What is your return policy?",
+      "What's the weather in Paris?",
+    ]) {
+      expect(hasProductInfoIntent(question)).toBe(false);
     }
   });
 });

@@ -1,3 +1,4 @@
+import type { SizeChartMeasurements } from "./schema/catalog.ts";
 import type { ProductStatus, VariantSize } from "./schema/enums.ts";
 
 // Declarative demo catalog content for `pnpm db:seed` (spec:
@@ -52,6 +53,100 @@ export const seedCategories: SeedCategory[] = [
   { slug: "knitwear", name: "Knitwear", sortOrder: 4 },
   { slug: "shirts", name: "Shirts", sortOrder: 5 },
   { slug: "trousers", name: "Trousers", sortOrder: 6 },
+];
+
+export interface SeedSizeChart {
+  categorySlug: string;
+  size: VariantSize;
+  /** Approximate body measurements in inches. */
+  measurements: SizeChartMeasurements;
+}
+
+/** Standard US women's body measurements used across the demo catalog. */
+const SIZE_CHART_SIZES: readonly VariantSize[] = ["XS", "S", "M", "L", "XL"];
+
+type ChartSet = {
+  chest?: SizeChartMeasurements["chest"];
+  waist?: SizeChartMeasurements["waist"];
+  hip?: SizeChartMeasurements["hip"];
+  sleeve?: SizeChartMeasurements["sleeve"];
+  length?: SizeChartMeasurements["length"];
+  inseam?: SizeChartMeasurements["inseam"];
+  rise?: SizeChartMeasurements["rise"];
+};
+
+function range(min: number, max: number) {
+  return { min, max };
+}
+
+const TOPS: Record<VariantSize, ChartSet> = {
+  XS: { chest: range(31, 32), waist: range(24, 25), hip: range(34, 35), sleeve: range(30, 31) },
+  S: { chest: range(33, 34), waist: range(26, 27), hip: range(36, 37), sleeve: range(31, 32) },
+  M: { chest: range(35, 36), waist: range(28, 29), hip: range(38, 39), sleeve: range(32, 33) },
+  L: { chest: range(37, 39), waist: range(30, 32), hip: range(40, 42), sleeve: range(33, 34) },
+  XL: { chest: range(40, 42), waist: range(33, 35), hip: range(43, 45), sleeve: range(34, 35) },
+};
+
+const DRESSES: Record<VariantSize, ChartSet> = {
+  XS: { ...TOPS.XS, length: range(43, 44) },
+  S: { ...TOPS.S, length: range(44, 45) },
+  M: { ...TOPS.M, length: range(45, 46) },
+  L: { ...TOPS.L, length: range(46, 47) },
+  XL: { ...TOPS.XL, length: range(47, 48) },
+};
+
+const TROUSERS: Record<VariantSize, ChartSet> = {
+  XS: { waist: range(24, 25), hip: range(34, 35), inseam: range(30, 31), rise: range(9, 10) },
+  S: { waist: range(26, 27), hip: range(36, 37), inseam: range(30, 31), rise: range(10, 11) },
+  M: { waist: range(28, 29), hip: range(38, 39), inseam: range(31, 32), rise: range(10, 11) },
+  L: { waist: range(30, 32), hip: range(40, 42), inseam: range(31, 32), rise: range(11, 12) },
+  XL: { waist: range(33, 35), hip: range(43, 45), inseam: range(32, 33), rise: range(11, 12) },
+};
+
+function sizeChartRows(
+  categorySlug: string,
+  measurementsBySize: Record<VariantSize, ChartSet>,
+): SeedSizeChart[] {
+  return SIZE_CHART_SIZES.map((size) => ({
+    categorySlug,
+    size,
+    measurements: measurementsBySize[size],
+  }));
+}
+
+export const seedSizeCharts: SeedSizeChart[] = [
+  ...sizeChartRows("coats", TOPS),
+  ...sizeChartRows("blazers", TOPS),
+  ...sizeChartRows("dresses", DRESSES),
+  ...sizeChartRows("knitwear", TOPS),
+  ...sizeChartRows("shirts", TOPS),
+  ...sizeChartRows("trousers", TROUSERS),
+];
+
+export interface SeedShippingMethod {
+  slug: string;
+  name: string;
+  description: string;
+  /** Shipping cost in integer cents. */
+  costCents: number;
+  deliveryEstimate: string;
+}
+
+export const seedShippingMethods: SeedShippingMethod[] = [
+  {
+    slug: "standard",
+    name: "Standard Shipping",
+    description: "Free standard shipping across the United States.",
+    costCents: 0,
+    deliveryEstimate: "3–5 business days",
+  },
+  {
+    slug: "express",
+    name: "Express Shipping",
+    description: "Flat-rate express shipping across the United States.",
+    costCents: 1500,
+    deliveryEstimate: "1–2 business days",
+  },
 ];
 
 export const seedProducts: SeedProduct[] = [

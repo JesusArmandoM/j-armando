@@ -3,7 +3,7 @@ import { count } from "drizzle-orm";
 import { closeDb, getHandle } from "./client.ts";
 import type { Db } from "./client.ts";
 import { isMainModule } from "./main.ts";
-import { category, product, variant } from "./schema/index.ts";
+import { category, product, shippingMethod, sizeChart, variant } from "./schema/index.ts";
 import type { ProductStatus } from "./schema/index.ts";
 
 // `pnpm db:verify` — asserts the catalog is populated after `pnpm db:seed`
@@ -15,6 +15,8 @@ export interface CatalogCounts {
   categories: number;
   products: number;
   variants: number;
+  sizeCharts: number;
+  shippingMethods: number;
   productsByStatus: Record<ProductStatus, number>;
 }
 
@@ -31,6 +33,8 @@ export interface CatalogVerification {
 export const EXPECTED_MIN_CATEGORIES = 6;
 export const EXPECTED_MIN_PRODUCTS = 9;
 export const EXPECTED_MIN_VARIANTS = 24;
+export const EXPECTED_MIN_SIZE_CHARTS = 30;
+export const EXPECTED_MIN_SHIPPING_METHODS = 2;
 export const REQUIRED_PRODUCT_STATUSES: readonly ProductStatus[] = [
   "published",
   "draft",
@@ -41,6 +45,8 @@ export async function readCatalogCounts(db: Db): Promise<CatalogCounts> {
   const [categoryCount] = await db.select({ n: count() }).from(category);
   const [productCount] = await db.select({ n: count() }).from(product);
   const [variantCount] = await db.select({ n: count() }).from(variant);
+  const [sizeChartCount] = await db.select({ n: count() }).from(sizeChart);
+  const [shippingMethodCount] = await db.select({ n: count() }).from(shippingMethod);
 
   const statusRows = await db
     .select({ status: product.status, n: count() })
@@ -59,6 +65,8 @@ export async function readCatalogCounts(db: Db): Promise<CatalogCounts> {
     categories: categoryCount.n,
     products: productCount.n,
     variants: variantCount.n,
+    sizeCharts: sizeChartCount.n,
+    shippingMethods: shippingMethodCount.n,
     productsByStatus,
   };
 }
@@ -78,6 +86,16 @@ export async function verifyCatalog(db: Db): Promise<CatalogVerification> {
   if (counts.variants < EXPECTED_MIN_VARIANTS) {
     problems.push(`expected at least ${EXPECTED_MIN_VARIANTS} variants, found ${counts.variants}`);
   }
+  if (counts.sizeCharts < EXPECTED_MIN_SIZE_CHARTS) {
+    problems.push(
+      `expected at least ${EXPECTED_MIN_SIZE_CHARTS} size-chart rows, found ${counts.sizeCharts}`,
+    );
+  }
+  if (counts.shippingMethods < EXPECTED_MIN_SHIPPING_METHODS) {
+    problems.push(
+      `expected at least ${EXPECTED_MIN_SHIPPING_METHODS} shipping methods, found ${counts.shippingMethods}`,
+    );
+  }
   for (const status of REQUIRED_PRODUCT_STATUSES) {
     if (counts.productsByStatus[status] < 1) {
       problems.push(`expected at least one product with status '${status}', found none`);
@@ -92,6 +110,8 @@ function formatCounts(counts: CatalogCounts): string[] {
     `categories: ${counts.categories}`,
     `products:   ${counts.products} (published: ${counts.productsByStatus.published}, draft: ${counts.productsByStatus.draft}, archived: ${counts.productsByStatus.archived})`,
     `variants:   ${counts.variants}`,
+    `size charts: ${counts.sizeCharts}`,
+    `shipping methods: ${counts.shippingMethods}`,
   ];
 }
 
@@ -105,7 +125,7 @@ if (isMainModule(import.meta.url)) {
     }
     if (result.ok) {
       console.log(
-        `OK: catalog is populated (at least ${EXPECTED_MIN_CATEGORIES} categories, ${EXPECTED_MIN_PRODUCTS} products, ${EXPECTED_MIN_VARIANTS} variants; statuses ${REQUIRED_PRODUCT_STATUSES.join(", ")} present).`,
+        `OK: catalog is populated (at least ${EXPECTED_MIN_CATEGORIES} categories, ${EXPECTED_MIN_PRODUCTS} products, ${EXPECTED_MIN_VARIANTS} variants, ${EXPECTED_MIN_SIZE_CHARTS} size-chart rows, ${EXPECTED_MIN_SHIPPING_METHODS} shipping methods; statuses ${REQUIRED_PRODUCT_STATUSES.join(", ")} present).`,
       );
     } else {
       console.error("FAILED: catalog is not populated:");

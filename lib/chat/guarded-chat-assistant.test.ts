@@ -6,6 +6,8 @@ import { createGuardedChatAssistant } from "./guarded-chat-assistant.ts";
 import {
   CANNOT_CONFIRM_PRICE_REPLY,
   NO_VERIFIED_PRICE_REPLY,
+  SIZE_CHART_DISCLAIMER,
+  SIZE_GUIDE_PROMPT_REPLY,
   UNVERIFIED_PRICE_REPLY,
 } from "./guardrails/answer.ts";
 import { OUT_OF_SCOPE_REPLY } from "./guardrails/intents.ts";
@@ -20,6 +22,36 @@ const overcoat: ProductFact = {
   care: "Dry clean only. Steam to refresh.",
   basePriceCents: 34900,
   currency: "USD",
+  categorySlug: "coats",
+  categoryName: "Coats",
+  variants: [
+    { size: "S", color: "Camel", stockQty: 0 },
+    { size: "M", color: "Camel", stockQty: 14 },
+    { size: "L", color: "Charcoal", stockQty: 6 },
+  ],
+  sizeChart: [
+    {
+      size: "S",
+      measurements: [
+        { label: "Chest/bust", minIn: 33, maxIn: 34 },
+        { label: "Waist", minIn: 26, maxIn: 27 },
+      ],
+    },
+    {
+      size: "M",
+      measurements: [
+        { label: "Chest/bust", minIn: 35, maxIn: 36 },
+        { label: "Waist", minIn: 28, maxIn: 29 },
+      ],
+    },
+    {
+      size: "L",
+      measurements: [
+        { label: "Chest/bust", minIn: 37, maxIn: 39 },
+        { label: "Waist", minIn: 30, maxIn: 32 },
+      ],
+    },
+  ],
 };
 
 const blazer: ProductFact = {
@@ -28,6 +60,9 @@ const blazer: ProductFact = {
   name: "Double-Breasted Linen Blazer",
   composition: "Shell: 100% linen.",
   basePriceCents: 24900,
+  categorySlug: "blazers",
+  categoryName: "Blazers",
+  variants: [{ size: "M", color: "Navy", stockQty: 3 }],
 };
 
 const sweater: ProductFact = {
@@ -36,6 +71,9 @@ const sweater: ProductFact = {
   name: "Merino Crewneck Sweater",
   composition: "100% extra-fine merino wool.",
   basePriceCents: 12900,
+  categorySlug: "knitwear",
+  categoryName: "Knitwear",
+  variants: [{ size: "M", color: "Cream", stockQty: 8 }],
 };
 
 // Only published products are ever exposed to the decorator.
@@ -77,15 +115,15 @@ function ask(message: string) {
 }
 
 describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
-  it("scenario 1: answers shipping cost with the exact unknown fact and never calls the LLM", async () => {
+  it("scenario 1: answers shipping cost with the exact verified fact and never calls the LLM", async () => {
     const { factory } = fakeAssistant("Shipping is free over $100.");
     const assistant = build(factory, fakeCatalog());
 
     const answer = await assistant.answer(ask("How much does shipping cost?"));
 
     expect(answer.content).toBe(fact("shipping-cost"));
-    expect(answer.content.startsWith("I don't know")).toBe(true);
-    expect(answer.content).not.toContain("$");
+    expect(answer.content).toContain("Standard shipping is free");
+    expect(answer.content).toContain("$15.00");
     expect(factory).not.toHaveBeenCalled();
   });
 
@@ -157,15 +195,20 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
     const { answer, factory } = fakeAssistant("The overcoat is a soft wool blend.");
     const assistant = build(factory, fakeCatalog());
 
-    const reply = await assistant.answer(ask("What is the Longline Wool Overcoat made of?"));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(answer).toHaveBeenCalledTimes(1);
     const [messages, context] = answer.mock.calls[0];
-    expect(messages).toEqual(ask("What is the Longline Wool Overcoat made of?"));
+    expect(messages).toEqual(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
     expect(context?.instructions).toBeTruthy();
     expect(context?.verifiedFacts?.some((line) => line.includes("$349.00"))).toBe(true);
     expect(context?.verifiedFacts?.some((line) => line.includes("70% wool"))).toBe(true);
+    expect(context?.verifiedFacts?.some((line) => line.includes("Available sizes"))).toBe(true);
     expect(reply.content).toBe("The overcoat is a soft wool blend.");
   });
 
@@ -173,7 +216,9 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
     const { factory } = fakeAssistant("It costs $999.00.");
     const assistant = build(factory, fakeCatalog());
 
-    const reply = await assistant.answer(ask("Tell me about the Longline Wool Overcoat."));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(reply.content).toBe(UNVERIFIED_PRICE_REPLY);
@@ -185,7 +230,9 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
     const { factory } = fakeAssistant("It costs $3 more for express shipping.");
     const assistant = build(factory, fakeCatalog());
 
-    const reply = await assistant.answer(ask("Tell me about the Longline Wool Overcoat."));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(reply.content).toBe(UNVERIFIED_PRICE_REPLY);
@@ -206,7 +253,7 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
 });
 
 describe("GuardedChatAssistant (edges)", () => {
-  it("combines a catalog price with the shipping unknown without deriving shipping from the price", async () => {
+  it("combines a catalog price with the verified shipping policy", async () => {
     const { factory } = fakeAssistant("Shipping is free.");
     const assistant = build(factory, fakeCatalog());
 
@@ -216,11 +263,11 @@ describe("GuardedChatAssistant (edges)", () => {
 
     expect(answer.content).toContain("$349.00");
     expect(answer.content).toContain(fact("shipping-cost"));
-    expect(answer.content).not.toMatch(/free shipping/i);
+    expect(answer.content).toContain("Standard shipping is free");
     expect(factory).not.toHaveBeenCalled();
   });
 
-  it("answers a free-shipping phrasing with the shipping unknown and no LLM call", async () => {
+  it("answers a free-shipping phrasing with the verified fact and no LLM call", async () => {
     const { factory } = fakeAssistant("Shipping is free over $100.");
     const assistant = build(factory, fakeCatalog());
 
@@ -228,12 +275,56 @@ describe("GuardedChatAssistant (edges)", () => {
       "Do you ship free?",
       "Do you ship free over $100?",
       "What are your shipping rates?",
+      "Do you offer free shipping?",
     ]) {
       const answer = await assistant.answer(ask(question));
       expect(answer.content).toBe(fact("shipping-cost"));
-      expect(answer.content).not.toContain("$");
-      expect(answer.content).not.toMatch(/free|express|100/i);
+      expect(answer.content).toContain("$15.00");
     }
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("answers a generic coat sizing question from published variants without the LLM", async () => {
+    const { factory } = fakeAssistant("Sizes run true to measure.");
+    const assistant = build(factory, fakeCatalog());
+
+    const answer = await assistant.answer(ask("What sizes does the coat come in?"));
+
+    expect(answer.content).toContain("The Longline Wool Overcoat");
+    expect(answer.content).toContain("sizes S, M, L");
+    expect(answer.content).toContain("colors Camel, Charcoal");
+    expect(answer.content).toContain("In stock: M in Camel, L in Charcoal.");
+    expect(answer.content).toContain("Currently out of stock: S in Camel.");
+    expect(answer.content).toContain("Body measurements (inches):");
+    expect(answer.content).toContain("M — chest/bust 35–36, waist 28–29");
+    expect(answer.content).toContain(SIZE_CHART_DISCLAIMER);
+    expect(answer.content).not.toContain("$");
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("answers a generic coat style/material question from published facts without the LLM", async () => {
+    const { factory } = fakeAssistant("I don't have the coat catalog.");
+    const assistant = build(factory, fakeCatalog());
+
+    const answer = await assistant.answer(
+      ask("What styles and materials do you have for coats?"),
+    );
+
+    expect(answer.content).toContain("The Longline Wool Overcoat (Coats)");
+    expect(answer.content).toContain("Composition: Shell: 70% wool");
+    expect(answer.content).toContain("Available sizes: S, M, L");
+    expect(answer.content).toContain("Available colors: Camel, Charcoal");
+    expect(answer.content).toContain("$349.00");
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("asks which garment when no product matches a sizing question", async () => {
+    const { factory } = fakeAssistant("Sizes run true to measure.");
+    const assistant = build(factory, fakeCatalog());
+
+    const answer = await assistant.answer(ask("How does sizing run?"));
+
+    expect(answer.content).toBe(SIZE_GUIDE_PROMPT_REPLY);
     expect(factory).not.toHaveBeenCalled();
   });
 
@@ -286,7 +377,9 @@ describe("GuardedChatAssistant (edges)", () => {
     const { answer, factory } = fakeAssistant("Sizes run true to measure.");
     const assistant = build(factory, rejectingCatalog());
 
-    const reply = await assistant.answer(ask("How does sizing run?"));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(answer).toHaveBeenCalledTimes(1);

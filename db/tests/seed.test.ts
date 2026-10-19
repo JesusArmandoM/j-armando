@@ -5,7 +5,14 @@ import { and, count, eq, isNotNull, ne } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { readCatalogRowCounts, seedCatalog } from "../seed.ts";
-import { category, product, productImage, variant } from "../schema/index.ts";
+import {
+  category,
+  product,
+  productImage,
+  shippingMethod,
+  sizeChart,
+  variant,
+} from "../schema/index.ts";
 import { createTestDatabase, migrateDatabase } from "./harness.ts";
 import type { TestDatabase } from "./harness.ts";
 
@@ -31,6 +38,8 @@ describe("catalog seed", () => {
     expect(counts.categories).toBe(6);
     expect(counts.products).toBe(9);
     expect(counts.variants).toBeGreaterThanOrEqual(24);
+    expect(counts.sizeCharts).toBe(30);
+    expect(counts.shippingMethods).toBe(2);
 
     // Status coverage required by catalog-product-listing.
     const statusRows = await testDb.db
@@ -123,6 +132,28 @@ describe("catalog seed", () => {
       "Shirts",
       "Trousers",
     ]);
+
+    // Every category has the full XS–XL chart; garment-specific measurements
+    // are present only where they apply.
+    const chartRows = await testDb.db
+      .select({ categorySlug: category.slug, size: sizeChart.size, measurements: sizeChart.measurements })
+      .from(sizeChart)
+      .innerJoin(category, eq(category.id, sizeChart.categoryId));
+    expect(chartRows).toHaveLength(30);
+    const chartByKey = new Map(
+      chartRows.map((row) => [`${row.categorySlug}/${row.size}`, row.measurements]),
+    );
+    expect(chartByKey.get("coats/M")?.chest).toEqual({ min: 35, max: 36 });
+    expect(chartByKey.get("coats/M")?.sleeve).toEqual({ min: 32, max: 33 });
+    expect(chartByKey.get("dresses/M")?.length).toEqual({ min: 45, max: 46 });
+    expect(chartByKey.get("trousers/M")?.inseam).toEqual({ min: 31, max: 32 });
+    expect(chartByKey.get("trousers/M")?.chest).toBeUndefined();
+
+    const methods = await testDb.db.select().from(shippingMethod).orderBy(shippingMethod.slug);
+    expect(methods.map((row) => [row.slug, row.costCents, row.deliveryEstimate])).toEqual([
+      ["express", 1500, "1–2 business days"],
+      ["standard", 0, "3–5 business days"],
+    ]);
   });
 
   it("scenario 5: re-running the seed neither duplicates rows nor overwrites edits", async () => {
@@ -176,5 +207,19 @@ describe("catalog seed", () => {
       .groupBy(productImage.productId, productImage.position)
       .having(ne(count(), 1));
     expect(duplicateImages).toEqual([]);
+
+    const duplicateSizeCharts = await testDb.db
+      .select({ n: count() })
+      .from(sizeChart)
+      .groupBy(sizeChart.categoryId, sizeChart.size)
+      .having(ne(count(), 1));
+    expect(duplicateSizeCharts).toEqual([]);
+
+    const duplicateShippingMethods = await testDb.db
+      .select({ n: count() })
+      .from(shippingMethod)
+      .groupBy(shippingMethod.slug)
+      .having(ne(count(), 1));
+    expect(duplicateShippingMethods).toEqual([]);
   });
 });

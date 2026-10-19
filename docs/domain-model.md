@@ -8,6 +8,7 @@ Project: **J. Armando**. Glossary terms are defined in `../CONTEXT.md`.
 - **Product** — a garment: name, description, imagery, composition, care, base price, category, collection.
 - **Variant** — the sellable unit: `product` + `size` + `color`, with its own `stock`, optional SKU and optional price override.
 - **Category** — structural browsing axis (Coats, Blazers, Dresses, Knitwear, Shirts, Trousers…).
+- **SizeChart** — published category-level body measurements (approximate inches) for each size XS–XL. It is body measurement, not garment measurement or fit prediction.
 - **Collection** — editorial capsule grouping products. Optional in the MVP beyond basic grouping.
 
 ### Shopping side
@@ -34,6 +35,7 @@ Variant  * ─── 1 Product
 Variant  1 ─── 1 Stock           (stock is per variant)
 
 Category 1 ─── * Product
+Category 1 ─── * SizeChart       (one row per size, XS–XL)
 Product  * ─── * Collection      (optional in MVP)
 
 Cart     1 ─── * CartLine

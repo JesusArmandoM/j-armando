@@ -9,16 +9,16 @@ function fact(id: string) {
 }
 
 describe("STORE_KNOWLEDGE", () => {
-  it("answers shipping cost with the exact unknown copy while the policy is unpublished", () => {
+  it("answers shipping cost with the exact verified policy", () => {
     const shipping = fact("shipping-cost");
 
-    expect(shipping.status).toBe("not_published");
+    expect(shipping.status).toBe("verified");
     expect(shipping.answer).toBe(
-      "I don't know the shipping cost. Shipping rates aren't published yet, so I can't confirm a price. Please contact the store for current shipping options.",
+      "Standard shipping is free across the United States and arrives in 3–5 business days. Express shipping is $15.00 flat and arrives in 1–2 business days.",
     );
-    expect(shipping.answer.startsWith("I don't know")).toBe(true);
-    expect(shipping.answer).not.toContain("$");
-    expect(shipping.answer).not.toMatch(/free|express|days?|carrier/i);
+    expect(shipping.answer).toContain("$15.00");
+    expect(shipping.answer).toMatch(/3–5 business days/);
+    expect(shipping.answer).toMatch(/1–2 business days/);
   });
 
   it("answers the return policy with the exact unknown copy and no invented terms", () => {
@@ -70,6 +70,10 @@ describe("STORE_KNOWLEDGE", () => {
       "payment-methods",
     ]);
     expect(findFactsFor("Do you have any promo codes?").map((f) => f.id)).toEqual(["promotions"]);
+    expect(findFactsFor("Do you offer free shipping?").map((f) => f.id)).toEqual([
+      "shipping-cost",
+    ]);
+    expect(findFactsFor("Do you have any offers?").map((f) => f.id)).toEqual(["promotions"]);
     expect(findFactsFor("Is tax included?").map((f) => f.id)).toEqual(["tax-display"]);
     expect(findFactsFor("Where do you ship?").map((f) => f.id)).toEqual(["market"]);
   });
