@@ -605,12 +605,20 @@
       "admin-role-gate",
       "order-creation-on-payment"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: the admin order list shows orders from all customers, not just the admin's own.",
-      "Provisional: each row shows reference, customer email, total and status."
+      "The admin order list returns and displays orders across all customer accounts in descending createdAt order, not just the admin's own: db/tests/admin-order-list.test.ts 'Scenario 1 & 3: lists orders across all distinct customer accounts in descending order and retrieves full details for any customer's order', app/api/admin/orders/route.test.ts 'returns 200 with all orders across customers when authorized as admin', and app/admin/orders/page.test.tsx 'renders orders from all customers with reference, customer email, statuses, items, and formatted USD total'.",
+      "Each row shows order reference (linking to /admin/orders/[reference]), date, customer contact email, item count, payment status badge, fulfillment status badge, and frozen USD total formatted via formatPriceUSD: app/admin/orders/page.test.tsx.",
+      "An admin can open the read-only detail view for any customer's order by reference (/admin/orders/[reference] and GET /api/admin/orders/[reference]) showing frozen lines, shipping address, shipping method, and financial breakdown; unknown references return 404 / notFound(): db/tests/admin-order-list.test.ts, app/api/admin/orders/[reference]/route.test.ts, and app/admin/orders/[reference]/page.test.tsx.",
+      "Both UI and API routes are guarded by getAdminSession (401 / sign-in redirect when unauthenticated, 403 Forbidden for non-admin customers, Cache-Control: no-store on API responses): app/api/admin/orders/route.test.ts, app/api/admin/orders/[reference]/route.test.ts, app/admin/orders/page.test.tsx, and app/admin/orders/[reference]/page.test.tsx."
     ],
-    "evidence": [],
+    "evidence": [
+      "CI=true ./init.sh (2026-10-19, feature/admin-order-list worktree): exit 0. install + lint + typecheck + test all passed; vitest: 86 test files / 608 tests passed (+5 test files / +19 tests for admin-order-list).",
+      "pnpm lint (2026-10-19): exit 0, zero errors / zero warnings. pnpm typecheck (2026-10-19): exit 0, zero TypeScript errors.",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build succeeded; /admin/orders, /admin/orders/[reference], /api/admin/orders, and /api/admin/orders/[reference] registered as dynamic routes.",
+      "Focused suites (5 files / 19 tests): db/tests/admin-order-list.test.ts (3 tests over embedded PostgreSQL 17), app/api/admin/orders/route.test.ts (4 tests), app/api/admin/orders/[reference]/route.test.ts (4 tests), app/admin/orders/page.test.tsx (4 tests), app/admin/orders/[reference]/page.test.tsx (4 tests).",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 5 acceptance scenarios verified and recorded in docs/validations/admin-order-list.md. Read-only scope strictly preserved (no fulfillment transitions)."
+    ],
     "notes": "Keep this read-only; state transitions are admin-order-fulfillment."
   },
   {
