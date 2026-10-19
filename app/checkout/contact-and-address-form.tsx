@@ -8,6 +8,8 @@ import {
   US_STATES,
 } from "./checkout-input.ts";
 import type { CheckoutInputErrors } from "./checkout-input.ts";
+import { ShippingMethodForm } from "./shipping-method-form.tsx";
+import type { ShippingMethodData } from "./shipping-method-form.tsx";
 
 export interface CheckoutSessionData {
   id: string;
@@ -20,13 +22,38 @@ export interface CheckoutSessionData {
   zip: string;
   country: string;
   phone?: string | null;
+  shippingMethodId?: string | null;
+  shippingMethod?: ShippingMethodData | null;
 }
 
-interface ContactAndAddressFormProps {
+const DEFAULT_SHIPPING_METHODS: ShippingMethodData[] = [
+  {
+    id: "d0000000-0000-4000-8000-000000000001",
+    slug: "standard",
+    name: "Standard Shipping",
+    description: "Free standard shipping across the United States.",
+    costCents: 0,
+    deliveryEstimate: "3–5 business days",
+  },
+  {
+    id: "d0000000-0000-4000-8000-000000000002",
+    slug: "express",
+    name: "Express Shipping",
+    description: "Flat-rate express shipping across the United States.",
+    costCents: 1500,
+    deliveryEstimate: "1–2 business days",
+  },
+];
+
+export interface ContactAndAddressFormProps {
   initialSession?: CheckoutSessionData | null;
+  shippingMethods?: ShippingMethodData[];
 }
 
-export function ContactAndAddressForm({ initialSession }: ContactAndAddressFormProps) {
+export function ContactAndAddressForm({
+  initialSession,
+  shippingMethods = DEFAULT_SHIPPING_METHODS,
+}: ContactAndAddressFormProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -110,7 +137,11 @@ export function ContactAndAddressForm({ initialSession }: ContactAndAddressFormP
         return;
       }
 
-      setSavedSession(data.checkoutSession);
+      setSavedSession((prev) => ({
+        ...data.checkoutSession,
+        shippingMethodId: prev?.shippingMethodId ?? null,
+        shippingMethod: prev?.shippingMethod ?? null,
+      }));
       setIsEditing(false);
       setIsSubmitting(false);
 
@@ -123,11 +154,14 @@ export function ContactAndAddressForm({ initialSession }: ContactAndAddressFormP
     }
   }
 
+  const isStep1Complete = !isEditing && savedSession !== null;
+  const isStep2Complete = isStep1Complete && Boolean(savedSession?.shippingMethodId);
+
   return (
     <div className="checkout-flow" data-testid="checkout-flow">
       {/* Step 1: Contact & Shipping Address */}
       <section
-        className={`checkout-step ${!isEditing ? "checkout-step--completed" : "checkout-step--active"}`}
+        className={`checkout-step ${isStep1Complete ? "checkout-step--completed" : "checkout-step--active"}`}
         data-testid="step-contact-and-address"
       >
         <header className="checkout-step__header">
@@ -135,12 +169,12 @@ export function ContactAndAddressForm({ initialSession }: ContactAndAddressFormP
             <span className="checkout-step__badge">01</span>
             <h2 className="checkout-step__title">Contact &amp; Shipping Address</h2>
           </div>
-          {!isEditing && savedSession ? (
+          {isStep1Complete ? (
             <span className="checkout-step__status-tag">Completed</span>
           ) : null}
         </header>
 
-        {!isEditing && savedSession ? (
+        {isStep1Complete && savedSession ? (
           <div className="checkout-summary-card" data-testid="address-summary-card">
             <div className="checkout-summary-card__content">
               <div className="checkout-summary-card__group">
@@ -412,42 +446,67 @@ export function ContactAndAddressForm({ initialSession }: ContactAndAddressFormP
         )}
       </section>
 
-      {/* Step 2: Shipping Method (Readiness Indicator) */}
-      <section
-        className={`checkout-step ${!isEditing && savedSession ? "checkout-step--active" : "checkout-step--upcoming"}`}
-        data-testid="step-shipping-method"
-      >
-        <header className="checkout-step__header">
-          <div className="checkout-step__title-wrap">
-            <span className="checkout-step__badge">02</span>
-            <h2 className="checkout-step__title">Shipping Method</h2>
-          </div>
-          {!isEditing && savedSession ? (
-            <span className="checkout-step__ready-tag" data-testid="shipping-step-ready">
-              Ready for Selection
-            </span>
-          ) : (
+      {/* Step 2: Shipping Method */}
+      {isStep1Complete ? (
+        <ShippingMethodForm
+          shippingMethods={shippingMethods}
+          initialMethodId={savedSession?.shippingMethodId}
+          initialMethod={savedSession?.shippingMethod}
+          onSaved={(method) => {
+            setSavedSession((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    shippingMethodId: method.id,
+                    shippingMethod: method,
+                  }
+                : null,
+            );
+          }}
+        />
+      ) : (
+        <section
+          className="checkout-step checkout-step--upcoming"
+          data-testid="step-shipping-method"
+        >
+          <header className="checkout-step__header">
+            <div className="checkout-step__title-wrap">
+              <span className="checkout-step__badge">02</span>
+              <h2 className="checkout-step__title">Shipping Method</h2>
+            </div>
             <span className="checkout-step__upcoming-tag">Pending Step 1</span>
-          )}
-        </header>
-        {!isEditing && savedSession ? (
-          <div className="checkout-step__content" data-testid="shipping-step-active-content">
-            <p className="checkout-step__desc">
-              Your shipping address is saved. Shipping method selection and calculated rates will be configured in the next step.
-            </p>
-          </div>
-        ) : null}
-      </section>
+          </header>
+        </section>
+      )}
 
-      {/* Step 3: Payment (Upcoming) */}
-      <section className="checkout-step checkout-step--upcoming" data-testid="step-payment">
+      {/* Step 3: Payment */}
+      <section
+        className={`checkout-step ${isStep2Complete ? "checkout-step--active" : "checkout-step--upcoming"}`}
+        data-testid="step-payment"
+      >
         <header className="checkout-step__header">
           <div className="checkout-step__title-wrap">
             <span className="checkout-step__badge">03</span>
             <h2 className="checkout-step__title">Payment</h2>
           </div>
-          <span className="checkout-step__upcoming-tag">Pending</span>
+          {isStep2Complete ? (
+            <span
+              className="checkout-step__ready-tag"
+              data-testid="payment-step-ready"
+            >
+              Ready for Payment
+            </span>
+          ) : (
+            <span className="checkout-step__upcoming-tag">Pending</span>
+          )}
         </header>
+        {isStep2Complete ? (
+          <div className="checkout-step__content" data-testid="payment-step-content">
+            <p className="checkout-step__desc">
+              Review your order details above and proceed to payment simulation.
+            </p>
+          </div>
+        ) : null}
       </section>
     </div>
   );

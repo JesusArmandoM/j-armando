@@ -5,15 +5,15 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `guest-cart-manage`, `cart-stock-limits`, and `checkout-contact-and-address` are `accepted` and merged into `main`. `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `checkout-shipping-method` (depends on `checkout-contact-and-address`, accepted).
+- Current feature in flight: none. `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `checkout-sales-tax` (depends on `checkout-shipping-method`, accepted).
 - Current blocker: none for the shipped features. Four discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4 and shipping cost #5 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode; #6 tax blocks the checkout chain).
-- Last verified at: 2026-10-19, on `main`: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, on `feature/checkout-shipping-method`: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, manage, stock limits) + checkout (contact email and shipping address) shipped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (migrations 0000..0002); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `db/checkout.ts` and `app/checkout/` hold checkout session repository and contact email & shipping address collection; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, manage, stock limits) + checkout (contact email, shipping address, and shipping method selection) shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (migrations 0000..0003); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `db/checkout.ts` and `app/checkout/` hold checkout session repository, contact email & shipping address collection, and shipping method selection; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static production build.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 (`ui` + `db`).
 - Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add`, `guest-cart-manage`, `cart-stock-limits`, and `checkout-contact-and-address` accepted; `catalog-size-chart` passing; the rest not started.
@@ -611,3 +611,45 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `checkout-contact-and-address.verification`/`.evidence`; `docs/validations/checkout-contact-and-address.md`; this log.
 - Known risk or unresolved issue: Shipping method selection and sales tax calculation are deferred to `checkout-shipping-method` and `checkout-sales-tax`.
 - Next best step: Commit `feature/checkout-contact-and-address`, push to origin, open PR linking #25 without merging.
+
+### Session 032
+
+- Date: 2026-10-19
+- Goal: Implement and validate `checkout-shipping-method` in dedicated worktree `tienda-worktrees/checkout-shipping-method` on branch `feature/checkout-shipping-method` (Issue #28).
+- Completed:
+  - Spec written: `docs/specs/checkout-shipping-method.md` with 7 acceptance scenarios covering locked Step 2 when Step 1 is incomplete, available shipping methods display with costs and estimates, selection and persistence of chosen method, Order Summary shipping and total update, Modify choice toggle, persistence across reload, and session isolation.
+  - Schema & migration: Added nullable `shippingMethodId` column referencing `shipping_method(id)` to `checkoutSession` in `db/schema/order.ts`. Generated migration `0003_freezing_vargas.sql` via `pnpm db:generate`. Applied migration to worktree database via `pnpm db:migrate`. Verified catalog via `pnpm db:verify` (2 shipping methods present: Standard $0.00, Express $15.00).
+  - Data access repository (`db/checkout.ts`):
+    - Added `listShippingMethods(db)` returning shipping methods ordered by `costCents ASC`.
+    - Added `getShippingMethodById(db, id)`.
+    - Updated `getCheckoutSession(db, sessionToken)` with left join on `shippingMethod` returning `CheckoutSessionWithShipping`.
+    - Added `saveCheckoutShippingMethod(db, sessionToken, shippingMethodId)` verifying active cart and existing checkout session.
+    - Preserved `shippingMethodId` during address updates in `saveCheckoutContactAndAddress`.
+    - Database integration tests in `db/tests/checkout-shipping-method.test.ts` (8 tests).
+  - Route handler (`app/api/checkout/shipping-method/route.ts`):
+    - `POST /api/checkout/shipping-method`: validates JSON body and UUID `shippingMethodId`, validates active cart session cookie, ensures address is complete, calls `saveCheckoutShippingMethod`, calls `revalidatePath('/checkout')`, and returns 200 with `Cache-Control: no-store`.
+    - `GET /api/checkout/shipping-method`: returns available shipping methods and currently selected method ID.
+    - Route tests in `app/api/checkout/shipping-method/route.test.ts` (12 tests).
+  - UI components:
+    - Built client component `app/checkout/shipping-method-form.tsx` supporting interactive radio selection, inline error alerts, Step 2 completed summary card with "Modify" toggle, and `onSaved` notification.
+    - Updated `app/checkout/contact-and-address-form.tsx` to render `<ShippingMethodForm />` for Step 2 when Step 1 is complete, and activate Step 3 ("Payment" ready) when shipping method is saved.
+    - Updated `app/checkout/page.tsx` to fetch `listShippingMethods(db)` and render dynamic Order Summary with selected shipping method cost and total (`subtotal + shippingCost`).
+    - Added styles in `app/globals.css` for `.checkout-shipping-options`, `.checkout-shipping-option`, `.checkout-shipping-option--selected`, radio inputs, header, cost, estimate, and `.checkout-order-summary__row--total`.
+  - Component tests: `app/checkout/shipping-method-form.test.tsx` (5 tests), updated `app/checkout/contact-and-address-form.test.tsx` (8 tests), updated `app/checkout/page.test.tsx` (7 tests).
+  - Validation: All 7 acceptance scenarios independently verified and documented in `docs/validations/checkout-shipping-method.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `checkout-shipping-method` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (53 test files / 434 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /checkout` and `ƒ /api/checkout/shipping-method`.
+  - Live HTTP transcript on `PORT=3005` against worktree database:
+    - Empty cart `/checkout` returns 200 empty state;
+    - Cart line add creates `ja_cart_session` cookie;
+    - Address save returns 200 and enables Step 2;
+    - `GET /api/checkout/shipping-method` returns available methods;
+    - `POST /api/checkout/shipping-method` with Standard ($0.00) updates `/checkout` summary card, Shipping ($0.00), Total ($249.00), and Step 3 "Ready for Payment";
+    - `POST /api/checkout/shipping-method` with Express ($15.00) updates Shipping to $15.00 and Total to $264.00.
+- Evidence captured: `feature_list.json` → `checkout-shipping-method.verification`/`.evidence`; `docs/validations/checkout-shipping-method.md`; this log.
+- Known risk or unresolved issue: Destination-based sales tax calculation is deferred to `checkout-sales-tax`.
+- Next best step: Commit `feature/checkout-shipping-method`, push to origin, open PR linking #28 without merging.
+

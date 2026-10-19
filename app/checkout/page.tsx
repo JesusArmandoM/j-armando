@@ -3,8 +3,10 @@ import Link from "next/link";
 import { readCartSessionToken } from "@/app/cart/session.ts";
 import { getCartSummary } from "@/db/cart.ts";
 import type { CartSummary } from "@/db/cart.ts";
-import { getCheckoutSession } from "@/db/checkout.ts";
+import { getCheckoutSession, listShippingMethods } from "@/db/checkout.ts";
+import type { CheckoutSessionWithShipping } from "@/db/checkout.ts";
 import { getDb } from "@/db/client.ts";
+import type { ShippingMethod } from "@/db/schema/index.ts";
 import { formatPriceUSD } from "@/lib/money.ts";
 
 import { ContactAndAddressForm } from "./contact-and-address-form.tsx";
@@ -23,13 +25,15 @@ export default async function CheckoutPage() {
   }
 
   let summary: CartSummary | undefined;
-  let checkoutSession;
+  let checkoutSession: CheckoutSessionWithShipping | undefined;
+  let shippingMethods: ShippingMethod[] = [];
 
   try {
     const db = getDb();
-    [summary, checkoutSession] = await Promise.all([
+    [summary, checkoutSession, shippingMethods] = await Promise.all([
       getCartSummary(db, sessionToken),
       getCheckoutSession(db, sessionToken),
+      listShippingMethods(db),
     ]);
   } catch (error) {
     console.error("Failed to load checkout cart or session:", error);
@@ -55,6 +59,10 @@ export default async function CheckoutPage() {
     return <EmptyCheckoutCart />;
   }
 
+  const selectedShippingMethod = checkoutSession?.shippingMethod ?? null;
+  const shippingCostCents = selectedShippingMethod ? selectedShippingMethod.costCents : null;
+  const totalCents = summary.subtotalCents + (shippingCostCents ?? 0);
+
   return (
     <main className="checkout-page" data-testid="checkout-page">
       <header className="checkout-page__header">
@@ -64,7 +72,10 @@ export default async function CheckoutPage() {
 
       <div className="checkout-page__layout">
         <div className="checkout-page__main">
-          <ContactAndAddressForm initialSession={checkoutSession} />
+          <ContactAndAddressForm
+            initialSession={checkoutSession}
+            shippingMethods={shippingMethods}
+          />
         </div>
 
         <aside className="checkout-page__sidebar" aria-label="Order summary">
@@ -101,11 +112,28 @@ export default async function CheckoutPage() {
               </div>
               <div className="checkout-order-summary__row">
                 <span>Shipping</span>
-                <span className="checkout-order-summary__hint">Calculated next step</span>
+                {selectedShippingMethod ? (
+                  <span data-testid="summary-shipping">
+                    {formatPriceUSD(selectedShippingMethod.costCents)}
+                  </span>
+                ) : (
+                  <span
+                    className="checkout-order-summary__hint"
+                    data-testid="summary-shipping-hint"
+                  >
+                    Calculated next step
+                  </span>
+                )}
               </div>
               <div className="checkout-order-summary__row">
                 <span>Sales Tax</span>
                 <span className="checkout-order-summary__hint">Calculated from address</span>
+              </div>
+              <div className="checkout-order-summary__row checkout-order-summary__row--total">
+                <span>Total</span>
+                <span data-testid="summary-total">
+                  {formatPriceUSD(totalCents)}
+                </span>
               </div>
             </div>
 

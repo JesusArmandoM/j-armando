@@ -249,12 +249,21 @@
     "title": "Shopper chooses a shipping method and sees its cost",
     "user_visible_behavior": "The shopper can choose among available shipping methods, each showing its cost and delivery expectation, and the order total reflects the chosen method.",
     "depends_on": ["checkout-contact-and-address"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: each shipping method shows its own cost and delivery expectation.",
-      "Provisional: switching methods updates the shipping line and the order total."
+      "Each shipping method shows its own cost ($0.00 / Free, $15.00) and delivery expectation.",
+      "Selecting a shipping method persists it to the checkout session and renders a completed summary card.",
+      "Switching methods updates the shipping line and the order total immediately.",
+      "Step 3 (Payment) readiness indicator activates when shipping method is chosen.",
+      "Session isolation: shipping method is updated strictly for the authenticated ja_cart_session."
     ],
-    "evidence": [],
+    "evidence": [
+      "Automated: 53 test files / 434 tests pass via `CI=true ./init.sh`. Lint and typecheck clean.",
+      "Focused suites (9 files / 60 tests): `db/tests/checkout-shipping-method.test.ts` (8/8), `db/tests/checkout-contact-and-address.test.ts` (5/5), `app/api/checkout/shipping-method/route.test.ts` (12/12), `app/api/checkout/contact-and-address/route.test.ts` (9/9), `app/checkout/shipping-method-form.test.tsx` (5/5), `app/checkout/contact-and-address-form.test.tsx` (8/8), `app/checkout/page.test.tsx` (7/7), `app/checkout/payment-outcome.test.tsx` (4/4), `db/tests/migrate.test.ts` (2/2).",
+      "Database: migration 0003_freezing_vargas.sql adds nullable shipping_method_id foreign key referencing shipping_method(id) to checkout_session. Applied via `pnpm db:migrate` and verified via `pnpm db:verify`.",
+      "Live HTTP verification on port 3005: empty cart checkout shows empty state; adding cart line creates session; saving contact and address enables Step 2; GET /api/checkout/shipping-method returns available methods; POST /api/checkout/shipping-method with Standard ($0.00) updates /checkout summary card, Shipping ($0.00), Total ($249.00), and Step 3 'Ready for Payment'; switching to Express ($15.00) updates Shipping to $15.00 and Total to $264.00.",
+      "Validation record: docs/validations/checkout-shipping-method.md (verdict: ACCEPT)."
+    ],
     "notes": "Shipping cost rules are resolved (2026-10-19): standard shipping is free across the United States in 3-5 business days; express is $15.00 flat in 1-2 business days. The seed now provides both shipping_method rows and the chat answers the same exact policy. This feature still needs the checkout UI/flow (depends on checkout-contact-and-address); see docs/specs/catalog-size-chart-and-shipping.md and docs/risks-and-open-questions.md -> Resolved."
   },
   {
