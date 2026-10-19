@@ -5,10 +5,9 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `account-signin-signout` (depends on `account-quick-access-password`, now accepted).
-- Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
-- Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Current feature in flight: none. `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
+- Last verified at: 2026-10-19: `./init.sh` exit 0 (72 test files / 556 tests green), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 
 ## Project State
@@ -25,10 +24,10 @@
 
 These must be answered before or during the relevant features. Full detail in `docs/risks-and-open-questions.md`.
 
-1. Sign-in mechanism for accounts created without a password (magic link / email OTP / forced password creation).
-2. Virtual try-on provider selection (quality, latency, cost, data-processing terms).
-3. Photo consent and retention policy (privacy-critical).
-Numbering is preserved from earlier sessions; #4 (chat assistant guardrails behaviour), #5 (shipping cost rules), and #6 (sales tax table) are resolved — see `docs/risks-and-open-questions.md` → *Resolved*, `docs/specs/catalog-size-chart-and-shipping.md`, and `docs/specs/checkout-sales-tax.md`.
+1. Sign-in mechanism for accounts created without a password — resolved 2026-10-19 by `account-signin-signout` (6-digit numeric email OTP access code).
+2. Virtual try-on provider selection (quality, latency, cost, data-processing terms) — resolved for MVP (DevExpert gateway image-edit).
+3. Photo consent and retention policy (privacy-critical; still open).
+Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (chat assistant guardrails behaviour), #5 (shipping cost rules), and #6 (sales tax table) are resolved — see `docs/risks-and-open-questions.md` → *Resolved*, `docs/specs/catalog-size-chart-and-shipping.md`, and `docs/specs/checkout-sales-tax.md`.
 
 ## Session Log
 
@@ -890,6 +889,62 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `account-quick-access-password.evidence`; `docs/validations/account-quick-access-password.md`; this log.
 - Known risk or unresolved issue: Sign-in / session management for accounts created with or without a password is the next feature: `account-signin-signout`.
 - Next best step: Commit `feature/account-quick-access-password`, push to origin, and open PR linking #42 without merging.
+
+### Session 040
+
+- Date: 2026-10-19
+- Goal: Implement and independently validate `account-signin-signout` (Customer signs in and out with password and passwordless OTP).
+- Completed:
+  - Feature spec written: `docs/specs/account-signin-signout.md` covering all 6 acceptance scenarios for password authentication, passwordless 6-digit OTP flow, session establishment via `ja_account_session` cookie, sign out session revocation, and unauthenticated redirection.
+  - Schema & Migration (`db/schema/account.ts` & `db/migrations/0006_fresh_zombie.sql`):
+    - Added `account_session` table with uuid id, accountId referencing account(id) on delete cascade, unique sessionToken, expiresAt, and createdAt.
+    - Added `account_access_code` table with uuid id, accountId referencing account(id) on delete cascade, 6-digit code, expiresAt, and createdAt.
+    - Generated migration via `pnpm db:generate` and applied via `pnpm db:migrate`.
+    - Updated `db/tests/migrate.test.ts` to assert `account_session` and `account_access_code` in `CORE_TABLES`.
+  - Auth & Session Data Access (`db/auth.ts`):
+    - `authenticateWithPassword`: validates credentials using scrypt hash verification (`verifyPassword`), returning account and roles or `invalid_credentials`.
+    - `createAccountSession`: creates an opaque 32-byte base64url token in `account_session` (30 days TTL).
+    - `getAccountFromSessionToken`: resolves active, unexpired session with account email and roles.
+    - `revokeAccountSession`: deletes the session row to terminate authentication.
+    - `requestPasswordlessAccessCode`: generates 6-digit numeric OTP code (15 min expiry), clears prior codes for the account, and emails via access code email service.
+    - `verifyPasswordlessAccessCode`: verifies code, single-use deletes code upon success, and returns account and roles.
+  - Access Code Email Service (`lib/email/access-code.ts` & `lib/email/email-service.ts`):
+    - Formats English subject, plain text and HTML emails: "Your J. Armando access code is {code}. It expires in 15 minutes."
+    - In-memory `SimulatedAccessCodeEmailSender` (`getSentAccessCodeEmails()`, `clearSentAccessCodeEmails()`) for reliable testing.
+  - Cookie Helpers (`lib/auth/session-cookie.ts`):
+    - Cookie `ja_account_session` configured with `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age=2592000` (30 days), and `Secure` in production.
+  - API Routes:
+    - `POST /api/auth/signin`: accepts email + password, sets session cookie on success.
+    - `POST /api/auth/request-code`: sends 6-digit OTP code to email.
+    - `POST /api/auth/verify-code`: validates code, sets session cookie on success.
+    - `POST /api/auth/signout`: revokes DB session and clears session cookie.
+    - `GET /api/auth/me`: returns authenticated status, account details, and roles.
+  - Storefront UI & Layout (`app/account/signin/`, `app/account/`, `app/layout.tsx`, `app/globals.css`):
+    - `/account/signin`: tabs for "Password" and "Email Code", clear error alerts, redirects to `/account` or `returnUrl`.
+    - `/account`: protected overview page showing account email, roles, and "Sign Out" button.
+    - Global site header in `app/layout.tsx` with "Account" navigation link.
+  - Tests (all green):
+    - `db/tests/account-signin-signout.test.ts` (6 tests passing): password auth, passwordless accounts rejection, OTP request & single-use verification, session persistence & expiry, sign out revocation.
+    - `lib/email/access-code.test.ts` (3 tests passing): template rendering and simulated sender.
+    - `app/api/auth/signin/route.test.ts` (4 tests passing): credential validation, 401 on bad password, cookie setting on success.
+    - `app/api/auth/access-code/route.test.ts` (6 tests passing): request-code and verify-code handlers.
+    - `app/api/auth/signout/route.test.ts` (2 tests passing): session revocation and cookie clearance.
+    - `app/api/auth/me/route.test.ts` (3 tests passing): authenticated status check.
+    - `app/account/signin/page.test.tsx` (6 tests passing): tabs, password submission, OTP flow, error alerts.
+    - `app/account/page.test.tsx` (4 tests passing): unauthenticated redirect, overview rendering, sign out button.
+  - Live Dev Server Verification:
+    - Tested on PORT 3013 against PostgreSQL: unauthenticated redirect, password sign-in, session persistence, OTP flow, and sign out all verified.
+  - Validation: All 6 acceptance scenarios verified and recorded in `docs/validations/account-signin-signout.md`. Verdict: ACCEPT.
+  - Blocking Question Resolved: Resolves blocking open question #1 in `docs/risks-and-open-questions.md`.
+  - Updated `feature_list.json` marking `account-signin-signout` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (72 test files / 556 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `account-signin-signout.evidence`; `docs/validations/account-signin-signout.md`; this log.
+- Known risk or unresolved issue: Cart merge on sign-in (separate follow-up feature); try-on photo privacy remains open under #3.
+- Next best step: Commit `feature/account-signin-signout`, push to origin, and open PR linking Closes #44 without merging.
+
 
 
 

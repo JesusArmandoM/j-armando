@@ -472,13 +472,21 @@
     "depends_on": [
       "account-quick-access-password"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: signing in with correct credentials establishes a session that survives a page reload.",
-      "Provisional: signing out ends the session and protected content is no longer reachable.",
-      "Provisional: an account created without a password can still sign in via the agreed mechanism."
+      "Signing in with correct credentials establishes an httpOnly ja_account_session cookie that survives page reloads: verified in db/tests/account-signin-signout.test.ts, app/api/auth/signin/route.test.ts, and app/account/signin/page.test.tsx.",
+      "Signing out revokes the session in account_session and clears the cookie, rendering protected content (/account) unreachable: verified in db/tests/account-signin-signout.test.ts, app/api/auth/signout/route.test.ts, and app/account/page.test.tsx.",
+      "An account created without a password can sign in via 6-digit numeric email OTP access code with 15-minute expiration: verified in db/tests/account-signin-signout.test.ts, lib/email/access-code.test.ts, and app/api/auth/access-code/route.test.ts.",
+      "Resolves blocking open question #1 in docs/risks-and-open-questions.md."
     ],
-    "evidence": [],
+    "evidence": [
+      "./init.sh (2026-10-19, worktree feature/account-signin-signout): exit 0. install + lint + typecheck + test green; vitest: 72 test files, 556 tests passed (baseline 64 files / 522 tests; +8 test files / +34 tests across DB integration, email service, route handlers, and UI components).",
+      "pnpm lint: exit 0 (0 errors, 0 warnings). pnpm typecheck: exit 0 (0 errors).",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build; routes /account, /account/signin, /api/auth/me, /api/auth/request-code, /api/auth/signin, /api/auth/signout, /api/auth/verify-code registered as dynamic (ƒ).",
+      "pnpm db:migrate: exit 0 (migration 0006_fresh_zombie.sql created account_session and account_access_code tables with ON DELETE CASCADE).",
+      "Live dev server transcript (2026-10-19, PORT=3013): tested against live PostgreSQL database. (1) unauthenticated /account returned 307 redirect to /account/signin; (2) /account/signin loaded HTTP 200 with tabs; (3) /api/auth/signin with invalid credentials returned 401; (4) /api/auth/signin with valid password returned 200 and Set-Cookie ja_account_session; (5) /api/auth/me returned { authenticated: true, account: ..., roles: ['customer'] }; (6) /account rendered 200 with Account Overview, email and Sign Out; (7) passwordless OTP flow: POST /api/auth/request-code sent code to email, wrong code returned 400, correct code returned 200 with session cookie and deleted code from DB; (8) POST /api/auth/signout revoked session in DB and cleared cookie; (9) subsequent /account request redirected to /account/signin.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 6 acceptance scenarios from docs/specs/account-signin-signout.md pass cleanly. Resolves blocking open question #1 in docs/risks-and-open-questions.md."
+    ],
     "notes": "Resolves blocking open question #1 in docs/risks-and-open-questions.md (magic link vs email OTP vs forced password creation). There is no email verification and no password recovery in the MVP; that is a recorded production risk."
   },
   {

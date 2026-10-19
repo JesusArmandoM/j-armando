@@ -6,12 +6,12 @@ Project: **J. Armando**. Parent documents: `build-brief.md`, `mvp-scope.md`.
 
 These must be answered before implementation planning is final.
 
-1. **Sign-in for accounts with no password.** Quick Access creates an account with an optional password. How does that customer reach their orders later: magic link, email OTP, or forced password creation on first return? This is the highest-risk gap in the identity model and blocks the auth design.
+1. **Sign-in for accounts with no password — resolved 2026-10-19 for this work.** Quick Access creates an account with an optional password. Accounts created without a password (as well as standard accounts) sign in via a 6-digit numeric OTP access code dispatched to the account email address (15-minute expiration, single-use, persisted in `account_access_code`). Accounts with a password can sign in with either their password or an email access code. Sessions are managed via opaque httpOnly `ja_account_session` cookies. See *Resolved*.
 2. **Virtual try-on provider selection — resolved 2026-10-19 for this work.** The provider is the **DevExpert gateway image-edit** model (`POST {TRYON_BASE_URL without trailing slashes}/images/edits`; `TRYON_BASE_URL` is the API base already **including** `/v1`, so the `.env` value yields exactly `https://inference.devexpert.io/v1/images/edits`; model `TRYON_MODEL`, OpenAI-compatible images response), behind the repo-owned `TryOnProvider` port. See *Resolved*. The provider-side half of photo handling (retention, training, deletion, DPA) remains open and is tracked under #3; the number is kept so existing references stay valid.
 3. **Photo consent and retention policy.** Legal basis, consent text, retention window, deletion mechanism, and whether photos of minors are prohibited. Privacy-critical for a US store and for any GDPR-covered shoppers. **Still open.** The interim implementation stance is in-memory only (no persistence, no logging of image bytes, no object storage); see `docs/specs/virtual-tryon-generation.md` → Open Questions and `docs/specs/virtual-tryon-failure.md`.
 6. **Sales tax rate table — resolved 2026-10-19 for this work.** US sales tax is calculated from the destination state in the shipping address. Baseline state sales tax rates are defined in `lib/tax/sales-tax.ts`, with 0.00 rate for exempt states (AK, DE, MT, NH, OR), and a 5% (0.05) fallback for unlisted jurisdictions. Catalog and product prices remain tax-exclusive. See *Resolved*.
 
-Numbering is preserved from earlier sessions; #4 (chat guardrails behaviour), #5 (shipping cost rules), and #6 (sales tax table) are resolved below.
+Numbering is preserved from earlier sessions; #1 (sign-in for accounts with no password), #4 (chat guardrails behaviour), #5 (shipping cost rules), and #6 (sales tax table) are resolved below.
 
 ## Implementation-Time Questions
 
@@ -25,6 +25,8 @@ Numbering is preserved from earlier sessions; #4 (chat guardrails behaviour), #5
 - Per-garment finished measurements and admin editing of size charts. The category-level body-measurement chart is published; actual garment dimensions and backoffice editing remain future work.
 
 ## Resolved
+
+- **Sign-in for accounts with no password (blocking #1)** — resolved 2026-10-19 by `account-signin-signout`: passwordless accounts created via Quick Access (and any customer account) sign in using an email OTP mechanism. Customers enter their email address to request a 6-digit numeric access code (`POST /api/auth/request-code`), which is emailed to them (15-minute validity, stored in `account_access_code`, invalidated on verification or re-request). Submitting the code (`POST /api/auth/verify-code`) establishes an authenticated session (`ja_account_session` cookie). Customers who set a password can also sign in directly using their password (`POST /api/auth/signin`). Signing out (`POST /api/auth/signout`) revokes the session in the database and clears the cookie. See `docs/specs/account-signin-signout.md`.
 
 - **Stock reservation strategy at checkout** — resolved 2026-10-19 by `stock-reservation`: stock is validated and decremented **atomically at payment time** inside the database transaction using conditional update (`UPDATE variant SET stock_qty = stock_qty - qty WHERE id = variant_id AND stock_qty >= qty RETURNING id, stock_qty`). This eliminates the need for temporary reservations or expiry timers, avoids inventory holding/abandonment deadlocks, and guarantees that when two shoppers attempt to purchase the last unit of a variant simultaneously, exactly one order succeeds and the other receives an out-of-stock notification with an active cart.
 
@@ -87,6 +89,6 @@ Recorded during discovery; verify before relying on them.
 - ~~Evaluate virtual try-on providers: quality, latency, cost per image, data retention and DPA terms.~~ Provider chosen 2026-10-19: DevExpert gateway image-edit behind `TryOnProvider` (see *Resolved*). Remaining: evaluate output quality/latency/cost per image and the provider's data-retention/DPA terms before public launch.
 - ~~Evaluate LLM providers for the chat assistant: cost, latency, tool-calling for product data, data-handling terms.~~ Done 2026-10-14: first adapter is OpenAI Chat Completions behind `ChatAssistant` (see *Resolved*). Revisit cost/data-handling terms before public launch; guardrails behaviour is resolved by `chat-assistant-guardrails` (see *Resolved*).
 - Confirm the legal requirements for selling online in the United States: sales tax registration and nexus, state sales tax rules, privacy policy (CCPA/CPRA where applicable), terms of sale, return policy disclosures, ADA website accessibility expectations.
-- Decide the sign-in mechanism for passwordless accounts (magic link vs. email OTP vs. forced password).
+- ~~Decide the sign-in mechanism for passwordless accounts (magic link vs. email OTP vs. forced password).~~ Resolved 2026-10-19: 6-digit email OTP access code with 15-minute expiration (see *Resolved*).
 - Decide object storage and signed-URL approach for try-on photos — deferred until blocking #3 is decided; the current slice stores nothing.
 - Check whether a design system is required as tokens/components or whether the reference `DESIGN.md` is sufficient for the MVP.

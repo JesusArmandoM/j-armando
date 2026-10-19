@@ -55,3 +55,29 @@ export const address = pgTable("address", {
 
 export type Address = typeof address.$inferSelect;
 export type NewAddress = typeof address.$inferInsert;
+
+export const accountSession = pgTable("account_session", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id")
+    .notNull()
+    .references(() => account.id, { onDelete: "cascade" }),
+  sessionToken: text("session_token").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type AccountSession = typeof accountSession.$inferSelect;
+export type NewAccountSession = typeof accountSession.$inferInsert;
+
+export const accountAccessCode = pgTable("account_access_code", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id")
+    .notNull()
+    .references(() => account.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type AccountAccessCode = typeof accountAccessCode.$inferSelect;
+export type NewAccountAccessCode = typeof accountAccessCode.$inferInsert;
