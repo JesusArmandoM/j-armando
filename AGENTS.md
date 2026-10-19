@@ -58,6 +58,7 @@ Before writing code:
 - Keep changes inside the selected feature scope unless a blocker requires a narrow supporting fix.
 - Do not silently change verification rules during implementation.
 - Update durable repo artifacts instead of relying on chat summaries.
+- **Provide a QR code on every deploy or redeploy.** Whenever a runnable preview is started or restarted (localhost, LAN, or tunnel), generate a scannable QR code for the mobile-reachable public URL and present it to the user alongside the URL. Regenerate the QR whenever the URL changes; never leave a stale QR in place. Reason: the user validates the storefront on a physical phone.
 - Keep UI copy in English (US market); keep documentation in English.
 - Treat `stitch_image_based_application/` as **design reference only**. It is a proposal that may be redesigned; do not treat its Spanish copy, EUR pricing or IVA-inclusive totals as specification. See `DESIGN.md`.
 - Do not build what `docs/mvp-scope.md` excludes (AI Stylist cross-sell, fit prediction, newsletter, returns, order tracking portal, real payment gateway).

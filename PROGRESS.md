@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa`
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: `catalog-size-chart` is `passing` (self-verified 2026-10-19; independent validation not run). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted` (independently validated 2026-10-19). `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are also `accepted`.
+- Current feature in flight: none. `catalog-size-chart` is `passing` (self-verified 2026-10-19; independent validation not run) and is merged to `main` via PR #17. `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted` (independently validated 2026-10-19). `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are also `accepted`.
 - Current next ready feature: `guest-cart-add` (depends on `product-variant-selection`, accepted) and `virtual-tryon-failure` (depends on `virtual-tryon-generation`, accepted) are dependency-ready; `checkout-shipping-method` is now unblocked by the shipping decision but still depends on `checkout-contact-and-address`.
 - Current blocker: none for the shipped features. Four discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4 and shipping cost #5 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode; #6 tax blocks the checkout chain).
-- Last verified at: 2026-10-19, the combined tree runs `./init.sh` exit 0 (35 test files / 265 tests after the catalog size chart + verified shipping follow-up; 261 after the chat grounding follow-up; 248 before). `catalog-size-chart` was self-verified with `pnpm test` 35/265, `pnpm lint` and `pnpm typecheck` exit 0, plus local `db:migrate`/`db:seed`/`db:verify` (30 size-chart rows, 2 shipping methods). The accepted baseline's `pnpm build` exit 0 remains valid; privacy/scope scans clean; the live DevExpert gateway is verified (`chat` and `image-edit`).
+- Last verified at: 2026-10-19, local `main` is at merge commit `80b5e8d` (PR #17), and the combined tree runs `./init.sh` exit 0 (35 test files / 265 tests after the catalog size chart + verified shipping follow-up; 261 after the chat grounding follow-up; 248 before). `catalog-size-chart` was self-verified with `pnpm test` 35/265, `pnpm lint` and `pnpm typecheck` exit 0, plus local `db:migrate`/`db:seed`/`db:verify` (30 size-chart rows, 2 shipping methods). The accepted baseline's `pnpm build` exit 0 remains valid; privacy/scope scans clean; the live DevExpert gateway is verified (`chat` and `image-edit`).
 
 ## Project State
 
@@ -435,3 +435,22 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Files or artifacts updated: schema/migration/seed/verify/catalog, product page + size-guide component + CSS, chat types/answers/store knowledge + tests, docs listed above, `feature_list.json`, `PROGRESS.md`.
 - Known risk or unresolved issue: measurements are approximate body measurements for a US women's chart and may need merchandising review; no per-garment finished measurements, fit prediction or admin editing. Shipping is a store policy, not a live carrier quote. Blocking #3 (photo consent/retention) and #6 (sales tax) remain. The change is uncommitted on `fix/chat-product-grounding`; no push/PR.
 - Next best step: review the working-tree diff and product-page/chat behavior; commit and (if requested) push/open a PR for the combined `fix/chat-product-grounding` work; independent validation of `catalog-size-chart` remains optional. Then continue with `virtual-tryon-failure` or `guest-cart-add` once selected.
+
+### Session 024
+
+- Date: 2026-10-19
+- Goal: merge PR #17, update local `main`, run the app for Mac and mobile, and make mobile-QR delivery a durable working rule.
+- Completed:
+  - PR #17 is merged; local `main` was fast-forwarded to merge commit `80b5e8d`.
+  - Stopped the old `:3001` dev server and stale tunnels. Started one clean dev server on `0.0.0.0:3000` from `main` and a fresh Cloudflare quick tunnel for mobile testing.
+  - Verified `localhost:3000`, the LAN address (`192.168.1.132:3000` at session time), and the public tunnel all return 200. Verified the product page size guide and the chat shipping answer through the public tunnel.
+  - Generated a 640px PNG QR for the current public tunnel and presented it to the user.
+  - Added a durable **AGENTS.md → Working Rules** rule: every deploy or redeploy must generate and present a fresh scannable QR for the mobile-reachable public URL, never a stale QR.
+- Verification:
+  - `pnpm db:verify` → categories 6, products 9, variants 40, size charts 30, shipping methods 2; `OK: catalog is populated`.
+  - Local, LAN and tunnel HTTP checks: 200.
+  - Public tunnel product page contains `Size guide`, `Chest / bust` and measurement cells; public tunnel chat returns the verified shipping policy.
+- Notes:
+  - The preview URL and QR are tied to the running quick tunnel and change on redeploy; they are intentionally not recorded as durable URLs here. The rule to regenerate the QR is durable.
+  - `pnpm build` was not re-run while the dev server was live; the accepted baseline build remains valid.
+- Next best step: test on the physical phone via the current QR/URL, then continue with `virtual-tryon-failure` or `guest-cart-add` once selected. Regenerate the QR if either the dev server or tunnel is restarted.
