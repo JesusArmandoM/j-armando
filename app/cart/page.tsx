@@ -49,7 +49,7 @@ export default async function CartPage() {
   }
 
   if (summary === undefined || summary.lines.length === 0) {
-    return <EmptyCart />;
+    return <EmptyCart notifications={summary?.notifications} />;
   }
 
   return (
@@ -58,6 +58,16 @@ export default async function CartPage() {
         <p className="cart__eyebrow">Guest cart</p>
         <h1 className="cart__title">Your Cart</h1>
       </header>
+
+      {summary.notifications && summary.notifications.length > 0 ? (
+        <div className="cart__notifications" data-testid="cart-notifications">
+          {summary.notifications.map((msg, idx) => (
+            <p key={idx} className="cart__notification" role="status">
+              {msg}
+            </p>
+          ))}
+        </div>
+      ) : null}
 
       <section className="cart__lines" aria-label="Cart items" data-testid="cart-lines">
         <ul className="cart__list">
@@ -81,13 +91,22 @@ export default async function CartPage() {
   );
 }
 
-function EmptyCart() {
+function EmptyCart({ notifications }: { notifications?: string[] }) {
   return (
     <main className="cart" data-testid="cart-page">
       <header className="cart__header">
         <p className="cart__eyebrow">Guest cart</p>
         <h1 className="cart__title">Your Cart</h1>
       </header>
+      {notifications && notifications.length > 0 ? (
+        <div className="cart__notifications" data-testid="cart-notifications">
+          {notifications.map((msg, idx) => (
+            <p key={idx} className="cart__notification" role="status">
+              {msg}
+            </p>
+          ))}
+        </div>
+      ) : null}
       <div className="cart__state" data-testid="cart-empty">
         <p className="cart__state-message">Your cart is empty.</p>
         <Link href="/catalog" className="cart__state-link">

@@ -65,6 +65,16 @@ export async function POST(request: Request): Promise<Response> {
     );
 
     if (!result.ok) {
+      if (result.reason === "stock_exceeded") {
+        return Response.json(
+          {
+            error: `Only ${result.available} item${result.available === 1 ? "" : "s"} available in stock.`,
+            code: "stock_exceeded",
+            available: result.available,
+          },
+          { status: 400, headers: NO_STORE },
+        );
+      }
       return jsonError("This variant is no longer available.", 400);
     }
 
@@ -118,6 +128,16 @@ export async function PATCH(request: Request): Promise<Response> {
     );
 
     if (!result.ok) {
+      if (result.reason === "stock_exceeded") {
+        return Response.json(
+          {
+            error: `Only ${result.available} item${result.available === 1 ? "" : "s"} available in stock.`,
+            code: "stock_exceeded",
+            available: result.available,
+          },
+          { status: 400, headers: NO_STORE },
+        );
+      }
       return jsonError("Cart line not found.", 404);
     }
 

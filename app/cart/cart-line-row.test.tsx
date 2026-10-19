@@ -143,4 +143,26 @@ describe("CartLineRow", () => {
       expect(screen.getByTestId("cart-line-error").textContent).toBe("Failed to update item.");
     });
   });
+
+  it("disables increment button when quantity equals availableStock", () => {
+    render(<CartLineRow line={{ ...sampleLine, quantity: 3, availableStock: 3 }} />);
+
+    const incBtn = screen.getByTestId("cart-line-inc");
+    expect(incBtn.hasAttribute("disabled")).toBe(true);
+
+    const decBtn = screen.getByTestId("cart-line-dec");
+    expect(decBtn.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("renders stock adjustment notice when line was adjusted", () => {
+    render(
+      <CartLineRow
+        line={{ ...sampleLine, quantity: 2, availableStock: 2, stockAdjusted: true }}
+      />,
+    );
+
+    const warning = screen.getByTestId("cart-line-stock-warning");
+    expect(warning).toBeTruthy();
+    expect(warning.textContent).toContain("Quantity adjusted to 2 based on available stock.");
+  });
 });

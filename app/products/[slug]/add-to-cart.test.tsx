@@ -135,4 +135,38 @@ describe("AddToCart", () => {
     });
     expect(screen.queryByTestId("add-to-cart-error")).toBeNull();
   });
+
+  it("caps the quantity selector options by the selected variant available stock", () => {
+    const lowStockVariant: ProductDetailVariant = {
+      id: "v-low-stock",
+      size: "S",
+      color: "Black",
+      colorHex: "#000000",
+      stockQty: 3,
+      priceOverrideCents: null,
+    };
+
+    render(<AddToCart variant={lowStockVariant} />);
+    const select = screen.getByLabelText("Quantity") as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual(["1", "2", "3"]);
+  });
+
+  it("shows stock_exceeded message when server rejects due to stock limit", async () => {
+    stubFetch(() => ({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: "Only 2 items available in stock.",
+        code: "stock_exceeded",
+        available: 2,
+      }),
+    }));
+
+    render(<AddToCart variant={blushVariant} />);
+    fireEvent.click(screen.getByRole("button", { name: "Add to cart" }));
+
+    const error = await screen.findByTestId("add-to-cart-error");
+    expect(error.getAttribute("role")).toBe("alert");
+    expect(error.textContent).toBe("Only 2 items available in stock.");
+  });
 });
