@@ -5,8 +5,8 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `account-created-at-payment` or `order-confirmation-email` (both depend on `order-creation-on-payment`).
+- Current feature in flight: none. `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `order-confirmation-email` or `account-quick-access-password`.
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
 - Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
@@ -723,8 +723,6 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
     - `GET /cart` returns 200 empty cart state.
 - Evidence captured: `feature_list.json` → `order-creation-on-payment.verification`/`.evidence`; `docs/validations/order-creation-on-payment.md`; this log.
 - Known risk or unresolved issue: Payment failure and retry path is deferred to `payment-failure-path`.
-- Next best step: Commit `feature/order-creation-on-payment`, push to origin, and open PR linking #32 without merging.
-
 ### Session 035
 
 - Date: 2026-10-19
@@ -788,6 +786,37 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `stock-reservation.verification`/`.evidence`; `docs/validations/stock-reservation.md`; this log.
 - Known risk or unresolved issue: none.
 - Next best step: Commit `feature/stock-reservation`, push to origin, and open PR linking #35 without merging.
+
+### Session 037
+
+- Date: 2026-10-19
+- Goal: Implement and validate `account-created-at-payment` in dedicated worktree `tienda-worktrees/account-created-at-payment` on branch `feature/account-created-at-payment` (Issue #36).
+- Completed:
+  - Spec written: `docs/specs/account-created-at-payment.md` covering 5 acceptance scenarios for account creation/linking upon payment, email normalization, check constraint enforcement, and confirmation page notice.
+  - Order repository (`db/order.ts`):
+    - In `createPaidOrderFromCheckout`, normalized contact email (`session.email.trim().toLowerCase()`).
+    - Looked up existing account by normalized email: if found, reused `existingAccount.id`; if not found, inserted new `account` row with lowercase email and added `accountRole` with role `"customer"`.
+    - Atomically inside transaction, attached `targetAccountId` to `address.accountId`, `order.accountId`, and `cart.accountId`.
+    - Included `accountId: targetAccountId` and `isNewAccount: !existingAccount` in `createPaidOrderFromCheckout` return value.
+    - Updated `OrderWithDetails` to include `accountId` and `isNewAccount`. In `getOrderByReference`, verified whether the order is the first order for the account (`isNewAccount = true`) or a subsequent order linked to the existing account (`isNewAccount = false`).
+  - API Route (`app/api/checkout/pay/route.ts`):
+    - Included `accountId` and `isNewAccount` in the 200 JSON response.
+  - Order Confirmation UI (`app/checkout/confirmation/[reference]/page.tsx` & `app/globals.css`):
+    - Added welcoming account status notice (`data-testid="account-notice"`) dynamically displaying `"We've created an account for your order at {contactEmail}."` for first-time orders (and default), and `"Order linked to your account {contactEmail}."` when linked to an existing account.
+  - Tests:
+    - `db/tests/account-created-at-payment.test.ts`: verified Scenarios 1-4 (first-time account creation, repeat purchase linking without duplicates, email normalization, and check constraint `chk_account_email_lowercase` rejection).
+    - `app/checkout/confirmation/[reference]/page.test.tsx`: verified Scenario 5 with 9 tests covering new account and linked account notices.
+    - `app/api/checkout/pay/route.test.ts`: verified `accountId` and `isNewAccount` fields in payment response.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/account-created-at-payment.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `account-created-at-payment` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (58 test files / 471 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /api/checkout/pay`, `ƒ /checkout/confirmation/[reference]`, `ƒ /checkout`, and `ƒ /cart`.
+- Evidence captured: `feature_list.json` → `account-created-at-payment.verification`/`.evidence`; `docs/validations/account-created-at-payment.md`; this log.
+- Known risk or unresolved issue: Password creation at checkout is deferred to `account-quick-access-password`.
+- Next best step: Commit `feature/account-created-at-payment`, push to origin, and open PR linking #36 without merging.
+
 
 
 

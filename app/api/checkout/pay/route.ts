@@ -147,6 +147,8 @@ export async function POST(request?: Request): Promise<Response> {
         reference: result.order.reference,
         redirectUrl,
         order: result.order,
+        accountId: result.accountId,
+        isNewAccount: result.isNewAccount,
       },
       { status: 200, headers: NO_STORE },
     );
