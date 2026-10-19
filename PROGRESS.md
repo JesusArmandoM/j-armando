@@ -5,9 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
-- Last verified at: 2026-10-19: `./init.sh` exit 0 (72 test files / 556 tests green), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19: `./init.sh` exit 0 (76 test files / 568 tests green), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+
 
 
 ## Project State
@@ -944,6 +945,43 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Evidence captured: `feature_list.json` → `account-signin-signout.evidence`; `docs/validations/account-signin-signout.md`; this log.
 - Known risk or unresolved issue: Cart merge on sign-in (separate follow-up feature); try-on photo privacy remains open under #3.
 - Next best step: Commit `feature/account-signin-signout`, push to origin, and open PR linking Closes #44 without merging.
+
+### Session 042
+
+- Date: 2026-10-19
+- Goal: Implement and independently validate `admin-role-gate` (Admin role gates the backoffice).
+- Completed:
+  - Feature spec written: `docs/specs/admin-role-gate.md` covering all 5 acceptance scenarios for admin access, 403 Forbidden customer view, unauthenticated sign-in redirect with returnUrl, API check route, and immediate admin role revocation.
+  - Auth & Admin Guard helpers (`lib/auth/admin-guard.ts` & `db/auth.ts`):
+    - `getAdminSession(cookieStore?, dbInstance?)`: evaluates active account session, returning `{ status: "unauthenticated" }`, `{ status: "forbidden", account, roles }` if lacking `admin` role, or `{ status: "authorized", account, roles }` if admin.
+    - `grantAdminRole(db, accountId)`: idempotently grants the admin role to an account.
+    - `revokeAdminRole(db, accountId)`: deletes the admin role from `account_role`. Because `getAccountFromSessionToken` queries `account_role` dynamically on each request, revocation takes effect immediately with zero caching.
+  - Seed Setup (`db/seed-data.ts` & `db/seed.ts`):
+    - Added `seedAdminAccount` with `admin@j-armando.store`, precomputed scrypt hash for `Admin123!`, and both `customer` and `admin` roles.
+    - `seedCatalog` inserts the admin account and roles idempotently on conflict.
+  - Backoffice Shell & Pages (`app/admin/layout.tsx`, `app/admin/page.tsx`, `app/globals.css`):
+    - `app/admin/layout.tsx`: server component checking `getAdminSession()`. Unauthenticated requests redirect to `/account/signin?returnUrl=/admin`. Non-admin customers receive an editorial 403 Forbidden view (`data-testid="admin-forbidden"`) with links to storefront and customer account. Authorized admins receive the backoffice shell with header brand, admin badge, navigation links ("Dashboard", "Products", "Orders"), admin user email, and storefront link.
+    - `app/admin/page.tsx`: backoffice dashboard rendering personalized welcome message, and management cards for Catalog Management and Order Fulfillment.
+    - `app/globals.css`: styles for backoffice shell, header, nav, dashboard grid, cards, badges, and 403 forbidden view matching J. Armando editorial design standards.
+  - Route Handler (`app/api/admin/check/route.ts`):
+    - `GET /api/admin/check`: returns 401 when unauthenticated, 403 when forbidden, and 200 `{ ok: true, admin: true, account, roles }` when authorized, all with `Cache-Control: no-store`.
+  - Tests (all green):
+    - `db/tests/admin-role-gate.test.ts` (5 tests passing): admin authorization, customer forbidden, unauthenticated handling, immediate role revocation and restoration without token renewal, seed catalog default admin verification.
+    - `app/admin/layout.test.tsx` (3 tests passing): unauthenticated redirect, 403 forbidden render with message and links, authorized admin shell render.
+    - `app/admin/page.test.tsx` (1 test passing): dashboard title, welcome message, catalog and orders cards.
+    - `app/api/admin/check/route.test.ts` (3 tests passing): 401, 403, and 200 responses.
+  - Live Dev Server Verification (Port 3015):
+    - Tested against PostgreSQL: unauthenticated redirect to `/account/signin?returnUrl=/admin` (HTTP 307), unauthenticated API check (HTTP 401), customer without admin role refused (HTTP 403 Forbidden view and API), admin account opens `/admin` dashboard (HTTP 200), immediate admin role revocation test verified (HTTP 403 on subsequent request without token refresh).
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/admin-role-gate.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `admin-role-gate` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (76 test files / 568 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `admin-role-gate.evidence`; `docs/validations/admin-role-gate.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/admin-role-gate`, push to origin, and open PR linking Closes #47 without merging.
+
 
 
 
