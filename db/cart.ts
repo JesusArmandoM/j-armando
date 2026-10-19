@@ -222,3 +222,96 @@ export async function getCartSummary(
     currency: rows[0].currency,
   };
 }
+
+export type UpdateCartLineResult =
+  | { ok: true; lineId: string; quantity: number }
+  | { ok: false; reason: "not_found" };
+
+/**
+ * Updates the quantity of a line belonging to the session cart.
+ * Enforces session isolation: returns `not_found` if the line does not exist
+ * or belongs to a different cart.
+ */
+export async function updateCartLineQuantity(
+  db: Db,
+  sessionToken: string,
+  lineId: string,
+  quantity: number,
+): Promise<UpdateCartLineResult> {
+  return db.transaction(async (tx) => {
+    const txDb = tx as unknown as Db;
+
+    const currentCart = await txDb
+      .select({ id: cart.id })
+      .from(cart)
+      .where(and(eq(cart.sessionToken, sessionToken), eq(cart.status, "active")))
+      .limit(1);
+
+    if (!currentCart[0]) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    const updated = await txDb
+      .update(cartLine)
+      .set({ quantity })
+      .where(and(eq(cartLine.id, lineId), eq(cartLine.cartId, currentCart[0].id)))
+      .returning({ id: cartLine.id, quantity: cartLine.quantity });
+
+    if (!updated[0]) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    await txDb
+      .update(cart)
+      .set({ updatedAt: new Date() })
+      .where(eq(cart.id, currentCart[0].id));
+
+    return { ok: true, lineId: updated[0].id, quantity: updated[0].quantity } as const;
+  });
+}
+
+export type RemoveCartLineResult =
+  | { ok: true; lineId: string }
+  | { ok: false; reason: "not_found" };
+
+/**
+ * Removes a line belonging to the session cart.
+ * Enforces session isolation: returns `not_found` if the line does not exist
+ * or belongs to a different cart.
+ */
+export async function removeCartLine(
+  db: Db,
+  sessionToken: string,
+  lineId: string,
+): Promise<RemoveCartLineResult> {
+  return db.transaction(async (tx) => {
+    const txDb = tx as unknown as Db;
+
+    const currentCart = await txDb
+      .select({ id: cart.id })
+      .from(cart)
+      .where(and(eq(cart.sessionToken, sessionToken), eq(cart.status, "active")))
+      .limit(1);
+
+    if (!currentCart[0]) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    const deleted = await txDb
+      .delete(cartLine)
+      .where(and(eq(cartLine.id, lineId), eq(cartLine.cartId, currentCart[0].id)))
+      .returning({ id: cartLine.id });
+
+    if (!deleted[0]) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    await txDb
+      .update(cart)
+      .set({ updatedAt: new Date() })
+      .where(eq(cart.id, currentCart[0].id));
+
+    return { ok: true, lineId: deleted[0].id } as const;
+  });
+}
+

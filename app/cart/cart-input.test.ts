@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_ADD_QUANTITY, isVariantIdShape, parseAddToCartBody } from "./cart-input";
+import {
+  MAX_ADD_QUANTITY,
+  isVariantIdShape,
+  parseAddToCartBody,
+  parseRemoveCartLineBody,
+  parseUpdateCartLineBody,
+} from "./cart-input";
 
 const VALID_VARIANT_ID = "123e4567-e89b-12d3-a456-426614174000";
+const VALID_LINE_ID = "987fcdeb-51a2-43d7-9876-543210fedcba";
 
 describe("cart add input", () => {
   it("accepts a canonical uuid-shaped variant id and an integer quantity from 1 to 10", () => {
@@ -68,3 +75,35 @@ describe("cart add input", () => {
     });
   });
 });
+
+describe("cart update input", () => {
+  it("accepts a canonical uuid-shaped lineId and quantity from 1 to 10", () => {
+    expect(parseUpdateCartLineBody({ lineId: VALID_LINE_ID, quantity: 3 })).toEqual({
+      ok: true,
+      value: { lineId: VALID_LINE_ID, quantity: 3 },
+    });
+  });
+
+  it("rejects non-uuid lineId and invalid quantity", () => {
+    expect(parseUpdateCartLineBody({ lineId: "invalid", quantity: 3 }).ok).toBe(false);
+    expect(parseUpdateCartLineBody({ lineId: VALID_LINE_ID, quantity: 0 }).ok).toBe(false);
+    expect(parseUpdateCartLineBody({ lineId: VALID_LINE_ID, quantity: 11 }).ok).toBe(false);
+    expect(parseUpdateCartLineBody(null).ok).toBe(false);
+  });
+});
+
+describe("cart remove input", () => {
+  it("accepts a canonical uuid-shaped lineId", () => {
+    expect(parseRemoveCartLineBody({ lineId: VALID_LINE_ID })).toEqual({
+      ok: true,
+      value: { lineId: VALID_LINE_ID },
+    });
+  });
+
+  it("rejects non-uuid lineId or invalid bodies", () => {
+    expect(parseRemoveCartLineBody({ lineId: "invalid" }).ok).toBe(false);
+    expect(parseRemoveCartLineBody({}).ok).toBe(false);
+    expect(parseRemoveCartLineBody(null).ok).toBe(false);
+  });
+});
+

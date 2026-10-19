@@ -16,6 +16,12 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+  }),
+}));
+
 vi.mock("@/db/client.ts", () => ({
   getDb: vi.fn(() => ({})),
 }));
@@ -66,7 +72,7 @@ describe("CartPage", () => {
     ).toBe("/products/double-breasted-linen-blazer");
     expect(screen.getByText("Size M · Ivory")).toBeTruthy();
     expect(screen.getByTestId("cart-line-unit").textContent).toBe("$249.00");
-    expect(screen.getByText("Qty 2")).toBeTruthy();
+    expect(screen.getByTestId("cart-line-quantity").textContent).toBe("2");
     expect(screen.getByTestId("cart-line-total").textContent).toBe("$498.00");
     expect(screen.getByTestId("cart-subtotal").textContent).toContain("Subtotal");
     expect(screen.getByTestId("cart-subtotal").textContent).toContain("$498.00");
@@ -78,10 +84,10 @@ describe("CartPage", () => {
 
     expect(getCartSummaryMock).toHaveBeenCalledWith({}, "session-token");
 
-    // Add + view only: no edit, remove, stepper or checkout controls.
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    expect(screen.queryByRole("link", { name: /remove/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /edit/i })).toBeNull();
+    // Steppers and remove button are present
+    expect(screen.getByTestId("cart-line-dec")).toBeTruthy();
+    expect(screen.getByTestId("cart-line-inc")).toBeTruthy();
+    expect(screen.getByTestId("cart-line-remove")).toBeTruthy();
     expect(screen.queryByRole("link", { name: /checkout/i })).toBeNull();
   });
 
