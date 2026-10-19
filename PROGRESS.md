@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `payment-failure-path` (depends on `order-creation-on-payment`, now accepted).
+- Current feature in flight: none. `stock-reservation`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `payment-failure-path` (depends on `order-creation-on-payment`, now accepted) or `account-created-at-payment` (depends on `order-creation-on-payment`, now accepted).
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
-- Last verified at: 2026-10-19, on `feature/order-creation-on-payment`: `./init.sh` exit 0 (57 test files / 465 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, on `feature/stock-reservation`: `./init.sh` exit 0 (58 test files / 470 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
@@ -723,6 +723,38 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `order-creation-on-payment.verification`/`.evidence`; `docs/validations/order-creation-on-payment.md`; this log.
 - Known risk or unresolved issue: Payment failure and retry path is deferred to `payment-failure-path`.
 - Next best step: Commit `feature/order-creation-on-payment`, push to origin, and open PR linking #32 without merging.
+
+### Session 035
+
+- Date: 2026-10-19
+- Goal: Implement and validate `stock-reservation` in dedicated worktree `tienda-worktrees/stock-reservation` on branch `feature/stock-reservation` (Issue #35).
+- Completed:
+  - Spec written: `docs/specs/stock-reservation.md` covering 6 acceptance scenarios for concurrent checkout races on the last unit, atomic conditional decrement, zero/negative stock guards, HTTP 409 out-of-stock response, and storefront UI recovery link to `/cart`.
+  - Database layer (`db/order.ts`):
+    - Exported `OutOfStockError` class carrying `variantId` and `productName`.
+    - Updated `CreatePaidOrderResult` type with `reason: "out_of_stock"`, `variantId`, and `productName`.
+    - In `createPaidOrderFromCheckout`: sorted cart lines deterministically by `variantId` to prevent deadlocks across concurrent multi-line checkouts; executed atomic conditional update `UPDATE variant SET stock_qty = stock_qty - qty WHERE id = variant_id AND stock_qty >= qty RETURNING id, stock_qty` inside the transaction.
+    - If `updated.length === 0`, throws `OutOfStockError` to roll back the transaction cleanly. Caught and returned as `{ ok: false, reason: "out_of_stock", variantId, productName }`.
+  - API Route (`app/api/checkout/pay/route.ts`):
+    - On `result.reason === "out_of_stock"`, returns HTTP 409 Conflict with `{ error, code: "out_of_stock", variantId, productName }` and `Cache-Control: no-store`.
+  - Storefront UI (`app/checkout/contact-and-address-form.tsx` & `app/globals.css`):
+    - Added `isOutOfStock` state in Step 3 Payment box.
+    - When payment API returns `code: "out_of_stock"`, displays the error message and an accessible "Return to cart" link (`data-testid="out-of-stock-cart-link"`) with `href="/cart"`.
+  - Tests created / updated:
+    - `db/tests/stock-reservation.test.ts` (3 tests): concurrent checkout race of the last unit yields exactly 1 paid order, 1 out_of_stock failure, exactly 0 remaining stock, and preserves the losing cart in active state; 0 stock fails immediately; exceeding stock fails immediately without updating stock.
+    - `app/api/checkout/pay/route.test.ts` (8 tests): asserts 409 Conflict with `code: "out_of_stock"` and no-store header.
+    - `app/checkout/contact-and-address-form.test.tsx` (11 tests): asserts rendering of out of stock message and Return to cart link.
+  - Validation: All 6 acceptance scenarios verified and recorded in `docs/validations/stock-reservation.md`. Verdict: ACCEPT.
+  - Updated `docs/risks-and-open-questions.md` recording the payment-time atomic reservation decision under Resolved.
+  - Updated `feature_list.json` marking `stock-reservation` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (58 test files / 470 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Turbopack production build).
+- Evidence captured: `feature_list.json` → `stock-reservation.verification`/`.evidence`; `docs/validations/stock-reservation.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/stock-reservation`, push to origin, and open PR linking #35 without merging.
+
 
 
 

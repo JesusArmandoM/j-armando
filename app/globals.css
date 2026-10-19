@@ -2453,6 +2453,27 @@ body {
   font-size: 0.8125rem;
 }
 
+.checkout-payment-box__error-message {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.checkout-payment-box__error-action {
+  margin-top: 0.5rem;
+}
+
+.checkout-payment-box__cart-link {
+  display: inline-block;
+  color: #a42817;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.checkout-payment-box__cart-link:hover {
+  opacity: 0.8;
+}
+
 /* ---- Order Confirmation Page ---- */
 
 .order-confirmation-page {

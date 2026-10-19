@@ -358,13 +358,20 @@
     "title": "The last unit of a variant cannot be oversold",
     "user_visible_behavior": "When two shoppers attempt to buy the last unit of the same variant at the same time, exactly one order succeeds and the other is told the item is unavailable, with no negative or inconsistent stock.",
     "depends_on": ["order-creation-on-payment"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: a concurrency test with two simultaneous checkouts of the last unit yields exactly one paid order.",
-      "Provisional: the losing shopper gets a clear message and stock never goes below zero."
+      "A concurrency test with two simultaneous checkouts of the last unit yields exactly one paid order: db/tests/stock-reservation.test.ts 'concurrent checkouts of the last unit yield exactly one paid order and never negative stock'.",
+      "The losing shopper gets a clear message and stock never goes below zero: app/api/checkout/pay/route.test.ts 'returns 409 when cart items are out of stock', db/tests/stock-reservation.test.ts, and app/checkout/contact-and-address-form.test.tsx 'displays out of stock error and return to cart link when API returns out_of_stock'."
     ],
-    "evidence": [],
-    "notes": "Use a transactional reservation or conditional update; see the implementation-time question on reservation strategy in docs/risks-and-open-questions.md. This is the concurrency guarantee behind cart-stock-limits."
+    "evidence": [
+      "Automated verification: 58 test files / 470 tests pass via `CI=true ./init.sh`. Lint and typecheck clean.",
+      "Focused test suites: `db/tests/stock-reservation.test.ts` (3/3), `app/api/checkout/pay/route.test.ts` (8/8), `app/checkout/contact-and-address-form.test.tsx` (11/11), `db/tests/order-creation.test.ts` (6/6), `app/checkout/page.test.tsx` (9/9).",
+      "Atomic conditional stock decrement: `UPDATE variant SET stock_qty = stock_qty - qty WHERE id = variant_id AND stock_qty >= qty RETURNING id, stock_qty` executed inside `createPaidOrderFromCheckout` with deterministic `variantId` line sorting to prevent deadlocks.",
+      "Losing shopper UX: API returns HTTP 409 Conflict with `{ error, code: 'out_of_stock', variantId, productName }`; Step 3 Payment banner displays friendly explanation and accessible link to return to `/cart`; losing cart remains active and unconverted.",
+      "Production build: `pnpm build` exits 0 with Next.js 16.4.0 Turbopack.",
+      "Validation report: docs/validations/stock-reservation.md (verdict: ACCEPT)."
+    ],
+    "notes": "Validated and decremented atomically at payment time via conditional update, resolving the reservation strategy question in docs/risks-and-open-questions.md. No temporary locks or expiry timers needed. Concurrency guarantee behind cart-stock-limits."
   },
   {
     "id": "account-created-at-payment",

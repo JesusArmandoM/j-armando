@@ -39,6 +39,18 @@ export async function POST(): Promise<Response> {
           { status: 400, headers: NO_STORE },
         );
       }
+      if (result.reason === "out_of_stock") {
+        return Response.json(
+          {
+            error:
+              "One or more items in your cart are no longer available in the requested quantity. Please review your cart.",
+            code: "out_of_stock",
+            variantId: result.variantId,
+            productName: result.productName,
+          },
+          { status: 409, headers: NO_STORE },
+        );
+      }
       return Response.json(
         {
           error: "Payment simulation failed. Please try again.",

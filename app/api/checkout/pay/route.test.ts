@@ -144,6 +144,28 @@ describe("POST /api/checkout/pay", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/checkout");
   });
 
+  it("returns 409 when cart items are out of stock", async () => {
+    cookieState.value = "test-session";
+    createPaidOrderFromCheckoutMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "out_of_stock",
+      variantId: "variant-123",
+      productName: "Double-Breasted Linen Blazer",
+    });
+
+    const response = await POST();
+    expect(response.status).toBe(409);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+
+    const body = await response.json();
+    expect(body.code).toBe("out_of_stock");
+    expect(body.error).toContain(
+      "One or more items in your cart are no longer available in the requested quantity",
+    );
+    expect(body.variantId).toBe("variant-123");
+    expect(body.productName).toBe("Double-Breasted Linen Blazer");
+  });
+
   it("returns 503 when unexpected database failure occurs", async () => {
     cookieState.value = "test-session";
     createPaidOrderFromCheckoutMock.mockRejectedValueOnce(new Error("db down"));
