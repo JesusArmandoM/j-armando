@@ -272,14 +272,21 @@
     "title": "Sales tax is calculated from the shipping address",
     "user_visible_behavior": "The order summary shows a separate sales tax line calculated from the shipping address (state / ZIP), with catalog prices shown tax-exclusive, and the total equals subtotal plus shipping plus tax.",
     "depends_on": ["checkout-shipping-method"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: changing the shipping address's state changes the calculated sales tax.",
-      "Provisional: the order summary shows tax as its own line and the total equals subtotal + shipping + tax.",
-      "Provisional: displayed catalog prices exclude tax."
+      "Changing the shipping address's state changes the calculated sales tax.",
+      "The order summary shows tax as its own line and the total equals subtotal + shipping + tax.",
+      "Displayed catalog prices exclude tax."
     ],
-    "evidence": [],
-    "notes": "Market is US/USD with sales tax added at checkout (confirmed). This contradicts the design asset, which shows IVA included in the price; see DESIGN.md 'Pricing and Tax Display'. Rate table/nexus is a blocking open question in docs/risks-and-open-questions.md."
+    "evidence": [
+      "Automated: 54 test files / 443 tests pass via `CI=true ./init.sh`. Lint and typecheck clean.",
+      "Focused suites (10 files / 76 tests): `lib/tax/sales-tax.test.ts` (7/7), `app/checkout/page.test.tsx` (9/9), `app/checkout/shipping-method-form.test.tsx` (5/5), `app/checkout/contact-and-address-form.test.tsx` (8/8), `app/checkout/checkout-input.test.ts` (9/9), `app/checkout/payment-outcome.test.tsx` (4/4), `app/api/checkout/shipping-method/route.test.ts` (12/12), `app/api/checkout/contact-and-address/route.test.ts` (9/9), `db/tests/checkout-shipping-method.test.ts` (8/8), `db/tests/checkout-contact-and-address.test.ts` (5/5).",
+      "Pure module: `lib/tax/sales-tax.ts` maps US state codes to baseline rates, maps 0% for tax-exempt states (AK, DE, MT, NH, OR), applies 5% fallback, rounds to integer cents, and handles empty/null state gracefully.",
+      "Order Summary integration: `/checkout` calculates tax from `checkoutSession.state`, renders 'Estimated Tax' as a separate row (`summary-tax`), and computes `totalCents = subtotalCents + shippingCostCents + taxCents`.",
+      "Live HTTP verification on port 3006: empty cart checkout shows empty state; adding cart line sets session; checkout shows 'Calculated from address' hint; saving NY address calculates $19.92 tax (Total $268.92); selecting Express ($15.00) updates Total to $283.92; updating to CA address updates tax to $18.05 (Total $282.05); updating to OR address updates tax to $0.00 (Total $264.00); switching to Standard ($0.00) with OR address updates Total to $249.00.",
+      "Validation record: docs/validations/checkout-sales-tax.md (verdict: ACCEPT)."
+    ],
+    "notes": "Market is US/USD with sales tax added at checkout (confirmed). State baseline rates are configured in lib/tax/sales-tax.ts with exempt states (AK, DE, MT, NH, OR) and a 5% fallback. Prices in catalog, product detail, and cart are explicitly tax-exclusive."
   },
   {
     "id": "payment-provider-abstraction",
