@@ -156,7 +156,11 @@ describe("CheckoutPage", () => {
     expect(screen.getByTestId("summary-shipping-hint").textContent).toBe(
       "Calculated next step",
     );
+    expect(screen.getByTestId("summary-tax-hint").textContent).toBe(
+      "Calculated from address",
+    );
     expect(screen.getByTestId("summary-total").textContent).toBe("$249.00");
+    expect(screen.getByText(/tax-exclusive/i)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Edit Cart" }).getAttribute("href")).toBe("/cart");
 
     // Checkout form is rendered in initial mode
@@ -180,11 +184,13 @@ describe("CheckoutPage", () => {
     expect(screen.getByTestId("summary-recipient-name").textContent).toBe(
       "Alexandra Vance",
     );
+    // Sales tax is calculated from NY address (8% of $249.00 = $19.92)
+    expect(screen.getByTestId("summary-tax").textContent).toBe("$19.92");
     // Step 2 is ready
     expect(screen.getByTestId("shipping-step-ready")).toBeTruthy();
   });
 
-  it("renders Order Summary with standard shipping ($0.00) and updates total", async () => {
+  it("renders Order Summary with standard shipping ($0.00), NY sales tax ($19.92), and total ($268.92)", async () => {
     cookieState.value = "mock_session";
     vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
     vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
@@ -198,7 +204,8 @@ describe("CheckoutPage", () => {
 
     expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
     expect(screen.getByTestId("summary-shipping").textContent).toBe("$0.00");
-    expect(screen.getByTestId("summary-total").textContent).toBe("$249.00");
+    expect(screen.getByTestId("summary-tax").textContent).toBe("$19.92");
+    expect(screen.getByTestId("summary-total").textContent).toBe("$268.92");
 
     // Step 2 shows completed standard shipping
     expect(screen.getByTestId("shipping-summary-card")).toBeTruthy();
@@ -209,7 +216,7 @@ describe("CheckoutPage", () => {
     expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
   });
 
-  it("renders Order Summary with express shipping ($15.00) and calculates total ($264.00)", async () => {
+  it("renders Order Summary with express shipping ($15.00), NY sales tax ($19.92), and total ($283.92)", async () => {
     cookieState.value = "mock_session";
     vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
     vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
@@ -223,7 +230,8 @@ describe("CheckoutPage", () => {
 
     expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
     expect(screen.getByTestId("summary-shipping").textContent).toBe("$15.00");
-    expect(screen.getByTestId("summary-total").textContent).toBe("$264.00");
+    expect(screen.getByTestId("summary-tax").textContent).toBe("$19.92");
+    expect(screen.getByTestId("summary-total").textContent).toBe("$283.92");
 
     // Step 2 shows completed express shipping
     expect(screen.getByTestId("shipping-summary-card")).toBeTruthy();
@@ -232,5 +240,47 @@ describe("CheckoutPage", () => {
     );
     // Step 3 is ready for payment
     expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
+  });
+
+  it("recalculates sales tax when shipping destination state changes (CA 7.25%)", async () => {
+    cookieState.value = "mock_session";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
+    vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
+      ...mockCheckoutSession,
+      state: "CA",
+      shippingMethodId: mockShippingMethods[0].id,
+      shippingMethod: mockShippingMethods[0],
+    });
+
+    const ui = await CheckoutPage();
+    render(ui);
+
+    // CA tax is 7.25%: 24900 * 0.0725 = 1805 cents ($18.05)
+    // Total: 24900 + 0 + 1805 = 26705 ($267.05)
+    expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
+    expect(screen.getByTestId("summary-shipping").textContent).toBe("$0.00");
+    expect(screen.getByTestId("summary-tax").textContent).toBe("$18.05");
+    expect(screen.getByTestId("summary-total").textContent).toBe("$267.05");
+  });
+
+  it("calculates $0.00 sales tax for tax-exempt states like Oregon (OR)", async () => {
+    cookieState.value = "mock_session";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
+    vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
+      ...mockCheckoutSession,
+      state: "OR",
+      shippingMethodId: mockShippingMethods[1].id,
+      shippingMethod: mockShippingMethods[1],
+    });
+
+    const ui = await CheckoutPage();
+    render(ui);
+
+    // OR tax is 0.00%: 24900 * 0 = 0 cents ($0.00)
+    // Total: 24900 + 1500 + 0 = 26400 ($264.00)
+    expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
+    expect(screen.getByTestId("summary-shipping").textContent).toBe("$15.00");
+    expect(screen.getByTestId("summary-tax").textContent).toBe("$0.00");
+    expect(screen.getByTestId("summary-total").textContent).toBe("$264.00");
   });
 });

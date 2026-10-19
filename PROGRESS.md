@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `checkout-sales-tax` (depends on `checkout-shipping-method`, accepted).
-- Current blocker: none for the shipped features. Four discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4 and shipping cost #5 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode; #6 tax blocks the checkout chain).
-- Last verified at: 2026-10-19, on `feature/checkout-shipping-method`: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Current feature in flight: none. `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `order-creation-on-payment` (depends on `checkout-sales-tax` and `payment-provider-abstraction`, both accepted).
+- Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
+- Last verified at: 2026-10-19, on `feature/checkout-sales-tax`: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
@@ -27,9 +27,7 @@ These must be answered before or during the relevant features. Full detail in `d
 1. Sign-in mechanism for accounts created without a password (magic link / email OTP / forced password creation).
 2. Virtual try-on provider selection (quality, latency, cost, data-processing terms).
 3. Photo consent and retention policy (privacy-critical).
-6. Sales tax rate table and whether nexus tracking is needed.
-
-Numbering is preserved from earlier sessions; #4 (chat assistant guardrails behaviour) and #5 (shipping cost rules) are resolved — see `docs/risks-and-open-questions.md` → *Resolved* and `docs/specs/catalog-size-chart-and-shipping.md`.
+Numbering is preserved from earlier sessions; #4 (chat assistant guardrails behaviour), #5 (shipping cost rules), and #6 (sales tax table) are resolved — see `docs/risks-and-open-questions.md` → *Resolved*, `docs/specs/catalog-size-chart-and-shipping.md`, and `docs/specs/checkout-sales-tax.md`.
 
 ## Session Log
 
@@ -652,4 +650,41 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `checkout-shipping-method.verification`/`.evidence`; `docs/validations/checkout-shipping-method.md`; this log.
 - Known risk or unresolved issue: Destination-based sales tax calculation is deferred to `checkout-sales-tax`.
 - Next best step: Commit `feature/checkout-shipping-method`, push to origin, open PR linking #28 without merging.
+
+### Session 033
+
+- Date: 2026-10-19
+- Goal: Implement and validate `checkout-sales-tax` in dedicated worktree `tienda-worktrees/checkout-sales-tax` on branch `feature/checkout-sales-tax` (Issue #30).
+- Completed:
+  - Spec written: `docs/specs/checkout-sales-tax.md` with 7 acceptance scenarios covering tax hint when address is missing, state sales tax calculation in integer cents, Order Summary total equality (`subtotal + shipping + sales tax`), destination state modifications, tax-exempt states (AK, DE, MT, NH, OR), tax-exclusive catalog and cart prices, and pure calculation edge cases.
+  - Pure calculation module (`lib/tax/sales-tax.ts`):
+    - Created pure module `lib/tax/sales-tax.ts` with comprehensive US state rates dictionary `STATE_TAX_RATES` (e.g. CA 7.25%, NY 8.0%, TX 6.25%, FL 6.0%, WA 6.5%, IL 6.25%, PA 6.0%), 0% rates for exempt states (AK, DE, MT, NH, OR), and 5% fallback rate (`DEFAULT_TAX_RATE`) for unlisted jurisdictions.
+    - Exported `calculateSalesTax(subtotalCents, stateCode)` returning `{ rate, taxCents }` in integer cents via `Math.round`.
+    - Unit tests in `lib/tax/sales-tax.test.ts` (7 tests).
+  - UI updates (`app/checkout/page.tsx`):
+    - Computed `taxCalculation` from `checkoutSession?.state` using `calculateSalesTax`.
+    - Integrated sales tax into Order Summary: renders "Estimated Tax" with `formatPriceUSD(taxCalculation.taxCents)` (`summary-tax`) when address is present, or "Calculated from address" hint (`summary-tax-hint`) when address is missing.
+    - Updated Order Summary total: `totalCents = subtotalCents + (shippingCostCents ?? 0) + taxCents`.
+    - Updated tax-exclusive helper note: "Prices in USD (tax-exclusive). Sales tax is calculated from your shipping address."
+  - Component tests: Updated `app/checkout/page.test.tsx` (9 tests) asserting missing address tax hint, NY tax calculation and total update, Express shipping with tax, CA state modification tax recalculation, OR tax-exempt $0.00 tax, and tax-exclusive note.
+  - Validation: All 7 acceptance scenarios independently verified and documented in `docs/validations/checkout-sales-tax.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `checkout-sales-tax` as `accepted`.
+  - Updated `docs/risks-and-open-questions.md` moving sales tax table open question #6 to Resolved.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (54 test files / 443 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /checkout` and `ƒ /api/checkout/shipping-method`.
+  - Live HTTP transcript on `PORT=3006` against worktree database:
+    - Empty cart `/checkout` returns 200 empty state;
+    - Cart line add creates `ja_cart_session` cookie;
+    - `/checkout` renders Order Summary with Subtotal ($249.00), Shipping ("Calculated next step"), Estimated Tax ("Calculated from address"), and Total ($249.00);
+    - Saving NY address calculates $19.92 tax (Total $268.92);
+    - Selecting Express ($15.00) updates Total to $283.92;
+    - Modifying address to CA updates tax to $18.05 and Total to $282.05;
+    - Modifying address to OR updates tax to $0.00 and Total to $264.00;
+    - Switching to Standard ($0.00) with OR address updates Total to $249.00.
+- Evidence captured: `feature_list.json` → `checkout-sales-tax.verification`/`.evidence`; `docs/validations/checkout-sales-tax.md`; this log.
+- Known risk or unresolved issue: Payment execution and order placement are deferred to `order-creation-on-payment`.
+- Next best step: Commit `feature/checkout-sales-tax`, push to origin, open PR linking #30 without merging.
+
 

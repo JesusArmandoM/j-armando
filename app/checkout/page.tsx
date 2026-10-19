@@ -8,6 +8,7 @@ import type { CheckoutSessionWithShipping } from "@/db/checkout.ts";
 import { getDb } from "@/db/client.ts";
 import type { ShippingMethod } from "@/db/schema/index.ts";
 import { formatPriceUSD } from "@/lib/money.ts";
+import { calculateSalesTax } from "@/lib/tax/sales-tax.ts";
 
 import { ContactAndAddressForm } from "./contact-and-address-form.tsx";
 
@@ -61,7 +62,11 @@ export default async function CheckoutPage() {
 
   const selectedShippingMethod = checkoutSession?.shippingMethod ?? null;
   const shippingCostCents = selectedShippingMethod ? selectedShippingMethod.costCents : null;
-  const totalCents = summary.subtotalCents + (shippingCostCents ?? 0);
+  const taxCalculation = checkoutSession?.state
+    ? calculateSalesTax(summary.subtotalCents, checkoutSession.state)
+    : null;
+  const taxCents = taxCalculation ? taxCalculation.taxCents : 0;
+  const totalCents = summary.subtotalCents + (shippingCostCents ?? 0) + taxCents;
 
   return (
     <main className="checkout-page" data-testid="checkout-page">
@@ -126,8 +131,19 @@ export default async function CheckoutPage() {
                 )}
               </div>
               <div className="checkout-order-summary__row">
-                <span>Sales Tax</span>
-                <span className="checkout-order-summary__hint">Calculated from address</span>
+                <span>Estimated Tax</span>
+                {taxCalculation !== null ? (
+                  <span data-testid="summary-tax">
+                    {formatPriceUSD(taxCalculation.taxCents)}
+                  </span>
+                ) : (
+                  <span
+                    className="checkout-order-summary__hint"
+                    data-testid="summary-tax-hint"
+                  >
+                    Calculated from address
+                  </span>
+                )}
               </div>
               <div className="checkout-order-summary__row checkout-order-summary__row--total">
                 <span>Total</span>
@@ -138,7 +154,7 @@ export default async function CheckoutPage() {
             </div>
 
             <p className="checkout-order-summary__note">
-              Prices in USD. Sales tax is added based on the delivery destination.
+              Prices in USD (tax-exclusive). Sales tax is calculated from your shipping address.
             </p>
           </div>
         </aside>
