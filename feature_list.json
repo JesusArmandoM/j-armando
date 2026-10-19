@@ -498,13 +498,20 @@
       "account-signin-signout",
       "order-creation-on-payment"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: a signed-in customer sees exactly the orders they own, with correct lines and totals.",
-      "Provisional: a customer cannot reach another customer's order by id.",
-      "Provisional: a signed-out shopper cannot reach order history at all."
+      "A signed-in customer sees exactly the orders they own, with correct lines and totals.",
+      "A customer cannot reach another customer's order by reference or id (returns 404 or access denied).",
+      "A signed-out shopper cannot reach order history at all (redirects to /account/signin).",
+      "Order totals match the frozen values recorded at purchase time."
     ],
-    "evidence": [],
+    "evidence": [
+      "./init.sh (2026-10-19, worktree feature/order-history): exit 0. install + lint + typecheck + test green; vitest: 77 test files, 577 tests passed (baseline 72 files / 556 tests; +5 test files / +21 tests across DB integration, API route handlers, and storefront UI).",
+      "pnpm lint: exit 0 (0 errors, 0 warnings). pnpm typecheck: exit 0 (0 errors).",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build; routes /account/orders, /account/orders/[reference], /api/account/orders, and /api/account/orders/[reference] registered as dynamic (ƒ).",
+      "Live dev server transcript (2026-10-19, PORT=3014): tested against live PostgreSQL database. (1) unauthenticated /account/orders returned 307 redirect to /account/signin?returnUrl=/account/orders; (2) unauthenticated /api/account/orders returned 401; (3) authenticated Customer A GET /api/account/orders returned their own order and excluded Customer B's order; (4) authenticated Customer A GET /account/orders rendered order reference JA-XXXXXX with status, fulfillment, line summary and frozen total; (5) authenticated Customer A GET /account/orders/[refA] returned 200 with complete itemized breakdown and delivery details; (6) cross-customer isolation: Customer A attempting to access Customer B's order via /api/account/orders/[refB] and /account/orders/[refB] returned 404 Not Found; (7) Customer C with no orders visited /account/orders and saw the empty state with link to /catalog.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 6 acceptance scenarios from docs/specs/order-history.md pass cleanly."
+    ],
     "notes": "Ownership rules are in docs/user-and-access-model.md. Order totals must match the frozen values recorded at purchase."
   },
   {

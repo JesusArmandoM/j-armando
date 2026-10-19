@@ -54,11 +54,26 @@ export default async function AccountPage() {
         </div>
 
         <div className="account-card__actions">
+          <Link
+            href="/account/orders"
+            className="auth-btn auth-btn--secondary"
+            data-testid="account-orders-btn"
+          >
+            Order History
+          </Link>
           <SignOutButton />
         </div>
       </section>
 
       <div className="account-page__links">
+        <Link
+          href="/account/orders"
+          className="account-page__link"
+          data-testid="account-orders-link"
+        >
+          Order History
+        </Link>
+        <span className="account-page__link-separator">/</span>
         <Link href="/catalog" className="account-page__link">
           Browse Collection
         </Link>
