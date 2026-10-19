@@ -17,14 +17,32 @@ import type { TryOnProvider, TryOnResult } from "./try-on-provider.ts";
 /** Provider id, for diagnostics only. Never sent to the browser. */
 export const TRY_ON_PROVIDER_ID = "devexpert-images";
 
+/** Default bound on a single provider call. */
+export const DEFAULT_TRY_ON_TIMEOUT_MS = 30_000;
+
+/** Fixed copy for a bounded provider failure (never contains image data). */
+export const TRY_ON_TIMEOUT_MESSAGE = "The try-on took too long to finish.";
+
 export interface OpenAiImagesTryOnProviderOptions {
   apiKey: string;
   /** API base including the version segment, e.g. `https://.../v1`. */
   baseUrl: string;
   /** Image-edit model, e.g. `image-edit`. */
   model: string;
+  /** Bound for the whole request (fetch + body read). Defaults to 30 s. */
+  timeoutMs?: number;
   /** Injectable fetch, primarily for tests. Defaults to the global fetch. */
   fetch?: typeof fetch;
+}
+
+/**
+ * True for the DOMExceptions an aborted request produces. Both the timeout
+ * signal (`TimeoutError`) and an explicit abort (`AbortError`) mean the call
+ * exceeded its bound.
+ */
+function isAbortError(cause: unknown): boolean {
+  const name = (cause as { name?: unknown } | null | undefined)?.name;
+  return name === "TimeoutError" || name === "AbortError";
 }
 
 interface ImagesResponse {
@@ -86,6 +104,7 @@ export function createOpenAiImagesTryOnProvider(
 ): TryOnProvider {
   const { apiKey, baseUrl, model } = options;
   const doFetch = options.fetch ?? globalThis.fetch;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TRY_ON_TIMEOUT_MS;
   const endpoint = buildImagesEditsUrl(baseUrl);
 
   return {
@@ -108,8 +127,15 @@ export function createOpenAiImagesTryOnProvider(
           // Do not set content-type: fetch supplies the multipart boundary.
           headers: { authorization: `Bearer ${apiKey}` },
           body: form,
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (cause) {
+        if (isAbortError(cause)) {
+          throw new TryOnProviderError(TRY_ON_TIMEOUT_MESSAGE, {
+            kind: "timeout",
+            cause,
+          });
+        }
         throw new TryOnProviderError("The try-on provider could not be reached.", {
           kind: "provider",
           cause,
@@ -127,6 +153,13 @@ export function createOpenAiImagesTryOnProvider(
       try {
         data = (await response.json()) as ImagesResponse;
       } catch (cause) {
+        if (isAbortError(cause)) {
+          throw new TryOnProviderError(TRY_ON_TIMEOUT_MESSAGE, {
+            kind: "timeout",
+            status: response.status,
+            cause,
+          });
+        }
         throw new TryOnProviderError("The try-on provider returned an unreadable response.", {
           kind: "provider",
           status: response.status,

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as catalogDb from "@/db/catalog.ts";
 import type { Variant } from "@/db/schema/index.ts";
@@ -233,6 +233,10 @@ describe("ProductDetailPage", () => {
     );
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("scenario 1: renders name, USD price, description, composition and care", async () => {
     vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
 
@@ -408,6 +412,66 @@ describe("ProductDetailPage", () => {
 
     expect(screen.getByTestId("try-on-unavailable")).toBeTruthy();
     expect(screen.getByTestId("product-price").textContent).toContain("$349.00");
+  });
+
+  it("scenario 5: keeps the rest of the product page working after a try-on failure", async () => {
+    vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({ error: "provider body that must not render", code: "provider_error" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ui = await ProductDetailPage({
+      params: Promise.resolve({ slug: "longline-wool-overcoat" }),
+    });
+    render(ui);
+
+    // Produce a real try-on failure through the panel.
+    const photo = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "me.png", {
+      type: "image/png",
+    });
+    fireEvent.change(screen.getByLabelText("Your photo"), { target: { files: [photo] } });
+    fireEvent.click(screen.getByLabelText(/I understand this preview/));
+    fireEvent.click(screen.getByRole("button", { name: "Try on" }));
+
+    const alert = await screen.findByTestId("try-on-error");
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(alert.textContent).toBe("The try-on couldn't be completed right now. Please try again.");
+    expect(alert.textContent).not.toContain("provider body");
+    // The failure is the only alert on the page and never a page-level error state.
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+
+    // The product page itself still renders every element.
+    expect(screen.getByRole("heading", { level: 1, name: "Longline Wool Overcoat" })).toBeTruthy();
+    expect(screen.getByTestId("product-price").textContent).toContain("$349.00");
+    expect(screen.getAllByTestId("product-gallery-thumbnail")).toHaveLength(3);
+    expect(screen.getByTestId("size-guide")).toBeTruthy();
+    expect(screen.getByTestId("variant-stock-message").textContent).toBe(
+      "Select a size and color to see availability.",
+    );
+    expect(screen.getByRole("link", { name: "Collection" }).getAttribute("href")).toBe("/catalog");
+
+    // The gallery still responds to a thumbnail click.
+    const thumbnails = screen.getAllByTestId("product-gallery-thumbnail");
+    fireEvent.click(thumbnails[1]);
+    expect(screen.getAllByAltText(mockProduct.images[1].altText)).toHaveLength(2);
+
+    // The variant selector still responds and updates price/stock messaging.
+    fireEvent.click(screen.getByRole("button", { name: "M" }));
+    fireEvent.click(screen.getByRole("button", { name: "Camel" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("variant-stock-message").textContent).toBe(
+        "In stock — 14 available.",
+      ),
+    );
+
+    // The panel remains usable for a retry.
+    expect((screen.getByLabelText("Your photo") as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Try again" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
   });
 
   it("generateMetadata returns the product name as the page title", async () => {

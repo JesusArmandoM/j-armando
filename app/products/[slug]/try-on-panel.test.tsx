@@ -12,8 +12,20 @@ const variants: TryOnPanelVariant[] = [
   { size: "L", color: "Charcoal", colorHex: "#3B4045", stockQty: 6 },
 ];
 
-function pngFile() {
-  return new File([new Uint8Array([137, 80, 78, 71])], "me.png", { type: "image/png" });
+function pngFile(bytes = new Uint8Array([137, 80, 78, 71])) {
+  return new File([bytes], "me.png", { type: "image/png" });
+}
+
+function oversizedJpeg() {
+  return new File([new Uint8Array(4 * 1024 * 1024 + 1)], "large.jpg", {
+    type: "image/jpeg",
+  });
+}
+
+function exactLimitPng() {
+  const bytes = new Uint8Array(4 * 1024 * 1024);
+  bytes.set([137, 80, 78, 71], 0);
+  return new File([bytes], "limit.png", { type: "image/png" });
 }
 
 function stubFetch(handler: (url: string, init?: RequestInit) => unknown) {
@@ -40,9 +52,9 @@ function renderPanel(panelVariants: TryOnPanelVariant[] = variants) {
   );
 }
 
-function chooseFile() {
+function chooseFile(file: File = pngFile()) {
   const input = screen.getByLabelText("Your photo") as HTMLInputElement;
-  fireEvent.change(input, { target: { files: [pngFile()] } });
+  fireEvent.change(input, { target: { files: [file] } });
 }
 
 function acceptNotice() {
@@ -152,11 +164,72 @@ describe("TryOnPanel", () => {
     expect(image.getAttribute("src")).toBe("https://provider.example/a.png");
   });
 
-  it("shows one generic error line on failure and stays usable (scenario 7)", async () => {
+  it("shows an idle hint and limits the picker to JPG, PNG and WebP (scenario 1)", () => {
+    stubFetch(() => okImage());
+    renderPanel();
+
+    expect(screen.getByTestId("try-on-hint").textContent).toBe(
+      "Choose a JPG, PNG or WebP photo up to 4 MB.",
+    );
+    const input = screen.getByLabelText("Your photo") as HTMLInputElement;
+    expect(input.getAttribute("accept")).toBe("image/jpeg,image/png,image/webp");
+  });
+
+  it("rejects an unsupported declared type before any request (scenario 1)", () => {
+    const fetchMock = stubFetch(() => okImage());
+    renderPanel();
+
+    chooseFile(new File([new Uint8Array([1, 2, 3])], "photo.gif", { type: "image/gif" }));
+
+    expect(screen.getByTestId("try-on-error").textContent).toBe(
+      "Choose a JPG, PNG or WebP photo.",
+    );
+    expect((screen.getByLabelText("Your photo") as HTMLInputElement).value).toBe("");
+    acceptNotice();
+    expect((screen.getByRole("button", { name: "Try on" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a photo larger than 4 MiB, clears it, and sends no request (scenario 2)", () => {
+    const fetchMock = stubFetch(() => okImage());
+    renderPanel();
+
+    chooseFile(oversizedJpeg());
+
+    expect(screen.getByTestId("try-on-error").textContent).toBe(
+      "Choose a photo smaller than 4 MB.",
+    );
+    const input = screen.getByLabelText("Your photo") as HTMLInputElement;
+    expect(input.value).toBe("");
+    acceptNotice();
+    expect((screen.getByRole("button", { name: "Try on" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts exactly 4 MiB (inclusive boundary) (scenario 2)", () => {
+    const fetchMock = stubFetch(() => okImage());
+    renderPanel();
+
+    chooseFile(exactLimitPng());
+    acceptNotice();
+
+    expect(screen.queryByTestId("try-on-error")).toBeNull();
+    const button = screen.getByRole("button", { name: "Try on" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+
+    fireEvent.click(button);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows timeout-specific copy and a 'Try again' action without a partial result (scenario 3)", async () => {
     stubFetch(() => ({
       ok: false,
-      status: 502,
-      json: async () => ({ error: "provider body that must not render" }),
+      status: 504,
+      json: async () => ({ code: "provider_timeout", error: "provider text" }),
     }));
     renderPanel();
 
@@ -166,18 +239,102 @@ describe("TryOnPanel", () => {
 
     const error = await screen.findByTestId("try-on-error");
     expect(error.getAttribute("role")).toBe("alert");
-    expect(error.textContent).toBe("The try-on could not be completed. Please try again.");
+    expect(error.textContent).toBe("The try-on took too long to finish. Please try again.");
+    expect(error.textContent).not.toContain("provider text");
+    expect(screen.queryByTestId("try-on-result")).toBeNull();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+  });
+
+  it("keeps the photo, size, color and consent and retries the same photo after a provider error (scenario 4)", async () => {
+    let call = 0;
+    const fetchMock = stubFetch(() => {
+      call += 1;
+      if (call === 1) {
+        return {
+          ok: false,
+          status: 502,
+          json: async () => ({ code: "provider_error", error: "provider body" }),
+        };
+      }
+      return okImage("c2Vjb25k");
+    });
+    renderPanel();
+
+    fireEvent.change(screen.getByLabelText("Size"), { target: { value: "L" } });
+    fireEvent.change(screen.getByLabelText("Color"), { target: { value: "Charcoal" } });
+    chooseFile();
+    acceptNotice();
+    fireEvent.click(screen.getByRole("button", { name: "Try on" }));
+
+    const error = await screen.findByTestId("try-on-error");
+    expect(error.textContent).toBe(
+      "The try-on couldn't be completed right now. Please try again.",
+    );
     expect(error.textContent).not.toContain("provider body");
 
-    // Controls remain usable, and a later attempt can succeed.
+    // Input survives in memory, so no re-upload is required.
     expect((screen.getByLabelText("Your photo") as HTMLInputElement).disabled).toBe(false);
-    expect((screen.getByRole("button", { name: "Try on" }) as HTMLButtonElement).disabled).toBe(
-      false,
+    expect((screen.getByLabelText("Size") as HTMLSelectElement).value).toBe("L");
+    expect((screen.getByLabelText("Color") as HTMLSelectElement).value).toBe("Charcoal");
+    expect((screen.getByLabelText(/I understand this preview/) as HTMLInputElement).checked).toBe(
+      true,
     );
 
-    stubFetch(() => okImage());
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    const image = await screen.findByTestId("try-on-result");
+    expect(image.getAttribute("src")).toBe("data:image/png;base64,c2Vjb25k");
+    expect(screen.queryByTestId("try-on-error")).toBeNull();
+    expect(screen.getAllByTestId("try-on-result")).toHaveLength(1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const first = fetchMock.mock.calls[0][1]?.body as FormData;
+    const second = fetchMock.mock.calls[1][1]?.body as FormData;
+    const firstPhoto = first.get("photo") as File;
+    const secondPhoto = second.get("photo") as File;
+    expect(secondPhoto).toBe(firstPhoto);
+    expect(second.get("size")).toBe("L");
+    expect(second.get("color")).toBe("Charcoal");
+    expect(second.get("consent")).toBe("accepted");
+  });
+
+  it("maps a network failure to clear copy and allows a retry", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPanel();
+
+    chooseFile();
+    acceptNotice();
     fireEvent.click(screen.getByRole("button", { name: "Try on" }));
-    await screen.findByTestId("try-on-result");
+
+    expect((await screen.findByTestId("try-on-error")).textContent).toBe(
+      "The try-on couldn't be completed right now. Please try again.",
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the selection when the server rejects the photo and never enables a retry (scenario 1)", async () => {
+    stubFetch(() => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ code: "invalid_photo", error: "server text" }),
+    }));
+    renderPanel();
+
+    chooseFile();
+    acceptNotice();
+    fireEvent.click(screen.getByRole("button", { name: "Try on" }));
+
+    const error = await screen.findByTestId("try-on-error");
+    expect(error.textContent).toBe("Choose a JPG, PNG or WebP photo smaller than 4 MB.");
+    expect((screen.getByLabelText("Your photo") as HTMLInputElement).value).toBe("");
+    expect((screen.getByRole("button", { name: "Try on" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("keeps photos and results out of browser storage", async () => {

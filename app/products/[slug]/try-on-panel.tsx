@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
 import type { VariantSize } from "@/db/schema/index.ts";
+import { TRY_ON_PHOTO_HINT, validateTryOnPhoto } from "@/lib/try-on/photo-validation.ts";
 import type { TryOnImage } from "@/lib/try-on/try-on-provider.ts";
+import { failureCopyFor } from "./try-on-failure.ts";
+import type { TryOnFailureCopy } from "./try-on-failure.ts";
 
 // Try-on panel on the product detail page. The size/color picker here supplies
 // **garment context only** for try-on — it is not the purchase variant and it
@@ -29,8 +32,6 @@ interface TryOnPanelProps {
   variants: TryOnPanelVariant[];
 }
 
-const GENERIC_ERROR = "The try-on could not be completed. Please try again.";
-
 interface TryOnSuccess {
   image: TryOnImage;
   color: string;
@@ -47,13 +48,14 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
   const initialSize = sizes[0] ?? "";
   const initialColor = variants.find((variant) => variant.size === initialSize)?.color ?? "";
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [size, setSize] = useState(initialSize);
   const [color, setColor] = useState(initialColor);
   const [file, setFile] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TryOnSuccess | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<TryOnFailureCopy | null>(null);
 
   if (variants.length === 0) {
     return (
@@ -79,8 +81,27 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
-    setError(null);
+    const nextFile = event.target.files?.[0] ?? null;
+    setResult(null);
+
+    if (!nextFile) {
+      setFile(null);
+      setFailure(null);
+      return;
+    }
+
+    const validation = validateTryOnPhoto({ size: nextFile.size, type: nextFile.type });
+    if (!validation.ok) {
+      // Clear both React state and the native input so an invalid selection
+      // cannot be submitted and the same file can be chosen again after fixing it.
+      setFile(null);
+      setFailure({ message: validation.message, retryable: false });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setFile(nextFile);
+    setFailure(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -95,13 +116,28 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
     form.append("consent", "accepted");
 
     setLoading(true);
-    setError(null);
+    setFailure(null);
     setResult(null);
 
     try {
       const response = await fetch("/api/try-on", { method: "POST", body: form });
       if (!response.ok) {
-        setError(GENERIC_ERROR);
+        let code: string | undefined;
+        try {
+          const body = (await response.json()) as { code?: unknown };
+          if (typeof body?.code === "string") code = body.code;
+        } catch {
+          // An unreadable failure body still maps by status.
+        }
+
+        const copy = failureCopyFor(response.status, code);
+        if (!copy.retryable) {
+          // The server rejected the photo: clear it so the shopper must choose
+          // a valid one instead of retrying the same bytes.
+          setFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+        setFailure(copy);
         return;
       }
 
@@ -116,14 +152,14 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
           (image.kind === "url" && typeof image.url === "string" && image.url !== ""));
 
       if (!valid) {
-        setError(GENERIC_ERROR);
+        setFailure(failureCopyFor(response.status, "provider_error"));
         return;
       }
 
       // Keep only the current result, tied to the color that was generated.
       setResult({ image: image as TryOnImage, color });
     } catch {
-      setError(GENERIC_ERROR);
+      setFailure(failureCopyFor(0));
     } finally {
       setLoading(false);
     }
@@ -188,11 +224,16 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
           <input
             className="try-on__file"
             id="try-on-photo"
+            ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             onChange={handleFileChange}
             disabled={loading}
+            aria-describedby="try-on-photo-hint"
           />
+          <p className="try-on__hint" id="try-on-photo-hint" data-testid="try-on-hint">
+            {TRY_ON_PHOTO_HINT}
+          </p>
         </div>
 
         <label className="try-on__consent" htmlFor="try-on-consent">
@@ -210,7 +251,7 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
         </label>
 
         <button className="try-on__submit" type="submit" disabled={!canSubmit}>
-          Try on
+          {failure?.retryable ? "Try again" : "Try on"}
         </button>
       </form>
 
@@ -233,9 +274,9 @@ export function TryOnPanel({ productSlug, productName, variants }: TryOnPanelPro
         )}
       </div>
 
-      {error && (
+      {failure && (
         <p className="try-on__error" role="alert" data-testid="try-on-error">
-          {error}
+          {failure.message}
         </p>
       )}
 
