@@ -17,7 +17,6 @@ Numbering is preserved from earlier sessions; #4 (chat guardrails behaviour), #5
 
 - Styling approach capable of expressing the design system's zero-radius editorial language and token set.
 - Cart merge rule when a guest signs in with an existing cart (union with quantity caps, or replace).
-- Stock reservation strategy at checkout (reserve on add-to-cart vs. validate at payment) and reservation expiry.
 - How a guest conversation or try-on session is attached to an account after sign-in.
 - Email sending provider and templates (order confirmation is the only required one at launch).
 - Object storage provider and access-control model for try-on photos — **deferred** until blocking question #3 is decided. The current try-on slice stores nothing (in-memory per request only), so no storage decision is needed yet.
@@ -26,6 +25,8 @@ Numbering is preserved from earlier sessions; #4 (chat guardrails behaviour), #5
 - Per-garment finished measurements and admin editing of size charts. The category-level body-measurement chart is published; actual garment dimensions and backoffice editing remain future work.
 
 ## Resolved
+
+- **Stock reservation strategy at checkout** — resolved 2026-10-19 by `stock-reservation`: stock is validated and decremented **atomically at payment time** inside the database transaction using conditional update (`UPDATE variant SET stock_qty = stock_qty - qty WHERE id = variant_id AND stock_qty >= qty RETURNING id, stock_qty`). This eliminates the need for temporary reservations or expiry timers, avoids inventory holding/abandonment deadlocks, and guarantees that when two shoppers attempt to purchase the last unit of a variant simultaneously, exactly one order succeeds and the other receives an out-of-stock notification with an active cart.
 
 - **Sales tax rate table and display (blocking #6)** — resolved 2026-10-19 by `checkout-sales-tax`: US sales tax is added at checkout and calculated from the destination state code in `checkoutSession.state`. Pure calculation module `lib/tax/sales-tax.ts` provides baseline state rates (e.g. CA 7.25%, NY 8.0%, TX 6.25%, FL 6.0%, WA 6.5%, IL 6.25%, PA 6.0%), 0.00% for tax-exempt states (AK, DE, MT, NH, OR), and a 5.0% fallback rate for unlisted jurisdictions, rounded to integer cents. Catalog, product detail, and cart prices are explicitly tax-exclusive; the Order Summary displays an Estimated Tax line and Total strictly equals `subtotal + shipping + sales tax`. See `docs/specs/checkout-sales-tax.md`.
 

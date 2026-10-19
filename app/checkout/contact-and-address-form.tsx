@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -69,6 +70,7 @@ export function ContactAndAddressForm({
   const [isEditing, setIsEditing] = useState<boolean>(!initialSession);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isOutOfStock, setIsOutOfStock] = useState<boolean>(false);
   const [simulatedScenario, setSimulatedScenario] = useState<"succeed" | "fail" | "pending">("succeed");
 
   // Form field state
@@ -177,6 +179,7 @@ export function ContactAndAddressForm({
 
   async function handlePay(scenarioToUse?: "succeed" | "fail" | "pending") {
     setPaymentError(null);
+    setIsOutOfStock(false);
     setIsPaying(true);
 
     const scenario = scenarioToUse ?? simulatedScenario;
@@ -191,6 +194,9 @@ export function ContactAndAddressForm({
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok || !data.ok) {
+        if (data?.code === "out_of_stock") {
+          setIsOutOfStock(true);
+        }
         setPaymentError(
           data?.error || "Payment simulation failed. Please try again.",
         );
@@ -612,13 +618,24 @@ export function ContactAndAddressForm({
               </div>
 
               {paymentError ? (
-                <p
+                <div
                   className="checkout-form__error checkout-form__error--banner"
                   role="alert"
                   data-testid="payment-error"
                 >
-                  {paymentError}
-                </p>
+                  <p className="checkout-payment-box__error-message">{paymentError}</p>
+                  {isOutOfStock ? (
+                    <div className="checkout-payment-box__error-action">
+                      <Link
+                        href="/cart"
+                        className="checkout-payment-box__cart-link"
+                        data-testid="out-of-stock-cart-link"
+                      >
+                        Return to cart
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
 
               <div className="checkout-form__actions">

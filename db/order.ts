@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, sql } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import type { FulfillmentStatus, OrderStatus } from "./schema/index.ts";
@@ -25,6 +25,18 @@ export interface CreatePaidOrderOptions {
   provider?: PaymentProvider;
   scenario?: PaymentScenario;
   failureReason?: PaymentFailureReason;
+}
+
+export class OutOfStockError extends Error {
+  readonly variantId: string;
+  readonly productName: string;
+
+  constructor(details: { variantId: string; productName: string }) {
+    super(`Variant ${details.variantId} (${details.productName}) is out of stock`);
+    this.name = "OutOfStockError";
+    this.variantId = details.variantId;
+    this.productName = details.productName;
+  }
 }
 
 // Order repository. Orders represent immutable purchases with frozen snapshots
@@ -95,9 +107,12 @@ export type CreatePaidOrderResult =
         | "cart_empty"
         | "address_required"
         | "shipping_method_required"
-        | "payment_failed";
+        | "payment_failed"
+        | "out_of_stock";
       paymentOutcome?: string;
       failureReason?: PaymentFailureReason;
+      variantId?: string;
+      productName?: string;
     };
 
 /**
@@ -217,97 +232,135 @@ export async function createPaidOrderFromCheckout(
     };
   }
 
-  // 6. Execute atomic transaction to freeze snapshot and create order
-  return db.transaction(async (tx) => {
-    const txDb = tx as unknown as Db;
+  // 6. Execute atomic transaction to reserve stock, freeze snapshot and create order
+  try {
+    return await db.transaction(async (tx) => {
+      const txDb = tx as unknown as Db;
 
-    // 6a. Insert address snapshot (accountId null for guest checkout)
-    const [insertedAddress] = await txDb
-      .insert(address)
-      .values({
-        accountId: null,
-        recipientName: session.recipientName,
-        line1: session.line1,
-        line2: session.line2,
-        city: session.city,
-        state: session.state,
-        zip: session.zip,
-        country: session.country,
-        phone: session.phone,
-      })
-      .returning();
+      // 6a. Sort cart lines deterministically by variantId to prevent database deadlocks
+      const sortedLines = [...lines].sort((a, b) => {
+        if (!a.variantId || !b.variantId) return 0;
+        return a.variantId.localeCompare(b.variantId);
+      });
 
-    // 6b. Generate unique reference and insert order
-    const reference = generateOrderReference();
-    const now = new Date();
+      // 6b. Atomic conditional stock decrement for each variant
+      for (const line of sortedLines) {
+        if (!line.variantId) continue;
 
-    const [createdOrder] = await txDb
-      .insert(order)
-      .values({
-        reference,
-        accountId: null,
-        contactEmail: session.email,
-        status: "paid",
-        fulfillmentStatus: "unfulfilled",
-        addressId: insertedAddress.id,
-        shippingMethodId: selectedShipping.id,
-        subtotalCents,
-        shippingCents,
-        taxCents,
-        totalCents,
-        currency: "USD",
-        createdAt: now,
-        paidAt: now,
-      })
-      .returning();
+        const updated = await txDb
+          .update(variant)
+          .set({
+            stockQty: sql`${variant.stockQty} - ${line.quantity}`,
+          })
+          .where(and(eq(variant.id, line.variantId), gte(variant.stockQty, line.quantity)))
+          .returning({ id: variant.id, newStockQty: variant.stockQty });
 
-    // 6c. Insert frozen order lines
-    const lineValues = lines.map((line) => {
-      const unitPriceCents = line.priceOverrideCents ?? line.basePriceCents;
-      const lineTotalCents = unitPriceCents * line.quantity;
-      return {
+        if (updated.length === 0) {
+          throw new OutOfStockError({
+            variantId: line.variantId,
+            productName: line.productName,
+          });
+        }
+      }
+
+      // 6c. Insert address snapshot (accountId null for guest checkout)
+      const [insertedAddress] = await txDb
+        .insert(address)
+        .values({
+          accountId: null,
+          recipientName: session.recipientName,
+          line1: session.line1,
+          line2: session.line2,
+          city: session.city,
+          state: session.state,
+          zip: session.zip,
+          country: session.country,
+          phone: session.phone,
+        })
+        .returning();
+
+      // 6d. Generate unique reference and insert order
+      const reference = generateOrderReference();
+      const now = new Date();
+
+      const [createdOrder] = await txDb
+        .insert(order)
+        .values({
+          reference,
+          accountId: null,
+          contactEmail: session.email,
+          status: "paid",
+          fulfillmentStatus: "unfulfilled",
+          addressId: insertedAddress.id,
+          shippingMethodId: selectedShipping.id,
+          subtotalCents,
+          shippingCents,
+          taxCents,
+          totalCents,
+          currency: "USD",
+          createdAt: now,
+          paidAt: now,
+        })
+        .returning();
+
+      // 6e. Insert frozen order lines
+      const lineValues = lines.map((line) => {
+        const unitPriceCents = line.priceOverrideCents ?? line.basePriceCents;
+        const lineTotalCents = unitPriceCents * line.quantity;
+        return {
+          orderId: createdOrder.id,
+          variantId: line.variantId,
+          productName: line.productName,
+          variantSize: line.size,
+          variantColor: line.color,
+          unitPriceCents,
+          quantity: line.quantity,
+          lineTotalCents,
+        };
+      });
+
+      await txDb.insert(orderLine).values(lineValues);
+
+      // 6f. Insert payment row
+      await txDb.insert(payment).values({
         orderId: createdOrder.id,
-        variantId: line.variantId,
-        productName: line.productName,
-        variantSize: line.size,
-        variantColor: line.color,
-        unitPriceCents,
-        quantity: line.quantity,
-        lineTotalCents,
-      };
-    });
-
-    await txDb.insert(orderLine).values(lineValues);
-
-    // 6d. Insert payment row
-    await txDb.insert(payment).values({
-      orderId: createdOrder.id,
-      status: "succeeded",
-      provider: "simulated",
-      amountCents: totalCents,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // 6e. Update cart to converted
-    await txDb
-      .update(cart)
-      .set({
-        status: "converted",
+        status: "succeeded",
+        provider: "simulated",
+        amountCents: totalCents,
+        createdAt: now,
         updatedAt: now,
-      })
-      .where(eq(cart.id, activeCart.id));
+      });
 
-    return {
-      ok: true,
-      order: {
-        id: createdOrder.id,
-        reference: createdOrder.reference,
-        totalCents: createdOrder.totalCents,
-        contactEmail: createdOrder.contactEmail,
-      },
-    } as const;
-  });
+      // 6g. Update cart to converted
+      await txDb
+        .update(cart)
+        .set({
+          status: "converted",
+          updatedAt: now,
+        })
+        .where(eq(cart.id, activeCart.id));
+
+      return {
+        ok: true,
+        order: {
+          id: createdOrder.id,
+          reference: createdOrder.reference,
+          totalCents: createdOrder.totalCents,
+          contactEmail: createdOrder.contactEmail,
+        },
+      } as const;
+    });
+  } catch (error) {
+    if (error instanceof OutOfStockError) {
+      return {
+        ok: false,
+        reason: "out_of_stock",
+        variantId: error.variantId,
+        productName: error.productName,
+      };
+    }
+    throw error;
+  }
 }
 
 /**

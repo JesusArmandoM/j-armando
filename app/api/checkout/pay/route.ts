@@ -83,6 +83,19 @@ export async function POST(request?: Request): Promise<Response> {
           { status: 400, headers: NO_STORE },
         );
       }
+      if (result.reason === "out_of_stock") {
+        return Response.json(
+          {
+            ok: false,
+            error:
+              "One or more items in your cart are no longer available in the requested quantity. Please review your cart.",
+            code: "out_of_stock",
+            variantId: result.variantId,
+            productName: result.productName,
+          },
+          { status: 409, headers: NO_STORE },
+        );
+      }
       if (result.reason === "payment_failed") {
         if (result.paymentOutcome === "payment.pending") {
           return Response.json(
@@ -113,7 +126,6 @@ export async function POST(request?: Request): Promise<Response> {
           { status: 400, headers: NO_STORE },
         );
       }
-
       return Response.json(
         {
           ok: false,
