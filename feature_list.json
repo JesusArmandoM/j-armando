@@ -205,12 +205,19 @@
     "title": "Cart respects available stock",
     "user_visible_behavior": "A shopper cannot add or increase a line beyond the variant's available stock, and a line whose stock has dropped is marked and adjusted explicitly rather than failing silently at payment.",
     "depends_on": ["guest-cart-manage"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: attempting to set a quantity above available stock is rejected and the UI shows why.",
-      "Provisional: when stock drops below a cart line's quantity, the line is visibly flagged and adjusted before checkout proceeds."
+      "Attempting to set a quantity above available stock is rejected and the UI shows why.",
+      "When stock drops below a cart line's quantity, the line is visibly flagged and adjusted before checkout proceeds."
     ],
-    "evidence": [],
+    "evidence": [
+      "Automated verification: `CI=true ./init.sh` exit 0 (45 test files / 371 tests; +1 file / +13 tests). Lint and typecheck clean.",
+      "`pnpm build` exit 0 with dynamic routes `ƒ /cart` and `ƒ /api/cart/lines`.",
+      "Database integration coverage (`db/tests/cart-stock-limits.test.ts`, 5 tests): `addVariantToCart` rejects adds exceeding available stock and repeated adds exceeding cumulative stock; `updateCartLineQuantity` rejects quantity updates exceeding stock; `getCartSummary` automatically clamps line quantity when stock drops below line quantity, sets `stockAdjusted: true` and notification; `getCartSummary` removes line and records notification when variant stock drops to 0.",
+      "API route coverage (`app/api/cart/lines/route.test.ts`, 23 tests): `POST /api/cart/lines` and `PATCH /api/cart/lines` return 400 with `{ error: 'Only X items available in stock.', code: 'stock_exceeded', available: X }` and `Cache-Control: no-store`.",
+      "Client UI coverage (`app/products/[slug]/add-to-cart.test.tsx` 7 tests, `app/cart/cart-line-row.test.tsx` 9 tests, `app/cart/page.test.tsx` 6 tests): quantity select options capped by available stock; stock exceeded error rendered; stepper `+` disabled when quantity reaches availableStock; stock adjustment notice displayed on adjusted line; cart-level notifications rendered in CartPage and EmptyCart.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 7 acceptance scenarios verified passing. Record: docs/validations/cart-stock-limits.md."
+    ],
     "notes": "This is the UI/flow constraint. The concurrency guarantee (last unit not oversold across simultaneous checkouts) is stock-reservation."
   },
   {

@@ -97,7 +97,8 @@ export async function getOrCreateCart(db: Db, sessionToken: string): Promise<Car
 
 export type AddVariantResult =
   | { ok: true; cartId: string; lineId: string; lineQuantity: number }
-  | { ok: false; reason: "variant_unavailable" };
+  | { ok: false; reason: "variant_unavailable" }
+  | { ok: false; reason: "stock_exceeded"; available: number };
 
 /**
  * Adds `quantity` of a variant to the session cart in one transaction.
@@ -106,6 +107,7 @@ export type AddVariantResult =
  * variants never write. The line is upserted on the unique
  * `(cart_id, variant_id)` key: a repeat add increments the existing quantity
  * atomically (`quantity = quantity + n`) instead of creating a duplicate row.
+ * Rejects if (existing_quantity + quantity) > variant.stockQty.
  */
 export async function addVariantToCart(
   db: Db,
@@ -120,6 +122,43 @@ export async function addVariantToCart(
     const addable = await getAddableVariant(txDb, variantId);
     if (!addable) {
       return { ok: false, reason: "variant_unavailable" } as const;
+    }
+
+    if (quantity > addable.stockQty) {
+      return {
+        ok: false,
+        reason: "stock_exceeded",
+        available: addable.stockQty,
+      } as const;
+    }
+
+    // Check if the cart already exists to verify existing line quantity
+    const existingCart = await txDb
+      .select({ id: cart.id })
+      .from(cart)
+      .where(eq(cart.sessionToken, sessionToken))
+      .limit(1);
+
+    if (existingCart[0]) {
+      const existingLine = await txDb
+        .select({ quantity: cartLine.quantity })
+        .from(cartLine)
+        .where(
+          and(
+            eq(cartLine.cartId, existingCart[0].id),
+            eq(cartLine.variantId, variantId),
+          ),
+        )
+        .limit(1);
+
+      const existingQty = existingLine[0]?.quantity ?? 0;
+      if (existingQty + quantity > addable.stockQty) {
+        return {
+          ok: false,
+          reason: "stock_exceeded",
+          available: addable.stockQty,
+        } as const;
+      }
     }
 
     const currentCart = await getOrCreateCart(txDb, sessionToken);
@@ -158,6 +197,8 @@ export interface CartSummaryLine {
   quantity: number;
   unitPriceCents: number;
   lineTotalCents: number;
+  availableStock?: number;
+  stockAdjusted?: boolean;
 }
 
 export interface CartSummary {
@@ -165,12 +206,17 @@ export interface CartSummary {
   lineCount: number;
   subtotalCents: number;
   currency: string;
+  notifications?: string[];
 }
 
 /**
  * Read-only summary of the active cart for a session token. Prices use the
  * variant override when present, otherwise the product base price. Returns
  * `undefined` when the token has no active cart (a read never creates one).
+ *
+ * If variant stock has dropped below a cart line's quantity, the line quantity
+ * is automatically adjusted to the available stock (or removed if 0) and
+ * flagged in the summary.
  */
 export async function getCartSummary(
   db: Db,
@@ -179,6 +225,7 @@ export async function getCartSummary(
   const rows = await db
     .select({
       lineId: cartLine.id,
+      cartId: cart.id,
       variantId: variant.id,
       productSlug: product.slug,
       productName: product.name,
@@ -188,6 +235,7 @@ export async function getCartSummary(
       priceOverrideCents: variant.priceOverrideCents,
       basePriceCents: product.basePriceCents,
       currency: product.currency,
+      stockQty: variant.stockQty,
     })
     .from(cart)
     .innerJoin(cartLine, eq(cartLine.cartId, cart.id))
@@ -200,37 +248,92 @@ export async function getCartSummary(
     return undefined;
   }
 
-  const lines: CartSummaryLine[] = rows.map((row) => {
+  // Check if any line needs stock adjustment (stock dropped below quantity or out of stock)
+  const linesToAdjust = rows.filter(
+    (row) => row.stockQty <= 0 || row.quantity > row.stockQty,
+  );
+
+  const notifications: string[] = [];
+
+  if (linesToAdjust.length > 0) {
+    await db.transaction(async (tx) => {
+      const txDb = tx as unknown as Db;
+      for (const row of linesToAdjust) {
+        if (row.stockQty <= 0) {
+          await txDb
+            .delete(cartLine)
+            .where(eq(cartLine.id, row.lineId));
+          notifications.push(
+            `${row.productName} (${row.size} · ${row.color}) is out of stock and was removed from your cart.`,
+          );
+        } else {
+          await txDb
+            .update(cartLine)
+            .set({ quantity: row.stockQty })
+            .where(eq(cartLine.id, row.lineId));
+          notifications.push(
+            `Quantity for ${row.productName} (${row.size} · ${row.color}) was adjusted to ${row.stockQty} based on available stock.`,
+          );
+        }
+      }
+      await txDb
+        .update(cart)
+        .set({ updatedAt: new Date() })
+        .where(eq(cart.id, rows[0].cartId));
+    });
+  }
+
+  const lines: CartSummaryLine[] = [];
+  for (const row of rows) {
+    if (row.stockQty <= 0) {
+      continue;
+    }
+    const adjusted = row.quantity > row.stockQty;
+    const finalQuantity = adjusted ? row.stockQty : row.quantity;
     const unitPriceCents = row.priceOverrideCents ?? row.basePriceCents;
-    return {
+    lines.push({
       lineId: row.lineId,
       variantId: row.variantId,
       productSlug: row.productSlug,
       productName: row.productName,
       size: row.size,
       color: row.color,
-      quantity: row.quantity,
+      quantity: finalQuantity,
       unitPriceCents,
-      lineTotalCents: unitPriceCents * row.quantity,
+      lineTotalCents: unitPriceCents * finalQuantity,
+      availableStock: row.stockQty,
+      stockAdjusted: adjusted,
+    });
+  }
+
+  if (lines.length === 0) {
+    return {
+      lines: [],
+      lineCount: 0,
+      subtotalCents: 0,
+      currency: rows[0].currency,
+      notifications: notifications.length > 0 ? notifications : undefined,
     };
-  });
+  }
 
   return {
     lines,
     lineCount: lines.length,
     subtotalCents: lines.reduce((total, line) => total + line.lineTotalCents, 0),
     currency: rows[0].currency,
+    notifications: notifications.length > 0 ? notifications : undefined,
   };
 }
 
 export type UpdateCartLineResult =
   | { ok: true; lineId: string; quantity: number }
-  | { ok: false; reason: "not_found" };
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "stock_exceeded"; available: number };
 
 /**
  * Updates the quantity of a line belonging to the session cart.
  * Enforces session isolation: returns `not_found` if the line does not exist
- * or belongs to a different cart.
+ * or belongs to a different cart. Rejects if quantity exceeds variant.stockQty.
  */
 export async function updateCartLineQuantity(
   db: Db,
@@ -249,6 +352,28 @@ export async function updateCartLineQuantity(
 
     if (!currentCart[0]) {
       return { ok: false, reason: "not_found" } as const;
+    }
+
+    const lineRow = await txDb
+      .select({
+        lineId: cartLine.id,
+        stockQty: variant.stockQty,
+      })
+      .from(cartLine)
+      .innerJoin(variant, eq(variant.id, cartLine.variantId))
+      .where(and(eq(cartLine.id, lineId), eq(cartLine.cartId, currentCart[0].id)))
+      .limit(1);
+
+    if (!lineRow[0]) {
+      return { ok: false, reason: "not_found" } as const;
+    }
+
+    if (quantity > lineRow[0].stockQty) {
+      return {
+        ok: false,
+        reason: "stock_exceeded",
+        available: lineRow[0].stockQty,
+      } as const;
     }
 
     const updated = await txDb

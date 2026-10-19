@@ -17,10 +17,11 @@ export function CartLineRow({ line }: CartLineRowProps) {
   const [loadingAction, setLoadingAction] = useState<"inc" | "dec" | "remove" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const maxStepperQuantity = Math.min(10, line.availableStock ?? 10);
   const busy = isPending || loadingAction !== null;
 
   async function handleUpdateQuantity(newQuantity: number, action: "inc" | "dec") {
-    if (busy || newQuantity < 1 || newQuantity > 10) return;
+    if (busy || newQuantity < 1 || newQuantity > maxStepperQuantity) return;
     setError(null);
     setLoadingAction(action);
 
@@ -112,7 +113,7 @@ export function CartLineRow({ line }: CartLineRowProps) {
             className="cart__stepper-button cart__stepper-button--inc"
             data-testid="cart-line-inc"
             aria-label={`Increase quantity of ${line.productName}`}
-            disabled={busy || line.quantity >= 10}
+            disabled={busy || line.quantity >= maxStepperQuantity}
             onClick={() => handleUpdateQuantity(line.quantity + 1, "inc")}
           >
             +
@@ -133,6 +134,12 @@ export function CartLineRow({ line }: CartLineRowProps) {
       <p className="cart__line-cell cart__line-total" data-testid="cart-line-total">
         {formatPriceUSD(line.lineTotalCents)}
       </p>
+
+      {line.stockAdjusted ? (
+        <p className="cart__line-stock-warning" data-testid="cart-line-stock-warning" role="status">
+          Quantity adjusted to {line.quantity} based on available stock.
+        </p>
+      ) : null}
 
       {error ? (
         <p className="cart__line-error" role="alert" data-testid="cart-line-error">

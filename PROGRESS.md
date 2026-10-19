@@ -2,21 +2,21 @@
 
 ## Current Verified State
 
-- Repository root: `/Users/armando/Documents/tienda-worktrees/guest-cart-manage` (worktree; base checkout `/Users/armando/Documents/Ai Tienda de Ropa`).
+- Repository root: `/Users/armando/Documents/tienda-worktrees/cart-stock-limits` (worktree; base checkout `/Users/armando/Documents/Ai Tienda de Ropa`).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `guest-cart-manage` is `accepted` (independently validated 2026-10-19). `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready features (can be worked in parallel): `cart-stock-limits` (depends on `guest-cart-manage`, accepted) and `checkout-contact-and-address` (depends on `guest-cart-manage`, accepted).
+- Current feature in flight: none. `cart-stock-limits` is `accepted` (independently validated 2026-10-19). `guest-cart-manage` is `accepted` (independently validated 2026-10-19). `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready features: `checkout-contact-and-address` (depends on `guest-cart-manage`, accepted).
 - Current blocker: none for the shipped features. Four discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4 and shipping cost #5 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode; #6 tax blocks the checkout chain).
-- Last verified at: 2026-10-19, in this worktree: `CI=true ./init.sh` exit 0 (44 test files / 358 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, in this worktree: `CI=true ./init.sh` exit 0 (45 test files / 371 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, quantity editing, removal) shipped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer; `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers and line removal; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, quantity editing, removal, stock limits) shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer; `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static production build.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 (`ui` + `db`).
-- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add` and `guest-cart-manage` accepted; `catalog-size-chart` passing; the rest not started.
+- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add`, `guest-cart-manage` and `cart-stock-limits` accepted; `catalog-size-chart` passing; the rest not started.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -552,3 +552,31 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Files or artifacts updated: `db/cart.ts`, `db/tests/guest-cart-manage.test.ts`, `app/cart/{cart-input,cart-input.test,cart-line-row,cart-line-row.test,page,page.test}.ts(x)`, `app/api/cart/lines/{route,route.test}.ts`, `app/globals.css`, `ARCHITECTURE.md`, `docs/specs/guest-cart-manage.md`, `docs/validations/guest-cart-manage.md`, `feature_list.json`, `PROGRESS.md`.
 - Known risk or unresolved issue: Cart line quantities are bounded by 10 per line; cumulative inventory availability validation is deferred to `cart-stock-limits`.
 - Next best step: Commit `feature/guest-cart-manage`, push to origin, open PR linking #22 without merging. Then launch parallel worktrees for `cart-stock-limits` and `checkout-contact-and-address`.
+
+### Session 030
+
+- Date: 2026-10-19
+- Goal: Implement and validate `cart-stock-limits` in dedicated worktree `tienda-worktrees/cart-stock-limits` on branch `feature/cart-stock-limits` (Issue #24).
+- Completed:
+  - Planned spec `docs/specs/cart-stock-limits.md` with 7 acceptance scenarios covering variant stock bounding, repeat add rejection, stepper capping, PATCH rejection, automatic cart line clamping, and out-of-stock removal.
+  - Enforced inventory stock checks in `addVariantToCart` in `db/cart.ts` (checks available stock and cumulative line quantity before cart creation).
+  - Handled `stock_exceeded` in `POST /api/cart/lines` and `PATCH /api/cart/lines`, returning HTTP 400 with user-friendly error and available stock.
+  - Handled stock limits in `app/products/[slug]/add-to-cart.tsx`, capping quantity dropdown options by `variant.stockQty` and displaying server-returned error alerts.
+  - Enforced `variant.stockQty` bounds in `updateCartLineQuantity` in `db/cart.ts`, and capped stepper `+` in `CartLineRow` at `min(10, availableStock)`.
+  - Automatically clamped line quantities and marked `stockAdjusted: true` in `getCartSummary` when stock has dropped below quantity, and deleted lines whose stock dropped to 0, presenting clear notifications in `app/cart/page.tsx` and `EmptyCart`.
+  - Added styles in `app/globals.css` for `.cart__line-stock-warning` and `.cart__notifications`.
+  - Created comprehensive database tests `db/tests/cart-stock-limits.test.ts` (5 tests).
+  - Extended route tests `app/api/cart/lines/route.test.ts` (+2 tests, total 23 tests).
+  - Extended UI tests in `app/products/[slug]/add-to-cart.test.tsx` (+2 tests, total 7 tests), `app/cart/cart-line-row.test.tsx` (+2 tests, total 9 tests), and `app/cart/page.test.tsx` (+2 tests, total 6 tests).
+  - Validation: All 7 acceptance scenarios verified and recorded in `docs/validations/cart-stock-limits.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `cart-stock-limits` as `accepted`.
+- Verification run:
+  - Focused suites: 5 files / 50 tests passed.
+  - Standard gate: `CI=true ./init.sh` exit 0 (45 test files / 371 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0.
+  - `pnpm build` exit 0 (dynamic routes `ƒ /cart` and `ƒ /api/cart/lines` clean).
+- Evidence captured: `feature_list.json` → `cart-stock-limits.verification`/`.evidence`; `docs/validations/cart-stock-limits.md`; this log.
+- Files or artifacts updated: `db/cart.ts`, `db/tests/cart-stock-limits.test.ts`, `app/api/cart/lines/{route,route.test}.ts`, `app/products/[slug]/{add-to-cart,add-to-cart.test}.tsx`, `app/cart/{cart-line-row,cart-line-row.test,page,page.test}.tsx`, `app/globals.css`, `docs/specs/cart-stock-limits.md`, `docs/validations/cart-stock-limits.md`, `feature_list.json`, `PROGRESS.md`.
+- Known risk or unresolved issue: Concurrency stock reservation during checkout / payment is deferred to `stock-reservation`.
+- Next best step: Commit `feature/cart-stock-limits`, push to origin, open PR linking #24 without merging.
+

@@ -1075,6 +1075,29 @@ body {
   color: #7a1e1e;
 }
 
+.cart__line-stock-warning {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: #92400e;
+}
+
+.cart__notifications {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  border-left: 3px solid #d97706;
+  border-radius: var(--radius);
+}
+
+.cart__notification {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: #92400e;
+}
+
 .cart__subtotal {
   display: flex;
   justify-content: space-between;

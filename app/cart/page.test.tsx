@@ -130,4 +130,38 @@ describe("CartPage", () => {
       "/catalog",
     );
   });
+
+  it("renders cart notifications when items were adjusted due to stock", async () => {
+    cookieState.value = "session-token";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValue({
+      ...summary,
+      notifications: ["Quantity for Double-Breasted Linen Blazer was adjusted to 1 based on available stock."],
+    });
+
+    const ui = await CartPage();
+    render(ui);
+
+    const notifications = screen.getByTestId("cart-notifications");
+    expect(notifications).toBeTruthy();
+    expect(notifications.textContent).toContain("Quantity for Double-Breasted Linen Blazer was adjusted to 1 based on available stock.");
+  });
+
+  it("renders out-of-stock removal notification even when the cart becomes empty", async () => {
+    cookieState.value = "session-token";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValue({
+      lines: [],
+      lineCount: 0,
+      subtotalCents: 0,
+      currency: "USD",
+      notifications: ["Double-Breasted Linen Blazer is out of stock and was removed from your cart."],
+    });
+
+    const ui = await CartPage();
+    render(ui);
+
+    expect(screen.getByTestId("cart-empty")).toBeTruthy();
+    const notifications = screen.getByTestId("cart-notifications");
+    expect(notifications).toBeTruthy();
+    expect(notifications.textContent).toContain("Double-Breasted Linen Blazer is out of stock and was removed from your cart.");
+  });
 });

@@ -253,6 +253,26 @@ describe("POST /api/cart/lines", () => {
     expect(cookieState.set).not.toHaveBeenCalled();
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
+
+  it("returns 400 with stock_exceeded code when addVariantToCart exceeds available stock", async () => {
+    addVariantToCartMock.mockResolvedValue({
+      ok: false,
+      reason: "stock_exceeded",
+      available: 3,
+    });
+
+    const response = await POST(jsonRequest({ variantId: VARIANT_ID, quantity: 4 }));
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error: "Only 3 items available in stock.",
+      code: "stock_exceeded",
+      available: 3,
+    });
+    expect(cookieState.set).not.toHaveBeenCalled();
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+  });
 });
 
 const TEST_LINE_ID = "987fcdeb-51a2-43d7-9876-543210fedcba";
@@ -326,6 +346,26 @@ describe("PATCH /api/cart/lines", () => {
     const response = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 4 }));
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("returns 400 with stock_exceeded when updateCartLineQuantity exceeds stock", async () => {
+    cookieState.value = "session-token";
+    updateCartLineQuantityMock.mockResolvedValue({
+      ok: false,
+      reason: "stock_exceeded",
+      available: 2,
+    });
+
+    const response = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 5 }));
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      error: "Only 2 items available in stock.",
+      code: "stock_exceeded",
+      available: 2,
+    });
+    expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
 

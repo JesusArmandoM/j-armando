@@ -10,8 +10,6 @@ import type { ProductDetailVariant } from "@/db/catalog.ts";
 // sends only the selected variant id and quantity. It never sends a price, a
 // product slug, a cart id or a session token.
 
-const QUANTITY_OPTIONS = Array.from({ length: MAX_ADD_QUANTITY }, (_, index) => index + 1);
-
 const FALLBACK_ERROR = "We could not add this item to your cart. Please try again.";
 
 type AddStatus =
@@ -38,6 +36,13 @@ export function AddToCart({ variant }: AddToCartProps) {
   const [status, setStatus] = useState<AddStatus>({ kind: "idle" });
   const requestId = useRef(0);
 
+  const maxAvailable =
+    variant?.stockQty !== undefined
+      ? Math.min(MAX_ADD_QUANTITY, Math.max(1, variant.stockQty))
+      : MAX_ADD_QUANTITY;
+  const quantityOptions = Array.from({ length: maxAvailable }, (_, index) => index + 1);
+  const selectedQuantity = Math.min(quantity, maxAvailable);
+
   const variantId = variant?.id;
   // A confirmation belongs to the variant that produced it: changing the
   // selection hides it immediately without a state-syncing effect.
@@ -57,7 +62,7 @@ export function AddToCart({ variant }: AddToCartProps) {
       const response = await fetch("/api/cart/lines", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ variantId: variant.id, quantity }),
+        body: JSON.stringify({ variantId: variant.id, quantity: selectedQuantity }),
       });
 
       let payload: unknown;
@@ -98,11 +103,11 @@ export function AddToCart({ variant }: AddToCartProps) {
         <select
           id="add-to-cart-quantity"
           className="add-to-cart__select"
-          value={quantity}
+          value={selectedQuantity}
           disabled={pending}
           onChange={(event) => setQuantity(Number(event.target.value))}
         >
-          {QUANTITY_OPTIONS.map((value) => (
+          {quantityOptions.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
