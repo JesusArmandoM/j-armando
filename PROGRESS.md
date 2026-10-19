@@ -454,3 +454,61 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
   - The preview URL and QR are tied to the running quick tunnel and change on redeploy; they are intentionally not recorded as durable URLs here. The rule to regenerate the QR is durable.
   - `pnpm build` was not re-run while the dev server was live; the accepted baseline build remains valid.
 - Next best step: test on the physical phone via the current QR/URL, then continue with `virtual-tryon-failure` or `guest-cart-add` once selected. Regenerate the QR if either the dev server or tunnel is restarted.
+
+### Session 025
+
+- Date: 2026-10-19
+- Goal: implement `guest-cart-add` (add + view only) on branch `feature/guest-cart-add` from `docs/specs/guest-cart-add.md`: a guest selects a variant and quantity, adds it to a session cart through an opaque httpOnly cookie, and sees the line at `/cart`.
+- Completed:
+  - `db/cart.ts`: HTTP-free cart repository — `getAddableVariant` (published, non-discontinued, in stock), `getOrCreateCart` (select by `session_token`, insert `ON CONFLICT DO NOTHING`, re-select on a lost race, never sets `account_id`), `addVariantToCart` (resolve variant before any write, transactional upsert on `(cart_id, variant_id)` with `quantity = quantity + n`), `getCartSummary` (single joined read; `priceOverrideCents ?? basePriceCents`, integer-cent line/subtotal).
+  - `app/cart/session.ts`: `ja_cart_session` read/mint helpers (`httpOnly`, `SameSite=Lax`, `Path=/`, 30-day `Max-Age`, `Secure` in production); reads never set the cookie. `app/cart/cart-input.ts`: pure uuid-shape + integer quantity 1–10 validation shared by the route and UI.
+  - `POST /api/cart/lines`: JSON content-type/shape validation before cookies or DB, cookie-only cart identity, `{ lineQuantity }` success with `no-store`, 400 unavailable/invalid, 503 generic write failure, `revalidatePath("/cart")`, no id/token echoed.
+  - Product page: `add-to-cart.tsx` quantity select + disabled hint + pending/added/error states + `View cart` link, mounted from `variant-selector.tsx` with the selected variant. `/cart` force-dynamic page with populated, empty and temporary-unavailable states; subtotal and USD/tax-exclusive note; no edit/remove/stepper/checkout UI. `.add-to-cart*` / `.cart*` styles use existing tokens (zero radius, hairline, ink button).
+  - Tests: 5 new files / 29 new tests (DB 9, route 7, add-to-cart 5, cart page 4, cart input 4); variant-selector test still covers the mounted control. No schema, migration, seed or dependency change.
+- Verification run:
+  - `./init.sh` exit 0 (Node 24.21.0, pnpm 12.11.2): install + lint + typecheck + test green; vitest **40 files / 294 tests** (baseline 35 / 265; +5 files / +29 tests).
+  - `env -u DATABASE_URL pnpm build` exit 0; route table shows `ƒ /cart`, `ƒ /api/cart/lines` and `ƒ /products/[slug]` dynamic; only the pre-existing `db/env.ts` tracing warning.
+  - Manual transcript (PORT=3001, existing `.env` DB, variant uuid resolved via SQL): no-cookie `/cart` → empty, no Set-Cookie, zero carts. POST qty 2 → 200 `{"lineQuantity":2}` + httpOnly `ja_cart_session`; `/cart` → one line, Qty 2, `$249.00` unit, `$498.00` subtotal. POST qty 1 → `{"lineQuantity":3}`; `/cart` → Qty 3, `$747.00`. Fresh second session → empty cart, own cookie, Qty 1 / `$249.00`, first cart unchanged. DB: 2 carts, both `account_id` null, one line per `(cart, variant)` with quantities 3 and 1. Transcript rows deleted afterwards; dev server stopped and port 3001 free. No mobile preview was started, so no QR was required.
+- Evidence captured: `feature_list.json` → `guest-cart-add` status `passing` with verification + evidence; this log.
+- Files or artifacts updated: `db/cart.ts`, `db/tests/guest-cart-add.test.ts`, `app/cart/{session,cart-input,cart-input.test,page,page.test}.ts(x)`, `app/api/cart/lines/{route,route.test}.ts`, `app/products/[slug]/{add-to-cart,add-to-cart.test}.tsx`, `app/products/[slug]/{variant-selector,variant-selector.test}.tsx`, `app/globals.css`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `feature_list.json`, `PROGRESS.md`.
+- Known risk or unresolved issue: quantity is only bounded 1–10 per add; cumulative stock caps/reservation are deliberately deferred (`cart-stock-limits`). The cookie is a 30-day bearer credential without rotation or expiry handling; a token whose cart becomes `converted`/`expired` will read as empty and `getOrCreateCart` will reuse the row — the future conversion flow must define that behavior. Abandoned guest carts are not cleaned up. Work is uncommitted on `feature/guest-cart-add`; no push or PR.
+- Next best step: independent validation of `guest-cart-add`, then commit/review; the next ready feature is `guest-cart-manage` once selected.
+
+### Session 026
+
+- Date: 2026-10-19
+- Goal: Repair validator finding F1 (Medium) for `guest-cart-add` — rejected adds minted the `ja_cart_session` identity cookie — and re-verify. Status stays `passing`; no commit/push; `docs/validations/` untouched.
+- Root cause: `POST /api/cart/lines` called `getOrCreateCartSessionToken()` (which immediately set the cookie) before `addVariantToCart` decided whether the variant was addable, so 400 unavailable/invalid and 503 paths issued an identity cookie.
+- Completed:
+  - `app/cart/session.ts`: split pure token generation (`createCartSessionToken()`, 32 random bytes base64url, no cookie access) from persistence (`setCartSessionCookie(token)`, documented httpOnly/SameSite=Lax/Path=/30-day options). `readCartSessionToken` unchanged; removed `getOrCreateCartSessionToken`.
+  - `app/api/cart/lines/route.ts`: read the existing token or generate one in memory, attempt `addVariantToCart`, return 400/503 without setting anything on failure, and call `setCartSessionCookie` only when the result is `ok: true` and the request arrived with no token (existing cookies are reused with no redundant `Set-Cookie`).
+  - `app/api/cart/lines/route.test.ts`: added no-cookie unavailable-variant 400 (asserts generated 43-char token reached the repository, zero cookie set, no revalidate) and no-cookie 503 (zero cookie set); the existing-cookie unavailable test and the 503 test now assert no cookie; the success test asserts the cookie is set after the repository call. Suite is 9 tests.
+  - `docs/specs/guest-cart-add.md`: Technical Approach step 2 (and the session/route-test task bullets) now describe generate-in-memory → add → set-only-on-success instead of minting before the repository call.
+- Verification run:
+  - `pnpm vitest run app/api/cart/lines/route.test.ts` → 9/9 passed.
+  - Focused suites (`app/cart/cart-input.test.ts`, `app/cart/page.test.tsx`, `app/api/cart/lines/route.test.ts`, `app/products/[slug]/add-to-cart.test.tsx`, `db/tests/guest-cart-add.test.ts`) → 5 files / 31 tests passed (was 29; +2 repair tests).
+  - `./init.sh` exit 0: install + lint + typecheck + test green; 40 test files / 296 tests.
+  - `env -u DATABASE_URL pnpm build` exit 0; `ƒ /cart`, `ƒ /api/cart/lines`, `ƒ /products/[slug]` dynamic.
+  - Live transcript on `PORT=3001` (`.env` database, no `.env` edit): no-cookie unknown uuid, out-of-stock overcoat S/Camel, draft cropped-tweed-jacket S and invalid quantity 11 each returned 400 with **zero `Set-Cookie` headers** and cart/cart_line stayed 0/0; first valid add (M/Ivory qty 2) returned 200 `{"lineQuantity":2}` with exactly one httpOnly `ja_cart_session` cookie; repeat add qty 1 returned `{"lineQuantity":3}` with zero `Set-Cookie`; `/cart` showed `Qty 3`, `$249.00` unit and `$747.00` subtotal; the single cart had `account_id` null and its token matched the cookie. Transcript rows deleted (0/0); dev server stopped and port 3001 free.
+- Evidence captured: `feature_list.json` → `guest-cart-add.evidence` (two repair entries appended); this log.
+- Files or artifacts updated: `app/cart/session.ts`, `app/api/cart/lines/route.ts`, `app/api/cart/lines/route.test.ts`, `docs/specs/guest-cart-add.md`, `feature_list.json`, this file. No schema/migration/seed/dependency change; `docs/validations/guest-cart-add.md` was not edited.
+- Known risk or unresolved issue: none new; the earlier residual risks (1–10 per-add bound, no cumulative stock cap, 30-day non-rotated cookie, converted/expired-cart behavior) are unchanged and deferred. `.env` untouched; work remains uncommitted on `feature/guest-cart-add`.
+- Next best step: re-run `feature-validator` against `docs/specs/guest-cart-add.md`; F1 should now be closed.
+
+### Session 027
+
+- Date: 2026-10-19
+- Goal: Run `feature-flow` (until-accepted) for `guest-cart-add` only in the dedicated worktree `feature/guest-cart-add`: plan → implement → validate → repair → accept → commit. No push, no PR, no other feature.
+- Completed:
+  - `planner` → `docs/specs/guest-cart-add.md` (7 acceptance scenarios; opaque httpOnly session cookie as cart identity, `account_id` null, transactional upsert on `(cart_id, variant_id)`, `POST /api/cart/lines`, add control on the product page, dynamic `/cart`; add + view only).
+  - `implementer` → cart repository, session/validation modules, route handler, add-to-cart control, `/cart` page, styles, tests and durable docs; self-verified `passing` (40 files / 294 tests).
+  - `validator` round 1 → **revise** with one Medium finding (F1: rejected adds minted the `ja_cart_session` cookie because the route persisted it before the repository addability check).
+  - Repair loop → generation split from persistence (`createCartSessionToken` / `setCartSessionCookie`), cookie set only after `ok: true` on a first add, route tests extended to 9 (no-cookie 400/503 set no cookie), spec wording aligned. Re-verified 40 files / 296 tests.
+  - `validator` round 2 → **ACCEPT**, F1 independently reproduced closed; no scope/security/docs regressions; two Low notes only.
+  - Acceptance persisted: `feature_list.json` → `guest-cart-add.status: accepted` + independent-validator evidence; validation record `docs/validations/guest-cart-add.md` (round 1 preserved, round 2 appended).
+  - Commit: `feat: complete guest-cart-add` (local only; not pushed, no PR — the orchestrator publishes after explicit user permission).
+- Verification run (independent, by the validator): `./init.sh` exit 0 (40 files / 296 tests); focused cart suites 5 files / 31 tests; `pnpm lint` / `pnpm typecheck` exit 0; `env -u DATABASE_URL pnpm build` exit 0 with `ƒ /cart`, `ƒ /api/cart/lines` and `ƒ /products/[slug]`; live `PORT=3001` transcript on the `.env` database (qty 2 → one line qty 2; re-add → qty 3, no duplicate; rejected adds 400 with zero `Set-Cookie`; no-cookie 503 with zero `Set-Cookie`; `/cart` `$249.00` / `$747.00`; session isolation and account-free carts).
+- Evidence captured: `feature_list.json` → `guest-cart-add.verification`/`.evidence` incl. the round-2 acceptance; `docs/validations/guest-cart-add.md`; this log.
+- Files or artifacts updated: `db/cart.ts`, `db/tests/guest-cart-add.test.ts`, `app/cart/{session,cart-input,cart-input.test,page,page.test}.ts(x)`, `app/api/cart/lines/{route,route.test}.ts`, `app/products/[slug]/{add-to-cart,add-to-cart.test}.tsx`, `app/products/[slug]/{variant-selector,variant-selector.test}.tsx`, `app/globals.css`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `docs/specs/guest-cart-add.md`, `docs/validations/guest-cart-add.md`, `feature_list.json`, `PROGRESS.md`.
+- Known risk or unresolved issue: per-add quantity bound is 1–10 only; cumulative stock caps/reservation are deferred to `cart-stock-limits`. The 30-day cookie is a bearer credential without rotation/expiry handling; abandoned carts are not cleaned up; a `converted`/`expired` cart reads as empty and `getOrCreateCart` reuses the row — the future conversion flow must define this. No browser E2E harness; focused DB/UI tests plus the live transcript are the established verification surface.
+- Next best step: `guest-cart-manage` (depends on `guest-cart-add`, now accepted) needs `planner`; `virtual-tryon-failure` is also dependency-ready.

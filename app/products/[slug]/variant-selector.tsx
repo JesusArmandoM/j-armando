@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ProductDetailVariant } from "@/db/catalog.ts";
 import { formatPriceUSD } from "@/lib/money.ts";
 
+import { AddToCart } from "./add-to-cart";
 import {
   buildVariantHref,
   getColorOptionLabel,
@@ -158,6 +159,8 @@ export function VariantSelector({
       <p className="product-variant__stock" data-testid="variant-stock-message">
         {stockMessage}
       </p>
+
+      <AddToCart variant={selectedVariant} />
 
       <p
         className="product-variant__live"

@@ -31,3 +31,7 @@ Durable MUST / MUST NOT rules for **J. Armando**. Future features must respect t
 ## Try-on privacy
 
 8. **Try-on photos and results MUST NOT be persisted, cached or logged** until the photo consent/retention decision (blocking question #3) is made. That means no database table/column/migration, no object storage, no disk or temp files, no server/proxy cache and no `localStorage`/`IndexedDB`; the photo is processed in memory per request and the result lives only in the component's current state. The route MUST return `Cache-Control: no-store`, MUST NOT log bytes, base64, data URLs, provider URLs or provider response bodies, and MUST hand a provider-returned URL to the browser without downloading or storing it (prefer `b64_json`). Reason: the photo is sensitive personal data and the legal basis/retention/DPA are unresolved; introduced by `virtual-tryon-generation`.
+
+## Guest cart
+
+9. **Guest cart identity MUST be resolved server-side from the opaque httpOnly `ja_cart_session` cookie**, and cart, line or session identifiers MUST NOT be accepted from request input (body, query string or other headers) to select a cart. Reads MUST NOT create a cart or mint a cookie; only a successful add may. The server MUST re-resolve the variant's publish/stock state and price from the database rather than trusting the client. Reason: guest carts have no authentication, so a caller-supplied identifier would expose another shopper's cart; introduced by `guest-cart-add`.
