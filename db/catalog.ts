@@ -93,6 +93,20 @@ export interface ProductDetailImage {
   position: number;
 }
 
+/**
+ * Storefront-visible variant of a product. Discontinued variants are filtered
+ * out by {@link getPublishedProductBySlug} and never reach the client.
+ */
+export interface ProductDetailVariant {
+  id: string;
+  size: VariantSize;
+  color: string;
+  colorHex: string;
+  stockQty: number;
+  /** Overrides the product base price when set, in integer cents. */
+  priceOverrideCents: number | null;
+}
+
 export interface ProductDetail {
   id: string;
   slug: string;
@@ -105,6 +119,7 @@ export interface ProductDetail {
   categoryName: string;
   categorySlug: string;
   images: ProductDetailImage[];
+  variants: ProductDetailVariant[];
 }
 
 /**
@@ -348,6 +363,22 @@ export async function getPublishedProductBySlug(
     .where(eq(productImage.productId, found.id))
     .orderBy(asc(productImage.position));
 
+  // Storefront variants only: discontinued rows are never exposed. Size order
+  // follows the PostgreSQL enum (XS→XL); colors are alphabetical. This matches
+  // the catalog filter option ordering.
+  const variants = await db
+    .select({
+      id: variant.id,
+      size: variant.size,
+      color: variant.color,
+      colorHex: variant.colorHex,
+      stockQty: variant.stockQty,
+      priceOverrideCents: variant.priceOverrideCents,
+    })
+    .from(variant)
+    .where(and(eq(variant.productId, found.id), eq(variant.discontinued, false)))
+    .orderBy(asc(variant.size), asc(variant.color));
+
   return {
     id: found.id,
     slug: found.slug,
@@ -360,6 +391,7 @@ export async function getPublishedProductBySlug(
     categoryName: found.categoryName,
     categorySlug: found.categorySlug,
     images,
+    variants,
   };
 }
 

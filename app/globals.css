@@ -527,6 +527,182 @@ body {
   margin: 0;
 }
 
+/* ---- Product Variant Selector ---- */
+
+.product-variant {
+  margin: 0 0 2rem;
+}
+
+.product-variant__group {
+  border: 0;
+  padding: 0;
+  margin: 0 0 1.5rem;
+}
+
+.product-variant__legend {
+  padding: 0;
+  margin: 0 0 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.product-variant__sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.product-variant__size {
+  position: relative;
+  min-width: 3.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.product-variant__size:hover {
+  border-color: var(--color-ink);
+}
+
+.product-variant__size--selected {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-canvas);
+}
+
+.product-variant__size--out-of-stock,
+.product-variant__size--unavailable {
+  color: var(--color-stone);
+  cursor: not-allowed;
+}
+
+.product-variant__size--out-of-stock:hover,
+.product-variant__size--unavailable:hover {
+  border-color: var(--color-hairline-strong);
+}
+
+/* Diagonal hairline slash: availability is never signalled by color alone. */
+.product-variant__size--out-of-stock::after,
+.product-variant__size--unavailable::after {
+  content: "";
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  top: 50%;
+  border-top: 1px solid var(--color-hairline-strong);
+  transform: rotate(-24deg);
+}
+
+.product-variant__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+}
+
+.product-variant__color {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.product-variant__color--selected {
+  font-weight: 500;
+}
+
+.product-variant__color--out-of-stock,
+.product-variant__color--unavailable {
+  color: var(--color-stone);
+  cursor: not-allowed;
+}
+
+/* Circular swatches are the only shape exception allowed by DESIGN.md. */
+.product-variant__swatch {
+  position: relative;
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 9999px;
+  flex: none;
+}
+
+.product-variant__color--selected .product-variant__swatch {
+  box-shadow:
+    0 0 0 2px var(--color-canvas),
+    0 0 0 3px var(--color-ink);
+}
+
+.product-variant__color--out-of-stock .product-variant__swatch::after,
+.product-variant__color--unavailable .product-variant__swatch::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.5rem;
+  border-top: 1px solid var(--color-hairline-strong);
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.product-variant__color-check {
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.product-variant__stock {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-hairline);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-stone);
+}
+
+/* Polite announcement region: visually hidden, still read by screen readers. */
+.product-variant__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.product-variant__size:focus-visible,
+.product-variant__color:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
 /* ---- Product Gallery ---- */
 
 .product-gallery {
