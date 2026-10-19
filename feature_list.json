@@ -494,13 +494,20 @@
     "depends_on": [
       "order-creation-on-payment"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: a paid order triggers exactly one confirmation email to the contact email.",
-      "Provisional: a failed payment triggers no confirmation email.",
-      "Provisional: the email content matches the frozen order totals."
+      "A paid order triggers exactly one confirmation email to the contact email.",
+      "A failed payment triggers no confirmation email.",
+      "The email content matches the frozen order totals (order reference, frozen line items, subtotal, shipping, tax, total in USD)."
     ],
-    "evidence": [],
+    "evidence": [
+      "./init.sh (2026-10-19): exit 0. install + lint + typecheck + test all passed; vitest: 59 test files, 475 tests passed.",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build successfully generated.",
+      "Unit tests in lib/email/order-confirmation.test.ts (6/6 tests passed): verifies plain text/HTML rendering with USD formatting, subject line formatting, in-memory simulated sender message tracking, and error handling.",
+      "Integration tests in db/tests/order-confirmation-email.test.ts (4/4 tests passed): verifies paid order sends exactly 1 confirmation email with matching frozen lines, address, and totals; failed payment sends no email; incomplete checkout sends no email; and simulated email sender error does not abort paid order creation (graceful degradation).",
+      "Privacy: email logs omit secrets, payment tokens, and sensitive personal data.",
+      "Independent validation (2026-10-19): verdict ACCEPT. All 5 acceptance scenarios in docs/specs/order-confirmation-email.md passed cleanly."
+    ],
     "notes": "Email sending provider and templates are an implementation-time question in docs/risks-and-open-questions.md. Do not include secrets or sensitive personal data in email logs."
   },
   {

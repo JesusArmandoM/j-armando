@@ -17,6 +17,8 @@ import {
   variant,
 } from "./schema/index.ts";
 import { calculateSalesTax } from "@/lib/tax/sales-tax.ts";
+import type { EmailSender, OrderConfirmationLine } from "@/lib/email/order-confirmation.ts";
+import { getEmailSender } from "@/lib/email/order-confirmation.ts";
 import type { PaymentFailureReason, PaymentProvider } from "@/payments/payment-provider.ts";
 import { createSimulatedPaymentProvider } from "@/payments/simulated-provider.ts";
 import type { PaymentScenario } from "@/payments/simulated-provider.ts";
@@ -27,6 +29,7 @@ export interface CreatePaidOrderOptions {
   provider?: PaymentProvider;
   scenario?: PaymentScenario;
   failureReason?: PaymentFailureReason;
+  emailSender?: EmailSender;
 }
 
 export class OutOfStockError extends Error {
@@ -139,6 +142,7 @@ export async function createPaidOrderFromCheckout(
   db: Db,
   sessionToken: string,
   providerOrOptions?: PaymentProvider | CreatePaidOrderOptions,
+  emailSender?: EmailSender,
 ): Promise<CreatePaidOrderResult> {
   // 1. Fetch active cart
   const [activeCart] = await db
@@ -240,8 +244,21 @@ export async function createPaidOrderFromCheckout(
   }
 
   // 6. Execute atomic transaction to reserve stock, freeze snapshot, create/link account, and create order
+  let transactionResult: {
+    ok: true;
+    order: {
+      id: string;
+      reference: string;
+      totalCents: number;
+      contactEmail: string;
+      accountId: string;
+    };
+    accountId: string;
+    isNewAccount: boolean;
+  };
+
   try {
-    return await db.transaction(async (tx) => {
+    transactionResult = await db.transaction(async (tx) => {
       const txDb = tx as unknown as Db;
 
       // 6a. Sort cart lines deterministically by variantId to prevent database deadlocks
@@ -399,6 +416,53 @@ export async function createPaidOrderFromCheckout(
     }
     throw error;
   }
+
+  const activeEmailSender =
+    emailSender ??
+    (providerOrOptions && "emailSender" in providerOrOptions && providerOrOptions.emailSender
+      ? providerOrOptions.emailSender
+      : undefined) ??
+    getEmailSender();
+  try {
+    const confirmationLines: OrderConfirmationLine[] = lines.map((line) => {
+      const unitPriceCents = line.priceOverrideCents ?? line.basePriceCents;
+      const lineTotalCents = unitPriceCents * line.quantity;
+      return {
+        productName: line.productName,
+        size: line.size,
+        color: line.color,
+        quantity: line.quantity,
+        unitPriceCents,
+        lineTotalCents,
+      };
+    });
+
+    await activeEmailSender.sendOrderConfirmation({
+      to: session.email,
+      reference: transactionResult.order.reference,
+      lines: confirmationLines,
+      subtotalCents,
+      shippingCents,
+      taxCents,
+      totalCents,
+      shippingAddress: {
+        recipientName: session.recipientName,
+        line1: session.line1,
+        city: session.city,
+        state: session.state,
+        zip: session.zip,
+      },
+    });
+  } catch (emailError) {
+    // Non-blocking graceful degradation: order creation succeeded, do not roll back or fail.
+    // Avoid logging sensitive personal data or secrets.
+    console.error(
+      `[order-confirmation-email] Failed to send confirmation email for order ${transactionResult.order.reference}:`,
+      emailError instanceof Error ? emailError.message : "unknown error",
+    );
+  }
+
+  return transactionResult;
 }
 
 /**
