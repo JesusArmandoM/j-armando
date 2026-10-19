@@ -29,14 +29,18 @@ vi.mock("@/db/client.ts", () => ({
 
 vi.mock("@/db/cart.ts", () => ({
   addVariantToCart: vi.fn(),
+  updateCartLineQuantity: vi.fn(),
+  removeCartLine: vi.fn(),
 }));
 
-import { addVariantToCart } from "@/db/cart.ts";
+import { addVariantToCart, removeCartLine, updateCartLineQuantity } from "@/db/cart.ts";
 import { cookies } from "next/headers";
 
-import { POST } from "./route";
+import { DELETE, PATCH, POST } from "./route";
 
 const addVariantToCartMock = vi.mocked(addVariantToCart);
+const updateCartLineQuantityMock = vi.mocked(updateCartLineQuantity);
+const removeCartLineMock = vi.mocked(removeCartLine);
 const cookiesMock = vi.mocked(cookies);
 
 const VARIANT_ID = "123e4567-e89b-12d3-a456-426614174000";
@@ -250,3 +254,129 @@ describe("POST /api/cart/lines", () => {
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
+
+const TEST_LINE_ID = "987fcdeb-51a2-43d7-9876-543210fedcba";
+
+function patchJsonRequest(body: unknown): Request {
+  return new Request("http://localhost/api/cart/lines", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function deleteJsonRequest(body: unknown): Request {
+  return new Request("http://localhost/api/cart/lines", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("PATCH /api/cart/lines", () => {
+  it("rejects non-JSON requests with 400", async () => {
+    const response = await PATCH(
+      new Request("http://localhost/api/cart/lines", {
+        method: "PATCH",
+        headers: { "content-type": "text/plain" },
+        body: "plain text",
+      }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects invalid lineId or out-of-range quantity with 400", async () => {
+    const invalidLine = await PATCH(patchJsonRequest({ lineId: "invalid", quantity: 2 }));
+    expect(invalidLine.status).toBe(400);
+
+    const invalidQty = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 15 }));
+    expect(invalidQty.status).toBe(400);
+  });
+
+  it("returns 404 when no session cookie exists", async () => {
+    cookieState.value = undefined;
+    const response = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 3 }));
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 404 when updateCartLineQuantity returns not_found", async () => {
+    cookieState.value = "session-token";
+    updateCartLineQuantityMock.mockResolvedValue({ ok: false, reason: "not_found" });
+
+    const response = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 3 }));
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Cart line not found." });
+  });
+
+  it("updates line quantity, returns 200 and revalidates /cart", async () => {
+    cookieState.value = "session-token";
+    updateCartLineQuantityMock.mockResolvedValue({ ok: true, lineId: TEST_LINE_ID, quantity: 4 });
+
+    const response = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 4 }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ lineId: TEST_LINE_ID, lineQuantity: 4 });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cart");
+  });
+
+  it("returns 503 on database failure", async () => {
+    cookieState.value = "session-token";
+    updateCartLineQuantityMock.mockRejectedValue(new Error("db down"));
+
+    const response = await PATCH(patchJsonRequest({ lineId: TEST_LINE_ID, quantity: 4 }));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("DELETE /api/cart/lines", () => {
+  it("rejects non-JSON requests with 400", async () => {
+    const response = await DELETE(
+      new Request("http://localhost/api/cart/lines", {
+        method: "DELETE",
+        headers: { "content-type": "text/plain" },
+        body: "plain text",
+      }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects invalid lineId with 400", async () => {
+    const response = await DELETE(deleteJsonRequest({ lineId: "bad-id" }));
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 404 when no session cookie exists", async () => {
+    cookieState.value = undefined;
+    const response = await DELETE(deleteJsonRequest({ lineId: TEST_LINE_ID }));
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 404 when removeCartLine returns not_found", async () => {
+    cookieState.value = "session-token";
+    removeCartLineMock.mockResolvedValue({ ok: false, reason: "not_found" });
+
+    const response = await DELETE(deleteJsonRequest({ lineId: TEST_LINE_ID }));
+    expect(response.status).toBe(404);
+  });
+
+  it("removes line, returns 200 and revalidates /cart", async () => {
+    cookieState.value = "session-token";
+    removeCartLineMock.mockResolvedValue({ ok: true, lineId: TEST_LINE_ID });
+
+    const response = await DELETE(deleteJsonRequest({ lineId: TEST_LINE_ID }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({ lineId: TEST_LINE_ID, removed: true });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cart");
+  });
+
+  it("returns 503 on database failure", async () => {
+    cookieState.value = "session-token";
+    removeCartLineMock.mockRejectedValue(new Error("db down"));
+
+    const response = await DELETE(deleteJsonRequest({ lineId: TEST_LINE_ID }));
+    expect(response.status).toBe(503);
+  });
+});
+

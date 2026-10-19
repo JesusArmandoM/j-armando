@@ -2,24 +2,21 @@
 
 ## Current Verified State
 
-- Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
+- Repository root: `/Users/armando/Documents/tienda-worktrees/guest-cart-manage` (worktree; base checkout `/Users/armando/Documents/Ai Tienda de Ropa`).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. Both `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; independent validation not run) and is merged to `main` via PR #17. `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted` (independently validated 2026-10-19). `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are also `accepted`.
-- Current next ready feature: `guest-cart-manage` (depends on `guest-cart-add`, accepted) is the next dependency-ready feature and needs `planner`.
+- Current feature in flight: none. `guest-cart-manage` is `accepted` (independently validated 2026-10-19). `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready features (can be worked in parallel): `cart-stock-limits` (depends on `guest-cart-manage`, accepted) and `checkout-contact-and-address` (depends on `guest-cart-manage`, accepted).
 - Current blocker: none for the shipped features. Four discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4 and shipping cost #5 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode; #6 tax blocks the checkout chain).
-- Last verified at: 2026-10-19, on `main`: `CI=true ./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, in this worktree: `CI=true ./init.sh` exit 0 (44 test files / 358 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog (listing, filtering, detail with variant selection and in-memory virtual try-on) + payments port + chat assistant with deterministic guardrails + guest cart (add + view) shipped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script); the storefront `/catalog` lists published products with URL-driven filtering/sorting and `/products/[slug]` renders product detail with client-side size/color variant selection (price override + stock message, URL-mirrored) and an in-memory virtual try-on panel; `payments/` holds the framework-agnostic `PaymentProvider` port, simulated adapter and outcome mapper with a presentational `app/checkout/` outcome surface; the storefront chat panel talks to `POST /api/chat` behind the `lib/chat/` `ChatAssistant` port + OpenAI adapter, with deterministic policy/price/out-of-scope guardrails in `lib/chat/guardrails/` and server composition in `app/api/chat/composition.ts`; published product facts now include category, non-discontinued variants (sizes/colors/stock) and category size-chart measurements, so generic category, sizing and explicit product-info asks are answered deterministically from the catalog, and missing measurements are stated as unpublished; the product page shows the published size guide for the sizes the product offers; shipping cost is a verified policy (free standard / $15 express) with both shipping methods seeded for checkout; `lib/try-on/` holds the `TryOnProvider` port, OpenAI-compatible images adapter, simulated adapter, prompt builder and env factory behind `POST /api/try-on` (in-memory only, no persistence); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
-- Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking, never starts a dev server and never touches a database. `pnpm build` produces a static production build without `DATABASE_URL`.
-- Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 in two projects — `ui` (jsdom + Testing Library) and `db` (node, embedded PostgreSQL 17 per run). No browser E2E harness yet.
-- Data layer: Drizzle ORM (`drizzle-orm` + `drizzle-kit` over `pg`) — ADR 0002. Money is integer cents, USD, tax-exclusive; migrations are generated once and never edited; the seed is insert-if-missing and never overwrites rows (`CONSTRAINTS.md`).
-- Planned stack: Next.js (App Router) + TypeScript + PostgreSQL, Vercel + managed Postgres (Neon vs Supabase still undecided; everything connects through `DATABASE_URL`). See `docs/technical-discovery.md`.
-- Market: United States, USD, sales tax added at checkout. UI copy and documentation in English.
-- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure` and `guest-cart-add` accepted; `catalog-size-chart` passing (self-verified, independent validation not run); the rest not started.
+- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, quantity editing, removal) shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer; `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers and line removal; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static production build.
+- Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 (`ui` + `db`).
+- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add` and `guest-cart-manage` accepted; `catalog-size-chart` passing; the rest not started.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -532,3 +529,26 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Files or artifacts updated: `db/cart.ts`, `db/tests/guest-cart-add.test.ts`, `app/cart/{session,cart-input,cart-input.test,page,page.test}.ts(x)`, `app/api/cart/lines/{route,route.test}.ts`, `app/products/[slug]/{add-to-cart,add-to-cart.test}.tsx`, `app/products/[slug]/{variant-selector,variant-selector.test}.tsx`, `app/globals.css`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `docs/specs/guest-cart-add.md`, `docs/validations/guest-cart-add.md`, `feature_list.json`, `PROGRESS.md`.
 - Known risk or unresolved issue: per-add quantity bound is 1–10 only; cumulative stock caps/reservation are deferred to `cart-stock-limits`. The 30-day cookie is a bearer credential without rotation/expiry handling; abandoned carts are not cleaned up; a `converted`/`expired` cart reads as empty and `getOrCreateCart` reuses the row — the future conversion flow must define this. No browser E2E harness; focused DB/UI tests plus the live transcript are the established verification surface.
 - Next best step: `guest-cart-manage` (depends on `guest-cart-add`, now accepted) needs `planner`.
+
+### Session 029
+
+- Date: 2026-10-19
+- Goal: Implement and validate `guest-cart-manage` in dedicated worktree `tienda-worktrees/guest-cart-manage` on branch `feature/guest-cart-manage` (Issue #22).
+- Completed:
+  - Planned spec `docs/specs/guest-cart-manage.md` covering quantity steppers (1-10 bound), line removal, empty cart transition, and session-isolation security.
+  - Implemented transactional cart repository functions in `db/cart.ts`: `updateCartLineQuantity` and `removeCartLine` with session-scoped cart lookups and automatic cart `updatedAt` bump.
+  - Added input validation in `app/cart/cart-input.ts` (`parseUpdateCartLineBody`, `parseRemoveCartLineBody`).
+  - Added route handlers in `app/api/cart/lines/route.ts` for `PATCH` and `DELETE`, returning `Cache-Control: no-store` and triggering `revalidatePath("/cart")`.
+  - Created client component `app/cart/cart-line-row.tsx` with optimistic UI, disabled bounds (`quantity <= 1` for `-`, `quantity >= 10` for `+`), error alerts, and line removal. Wired into `app/cart/page.tsx`. Added styles to `app/globals.css`.
+  - Added comprehensive test suites: `db/tests/guest-cart-manage.test.ts` (5 tests), `app/api/cart/lines/route.test.ts` (21 tests), `app/cart/cart-input.test.ts` (8 tests), `app/cart/cart-line-row.test.tsx` (7 tests), `app/cart/page.test.tsx` (4 tests).
+  - Validation: All 7 acceptance scenarios verified and recorded in `docs/validations/guest-cart-manage.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `guest-cart-manage` as `accepted`.
+- Verification run:
+  - Focused suites: 5 files / 45 tests passed.
+  - Standard gate: `CI=true ./init.sh` exit 0 (44 test files / 358 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0.
+  - `pnpm build` exit 0 (dynamic routes `ƒ /cart` and `ƒ /api/cart/lines` clean).
+- Evidence captured: `feature_list.json` → `guest-cart-manage.verification`/`.evidence`; `docs/validations/guest-cart-manage.md`; this log.
+- Files or artifacts updated: `db/cart.ts`, `db/tests/guest-cart-manage.test.ts`, `app/cart/{cart-input,cart-input.test,cart-line-row,cart-line-row.test,page,page.test}.ts(x)`, `app/api/cart/lines/{route,route.test}.ts`, `app/globals.css`, `ARCHITECTURE.md`, `docs/specs/guest-cart-manage.md`, `docs/validations/guest-cart-manage.md`, `feature_list.json`, `PROGRESS.md`.
+- Known risk or unresolved issue: Cart line quantities are bounded by 10 per line; cumulative inventory availability validation is deferred to `cart-stock-limits`.
+- Next best step: Commit `feature/guest-cart-manage`, push to origin, open PR linking #22 without merging. Then launch parallel worktrees for `cart-stock-limits` and `checkout-contact-and-address`.

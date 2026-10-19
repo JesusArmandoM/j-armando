@@ -55,3 +55,66 @@ export function parseAddToCartBody(body: unknown): AddToCartParseResult {
 
   return { ok: true, value: { variantId: variantId.trim(), quantity } };
 }
+
+export interface UpdateCartLineInput {
+  lineId: string;
+  quantity: number;
+}
+
+export type UpdateCartLineParseResult =
+  | { ok: true; value: UpdateCartLineInput }
+  | { ok: false; error: string };
+
+export function parseUpdateCartLineBody(body: unknown): UpdateCartLineParseResult {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, error: "Request body must be a JSON object." };
+  }
+
+  const { lineId, quantity } = body as {
+    lineId?: unknown;
+    quantity?: unknown;
+  };
+
+  if (typeof lineId !== "string" || !isVariantIdShape(lineId.trim())) {
+    return { ok: false, error: "A valid cart line is required." };
+  }
+
+  if (
+    typeof quantity !== "number" ||
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    quantity > MAX_ADD_QUANTITY
+  ) {
+    return {
+      ok: false,
+      error: `Quantity must be a whole number from 1 to ${MAX_ADD_QUANTITY}.`,
+    };
+  }
+
+  return { ok: true, value: { lineId: lineId.trim(), quantity } };
+}
+
+export interface RemoveCartLineInput {
+  lineId: string;
+}
+
+export type RemoveCartLineParseResult =
+  | { ok: true; value: RemoveCartLineInput }
+  | { ok: false; error: string };
+
+export function parseRemoveCartLineBody(body: unknown): RemoveCartLineParseResult {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, error: "Request body must be a JSON object." };
+  }
+
+  const { lineId } = body as {
+    lineId?: unknown;
+  };
+
+  if (typeof lineId !== "string" || !isVariantIdShape(lineId.trim())) {
+    return { ok: false, error: "A valid cart line is required." };
+  }
+
+  return { ok: true, value: { lineId: lineId.trim() } };
+}
+

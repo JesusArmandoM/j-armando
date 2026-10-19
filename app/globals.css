@@ -975,7 +975,7 @@ body {
 @media (min-width: 640px) {
   .cart__line {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 7rem 5rem 7rem;
+    grid-template-columns: minmax(0, 1fr) 6.5rem 8.5rem 6.5rem;
     align-items: baseline;
     gap: 1rem;
     padding: 1.75rem 0;
@@ -984,6 +984,95 @@ body {
   .cart__line-cell {
     text-align: right;
   }
+}
+
+.cart__line-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+@media (min-width: 640px) {
+  .cart__line-stepper {
+    align-items: flex-end;
+  }
+}
+
+.cart__stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius);
+  background: var(--color-canvas);
+}
+
+.cart__stepper-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.cart__stepper-button:hover:not(:disabled) {
+  background: var(--color-hairline);
+}
+
+.cart__stepper-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cart__stepper-quantity {
+  min-width: 1.75rem;
+  padding: 0 0.25rem;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+
+.cart__line-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.cart__line-remove:hover:not(:disabled) {
+  color: #7a1e1e;
+  border-bottom-color: #7a1e1e;
+}
+
+.cart__line-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cart__line-error {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: #7a1e1e;
 }
 
 .cart__subtotal {

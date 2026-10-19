@@ -1,19 +1,23 @@
 import { revalidatePath } from "next/cache";
 
-import { addVariantToCart } from "@/db/cart.ts";
+import { addVariantToCart, removeCartLine, updateCartLineQuantity } from "@/db/cart.ts";
 import { getDb } from "@/db/client.ts";
 
-import { parseAddToCartBody } from "@/app/cart/cart-input.ts";
+import {
+  parseAddToCartBody,
+  parseRemoveCartLineBody,
+  parseUpdateCartLineBody,
+} from "@/app/cart/cart-input.ts";
 import {
   createCartSessionToken,
   readCartSessionToken,
   setCartSessionCookie,
 } from "@/app/cart/session.ts";
 
-// Guest cart mutation endpoint. The body carries only `{ variantId, quantity }`:
-// the cart is resolved exclusively from the httpOnly session cookie, and the
-// price is re-resolved from the database by the repository. Do not echo the
-// cart id, line id or session token.
+// Guest cart mutation endpoint. The body carries only `{ variantId, quantity }`
+// for add, `{ lineId, quantity }` for update, and `{ lineId }` for remove:
+// the cart is resolved exclusively from the httpOnly session cookie. Do not echo
+// the cart id, user token or session token.
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "cache-control": "no-store" };
@@ -82,3 +86,93 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("We could not add this item to your cart. Please try again.", 503);
   }
 }
+
+export async function PATCH(request: Request): Promise<Response> {
+  if (!isJsonContentType(request)) {
+    return jsonError("Request body must be JSON.", 400);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Request body must be valid JSON.", 400);
+  }
+
+  const parsed = parseUpdateCartLineBody(body);
+  if (!parsed.ok) {
+    return jsonError(parsed.error, 400);
+  }
+
+  try {
+    const sessionToken = await readCartSessionToken();
+    if (!sessionToken) {
+      return jsonError("Cart line not found.", 404);
+    }
+
+    const result = await updateCartLineQuantity(
+      getDb(),
+      sessionToken,
+      parsed.value.lineId,
+      parsed.value.quantity,
+    );
+
+    if (!result.ok) {
+      return jsonError("Cart line not found.", 404);
+    }
+
+    revalidatePath("/cart");
+    return Response.json(
+      { lineId: result.lineId, lineQuantity: result.quantity },
+      { headers: NO_STORE },
+    );
+  } catch (error) {
+    console.error("Failed to update cart line quantity.", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("We could not update this cart item. Please try again.", 503);
+  }
+}
+
+export async function DELETE(request: Request): Promise<Response> {
+  if (!isJsonContentType(request)) {
+    return jsonError("Request body must be JSON.", 400);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Request body must be valid JSON.", 400);
+  }
+
+  const parsed = parseRemoveCartLineBody(body);
+  if (!parsed.ok) {
+    return jsonError(parsed.error, 400);
+  }
+
+  try {
+    const sessionToken = await readCartSessionToken();
+    if (!sessionToken) {
+      return jsonError("Cart line not found.", 404);
+    }
+
+    const result = await removeCartLine(getDb(), sessionToken, parsed.value.lineId);
+
+    if (!result.ok) {
+      return jsonError("Cart line not found.", 404);
+    }
+
+    revalidatePath("/cart");
+    return Response.json(
+      { lineId: result.lineId, removed: true },
+      { headers: NO_STORE },
+    );
+  } catch (error) {
+    console.error("Failed to remove cart line.", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("We could not remove this item from your cart. Please try again.", 503);
+  }
+}
+

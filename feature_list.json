@@ -182,13 +182,21 @@
     "title": "Guest edits quantities and removes cart lines",
     "user_visible_behavior": "The shopper can change a line's quantity, remove a line, and see line subtotals and the cart total update. The cart survives a page reload.",
     "depends_on": ["guest-cart-add"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: changing a quantity updates that line's subtotal and the cart total.",
-      "Provisional: removing a line removes it and recalculates the total.",
-      "Provisional: reloading the page preserves the cart contents."
+      "Changing a quantity updates that line's subtotal and the cart total (stepper 1 to 10; - disabled at 1, + disabled at 10).",
+      "Removing a line removes it and recalculates the total.",
+      "Removing all lines smoothly transitions to the empty cart state.",
+      "Reloading the page preserves the cart contents from the database."
     ],
-    "evidence": [],
+    "evidence": [
+      "Automated verification: `CI=true ./init.sh` exit 0 (44 test files / 358 tests; +2 files / +28 tests). Lint and typecheck clean.",
+      "`pnpm build` exit 0 with dynamic routes `ƒ /cart` and `ƒ /api/cart/lines`.",
+      "Database integration coverage (`db/tests/guest-cart-manage.test.ts`, 5 tests): `updateCartLineQuantity` and `removeCartLine` update quantities, line totals, and cart subtotal; non-existent lines return `not_found`; session isolation enforced (session B cannot update or remove session A's lines).",
+      "API route coverage (`app/api/cart/lines/route.test.ts`, 21 tests): `PATCH /api/cart/lines` and `DELETE /api/cart/lines` validate JSON, lineId UUID, quantity 1–10; require matching session cookie; revalidate `/cart`; and return `Cache-Control: no-store`.",
+      "Client UI coverage (`app/cart/cart-line-row.test.tsx` 7 tests, `app/cart/page.test.tsx` 4 tests, `app/cart/cart-input.test.ts` 8 tests): steppers disabled at bounds 1 and 10; remove triggers DELETE; subtotal recalculates; router refreshed.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 7 acceptance scenarios verified passing. Record: docs/validations/guest-cart-manage.md."
+    ],
     "notes": "Quantity cannot exceed available stock; that constraint is enforced in cart-stock-limits. Design reference: the quantity steppers in stitch_image_based_application/carrito_pasarela_de_pago_simulada/."
   },
   {

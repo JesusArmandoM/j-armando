@@ -5,6 +5,7 @@ import type { CartSummary } from "@/db/cart.ts";
 import { getDb } from "@/db/client.ts";
 import { formatPriceUSD } from "@/lib/money.ts";
 
+import { CartLineRow } from "./cart-line-row.tsx";
 import { readCartSessionToken } from "./session.ts";
 
 export const dynamic = "force-dynamic";
@@ -61,26 +62,7 @@ export default async function CartPage() {
       <section className="cart__lines" aria-label="Cart items" data-testid="cart-lines">
         <ul className="cart__list">
           {summary.lines.map((line) => (
-            <li className="cart__line" data-testid="cart-line" key={line.lineId}>
-              <div className="cart__line-main">
-                <Link
-                  href={`/products/${line.productSlug}`}
-                  className="cart__line-name"
-                >
-                  {line.productName}
-                </Link>
-                <p className="cart__line-variant">
-                  Size {line.size} · {line.color}
-                </p>
-              </div>
-              <p className="cart__line-cell cart__line-unit" data-testid="cart-line-unit">
-                {formatPriceUSD(line.unitPriceCents)}
-              </p>
-              <p className="cart__line-cell cart__line-quantity">Qty {line.quantity}</p>
-              <p className="cart__line-cell cart__line-total" data-testid="cart-line-total">
-                {formatPriceUSD(line.lineTotalCents)}
-              </p>
-            </li>
+            <CartLineRow key={line.lineId} line={line} />
           ))}
         </ul>
       </section>
