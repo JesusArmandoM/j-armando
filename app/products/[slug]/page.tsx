@@ -2,15 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getDb } from "@/db/client.ts";
-import { formatPriceUSD, getPublishedProductBySlug } from "@/db/catalog.ts";
+import { getPublishedProductBySlug } from "@/db/catalog.ts";
 import type { ProductDetail } from "@/db/catalog.ts";
 
 import { ProductGallery } from "./product-gallery";
+import { VariantSelector } from "./variant-selector";
+import { parseVariantSelection } from "./variant-selection";
 
 export const dynamic = "force-dynamic";
 
 interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata({ params }: ProductDetailPageProps) {
@@ -28,8 +31,12 @@ export async function generateMetadata({ params }: ProductDetailPageProps) {
   };
 }
 
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+export default async function ProductDetailPage({
+  params,
+  searchParams,
+}: ProductDetailPageProps) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
 
   let product: ProductDetail | undefined;
   try {
@@ -45,7 +52,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     notFound();
   }
 
-  const formattedPrice = formatPriceUSD(product.basePriceCents);
+  const initialSelection = parseVariantSelection(resolvedSearchParams, product.variants);
 
   return (
     <main className="product-detail" data-testid="product-detail">
@@ -69,13 +76,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         <div className="product-detail__commentary">
           <p className="product-detail__category">{product.categoryName}</p>
           <h1 className="product-detail__title">{product.name}</h1>
-          <p className="product-detail__price" data-testid="product-price">
-            {formattedPrice}
-            <span className="product-detail__price-note">
-              {" "}
-              USD, tax-exclusive. Sales tax calculated at checkout.
-            </span>
-          </p>
+          <VariantSelector
+            variants={product.variants}
+            basePriceCents={product.basePriceCents}
+            initialSelection={initialSelection}
+          />
 
           <p className="product-detail__description">{product.description}</p>
 

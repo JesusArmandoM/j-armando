@@ -26,8 +26,9 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
 - **Route surface (public, read-only):**
   - `/` — landing page.
   - `/catalog` — published product grid (dynamic; `catalog-product-listing`) with URL-driven filter/sort state (`catalog-filtering`).
-  - `/products/[slug]` — published product detail by public slug (dynamic; `product-detail-page`). Draft, archived and unknown slugs call `notFound()` (HTTP 404).
+  - `/products/[slug]` — published product detail by public slug (dynamic; `product-detail-page`) with size/color variant selection (`product-variant-selection`). Draft, archived and unknown slugs call `notFound()` (HTTP 404).
 - **Catalog listing state:** filter/sort state (category, size, color, max price, sort) lives only in the URL query string — no client store. The page parses it (`app/catalog/filter-params.ts`), fetches through the repository, and a client toolbar pushes new `/catalog?...` history entries via `next/navigation`'s `useRouter`. Reset navigates to the bare `/catalog`.
+- **Product variant selection state:** the detail page exposes only non-discontinued variants (ordered size then color). Selection is client view state initialized from `?size=&color=` on the server (`parseVariantSelection`) so price and availability update instantly; after a change the client selector mirrors the canonical values into the URL with `window.history.replaceState` (no navigation, no new history entry, no scroll jump). Out-of-stock/unoffered pairs are rejected by both the parser and the selector.
 - **Deployment target:** Vercel (see `docs/technical-discovery.md`). Not configured here beyond framework defaults.
 
 ### Next.js 16 has breaking changes
@@ -47,7 +48,7 @@ app/                     Next.js App Router routes and UI
   layout.tsx             Root layout: html/body, global fonts, metadata, <ChatPanel />
   page.tsx               Landing page (placeholder shell)
   catalog/               Catalog listing route + product card (+ URL-driven filters)
-  products/[slug]/       Product detail route (/products/[slug]) + not-found state
+  products/[slug]/       Product detail route (/products/[slug]), gallery, variant selector + pure selection model, not-found state
   checkout/              Checkout UI (payment outcome surface; the route arrives with checkout-*)
   globals.css            Design tokens and base styles
   page.test.tsx          Landing page smoke test
