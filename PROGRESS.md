@@ -5,7 +5,7 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `admin-product-create`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `admin-product-create`, `admin-order-list`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
 - Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
@@ -1017,6 +1017,38 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Evidence captured: `feature_list.json` → `admin-role-gate.evidence`; `docs/validations/admin-role-gate.md`; this log.
 - Known risk or unresolved issue: none.
 - Next best step: Commit `feature/admin-role-gate`, push to origin, and open PR linking Closes #47 without merging.
+
+### Session 044
+
+- Date: 2026-10-19
+- Goal: Implement and independently validate `admin-order-list` (Admin lists all orders across all customers).
+- Completed:
+  - Feature spec written: `docs/specs/admin-order-list.md` covering all 5 acceptance scenarios for listing orders across all customers, empty state, read-only detail view for any customer's order, 404 on unknown reference, and admin role guard.
+  - Data Access Layer (`db/admin-orders.ts`):
+    - `listAllOrdersForAdmin(db)`: returns all orders across all customers/accounts ordered by `createdAt` descending, including `id`, `reference`, `accountId`, `contactEmail`, `status`, `fulfillmentStatus`, frozen financial totals in integer cents, `itemCount` (sum of line quantities), and `lineCount`.
+    - `getOrderForAdmin(db, reference)`: returns full read-only order details across any customer by reference, including frozen `lines`, `shippingAddress`, and `shippingMethod`, or `null` if not found.
+  - Backoffice API Route Handlers:
+    - `GET /api/admin/orders`: guarded by `getAdminSession()`; returns 401 when unauthenticated, 403 when non-admin, and 200 `{ ok: true, orders }` with `Cache-Control: no-store`.
+    - `GET /api/admin/orders/[reference]`: guarded by `getAdminSession()`; returns 401/403 for unauthorized requests, 404 `{ ok: false, error: "Order not found." }` for unknown references, and 200 `{ ok: true, order }` with `Cache-Control: no-store`.
+  - Backoffice UI (`app/admin/orders/page.tsx`, `app/admin/orders/[reference]/page.tsx`, `app/globals.css`):
+    - `/admin/orders`: Server Component guarded by `getAdminSession()`. Displays table of all orders across all customers with Order Reference link, Date, Customer Email, Items, Payment Status badge, Fulfillment Status badge, and USD Total via `formatPriceUSD`, plus an empty state when no orders exist.
+    - `/admin/orders/[reference]`: Read-only Server Component guarded by `getAdminSession()`. Calls `notFound()` when reference does not exist; displays reference, date, customer email, payment/fulfillment status badges, frozen line items, delivery snapshot, and financial summary.
+    - Appended `.admin-orders-*` styles at the end of `app/globals.css`.
+  - Tests (all green):
+    - `db/tests/admin-order-list.test.ts` (3 tests passing): empty order list, orders across distinct customer accounts in descending order with frozen totals, full detail retrieval for any customer's order, and `null` for unknown reference.
+    - `app/api/admin/orders/route.test.ts` (4 tests passing): 401 unauthenticated, 403 non-admin customer, 200 admin with all orders, 500 DB error.
+    - `app/api/admin/orders/[reference]/route.test.ts` (4 tests passing): 401 unauthenticated, 403 non-admin customer, 404 unknown reference, 200 admin with full order details.
+    - `app/admin/orders/page.test.tsx` (4 tests passing): unauthenticated redirect, 403 forbidden view, empty state, and multi-customer order table.
+    - `app/admin/orders/[reference]/page.test.tsx` (4 tests passing): metadata, unauthenticated redirect, `notFound()` on unknown reference, and read-only order detail view.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/admin-order-list.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `admin-order-list` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (86 test files / 608 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `admin-order-list.evidence`; `docs/validations/admin-order-list.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/admin-order-list`, push to origin, and open PR linking Closes #51 without merging.
 
 ### Session 043
 

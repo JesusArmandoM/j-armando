@@ -31,10 +31,13 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
   - `/checkout` — session-scoped checkout flow (dynamic; `checkout-contact-and-address`). Requires an active guest cart; renders the order summary alongside Step 1 (Contact Email and Shipping Address form or completed summary card) and Step 2 indicator (Shipping Method). Empty cart → empty checkout state.
   - `/account` — protected customer account overview (dynamic; `account-signin-signout`). Requires an active session via `ja_account_session`; unauthenticated visits redirect to `/account/signin`. Displays customer email, roles, and a Sign Out button.
   - `/account/signin` — customer sign-in portal with Password and Email Code tabs (dynamic; `account-signin-signout`). Authenticated visitors redirect to `/account` or query parameter `returnUrl`.
-  - `/admin` — backoffice dashboard guarded by `getAdminSession` (`admin-role-gate`).
+  - `/admin` — protected backoffice dashboard (dynamic; `admin-role-gate`). Guarded by `getAdminSession`.
   - `/admin/products` — backoffice product list across all lifecycle statuses (`draft`, `published`, `archived`), showing variant counts and total stock (`admin-product-create`).
   - `/admin/products/new` — backoffice form to create a draft product with size/color variants and per-variant stock (`admin-product-create`).
   - `/admin/products/[id]` — backoffice product detail view displaying garment metadata and variant inventory table (`admin-product-create`).
+  - `/admin/orders` — protected backoffice order list across all customers (dynamic; `admin-order-list`). Guarded by `getAdminSession`; displays reference, date, customer email, item count, payment/fulfillment status badges, and USD totals.
+  - `/admin/orders/[reference]` — protected read-only backoffice order detail across any customer (dynamic; `admin-order-list`). Guarded by `getAdminSession`; unknown references call `notFound()`.
+  - `GET /api/admin/orders` and `GET /api/admin/orders/[reference]` — read-only admin order endpoints (`admin-order-list`), guarded by `getAdminSession` with `Cache-Control: no-store`.
   - `POST /api/chat` — stateless chat endpoint (dynamic; `chat-assistant`), guarded before the provider is called (`chat-assistant-guardrails`). Malformed body → 400, unconfigured provider → 503, provider error → 502.
 - **Route surface (mutating):**
   - `GET /api/admin/products` & `POST /api/admin/products` — admin-guarded product listing and transactional draft product + variant creation (`admin-product-create`). Unauthenticated → 401; non-admin → 403; invalid input → 400 with field errors; created → 201 `{ ok: true, product }`. Always `Cache-Control: no-store`.
