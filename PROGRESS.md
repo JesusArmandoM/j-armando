@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `order-confirmation-email`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current next ready feature: `payment-failure-path` (depends on `order-creation-on-payment`, now accepted).
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
-- Last verified at: 2026-10-19, on `feature/order-creation-on-payment`: `./init.sh` exit 0 (57 test files / 465 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, on `feature/order-confirmation-email`: `./init.sh` exit 0 (59 test files / 475 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
@@ -723,6 +723,33 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `order-creation-on-payment.verification`/`.evidence`; `docs/validations/order-creation-on-payment.md`; this log.
 - Known risk or unresolved issue: Payment failure and retry path is deferred to `payment-failure-path`.
 - Next best step: Commit `feature/order-creation-on-payment`, push to origin, and open PR linking #32 without merging.
+
+### Session 035
+
+- Date: 2026-10-19
+- Goal: Implement and validate `order-confirmation-email` in dedicated worktree `tienda-worktrees/order-confirmation-email` on branch `feature/order-confirmation-email` (Issue #37).
+- Completed:
+  - Spec written: `docs/specs/order-confirmation-email.md` with 5 acceptance scenarios covering 1-to-1 email dispatch on paid order, frozen order lines and totals formatting in USD, suppression on payment failure or incomplete checkout, and non-blocking delivery failure resilience.
+  - Email port and simulated provider (`lib/email/order-confirmation.ts` & `lib/email/email-service.ts`):
+    - Created `OrderConfirmationEmailPayload` and `EmailSender` interface.
+    - Implemented `renderOrderConfirmationSubject`, `renderOrderConfirmationText`, and `renderOrderConfirmationHtml` with integer-cent prices formatted via `formatPriceUSD` and HTML escaping.
+    - Implemented `SimulatedEmailSender` tracking sent messages in memory for self-contained testing, along with failure simulation support and global getters `getEmailSender()`, `getSentConfirmationEmails()`, and `clearSentEmails()`.
+  - Order creation integration (`db/order.ts`):
+    - Connected `createPaidOrderFromCheckout` to send an order confirmation email to `session.email` immediately following successful database transaction commit.
+    - Wrapped email dispatch in a resilient try/catch block so delivery errors are logged without customer personal data and never roll back or abort the paid order.
+  - Tests:
+    - Unit tests in `lib/email/order-confirmation.test.ts` (6 tests passing): tested plain text and HTML rendering, USD prices, email payload formatting, simulated sender storage, and error options.
+    - Integration tests in `db/tests/order-confirmation-email.test.ts` (4 tests passing): tested that paid orders trigger exactly 1 confirmation email matching frozen lines, address, and totals; failed payment triggers 0 emails; incomplete checkout triggers 0 emails; and simulated email failures do not prevent paid order creation.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/order-confirmation-email.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `order-confirmation-email` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (59 test files / 475 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `order-confirmation-email.evidence`; `docs/validations/order-confirmation-email.md`; this log.
+- Known risk or unresolved issue: Live third-party email service (SMTP/Resend/SendGrid) configuration remains an implementation-time decision for production deployment; simulated provider keeps tests offline, deterministic, and credential-free.
+- Next best step: Commit `feature/order-confirmation-email`, push to origin, and open PR linking #37 without merging.
+
 
 
 

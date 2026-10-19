@@ -15,6 +15,8 @@ import {
   variant,
 } from "./schema/index.ts";
 import { calculateSalesTax } from "@/lib/tax/sales-tax.ts";
+import type { EmailSender, OrderConfirmationLine } from "@/lib/email/order-confirmation.ts";
+import { getEmailSender } from "@/lib/email/order-confirmation.ts";
 import type { PaymentFailureReason, PaymentProvider } from "@/payments/payment-provider.ts";
 import { createSimulatedPaymentProvider } from "@/payments/simulated-provider.ts";
 
@@ -108,6 +110,7 @@ export async function createPaidOrderFromCheckout(
   db: Db,
   sessionToken: string,
   provider?: PaymentProvider,
+  emailSender?: EmailSender,
 ): Promise<CreatePaidOrderResult> {
   // 1. Fetch active cart
   const [activeCart] = await db
@@ -198,7 +201,7 @@ export async function createPaidOrderFromCheckout(
   }
 
   // 6. Execute atomic transaction to freeze snapshot and create order
-  return db.transaction(async (tx) => {
+  const transactionResult = await db.transaction(async (tx) => {
     const txDb = tx as unknown as Db;
 
     // 6a. Insert address snapshot (accountId null for guest checkout)
@@ -288,6 +291,49 @@ export async function createPaidOrderFromCheckout(
       },
     } as const;
   });
+
+  // 7. Send order confirmation email (after successful transaction commit)
+  const activeEmailSender = emailSender ?? getEmailSender();
+  try {
+    const confirmationLines: OrderConfirmationLine[] = lines.map((line) => {
+      const unitPriceCents = line.priceOverrideCents ?? line.basePriceCents;
+      const lineTotalCents = unitPriceCents * line.quantity;
+      return {
+        productName: line.productName,
+        size: line.size,
+        color: line.color,
+        quantity: line.quantity,
+        unitPriceCents,
+        lineTotalCents,
+      };
+    });
+
+    await activeEmailSender.sendOrderConfirmation({
+      to: session.email,
+      reference: transactionResult.order.reference,
+      lines: confirmationLines,
+      subtotalCents,
+      shippingCents,
+      taxCents,
+      totalCents,
+      shippingAddress: {
+        recipientName: session.recipientName,
+        line1: session.line1,
+        city: session.city,
+        state: session.state,
+        zip: session.zip,
+      },
+    });
+  } catch (emailError) {
+    // Non-blocking graceful degradation: order creation succeeded, do not roll back or fail.
+    // Avoid logging sensitive personal data or secrets.
+    console.error(
+      `[order-confirmation-email] Failed to send confirmation email for order ${transactionResult.order.reference}:`,
+      emailError instanceof Error ? emailError.message : "unknown error",
+    );
+  }
+
+  return transactionResult;
 }
 
 /**
