@@ -214,6 +214,8 @@ describe("CheckoutPage", () => {
     );
     // Step 3 is ready for payment
     expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
+    expect(screen.getByTestId("place-order-button")).toBeTruthy();
+    expect(screen.getByTestId("payment-total-amount").textContent).toContain("$268.92");
   });
 
   it("renders Order Summary with express shipping ($15.00), NY sales tax ($19.92), and total ($283.92)", async () => {
@@ -240,6 +242,8 @@ describe("CheckoutPage", () => {
     );
     // Step 3 is ready for payment
     expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
+    expect(screen.getByTestId("place-order-button")).toBeTruthy();
+    expect(screen.getByTestId("payment-total-amount").textContent).toContain("$283.92");
   });
 
   it("recalculates sales tax when shipping destination state changes (CA 7.25%)", async () => {

@@ -26,7 +26,7 @@ export const orderStatus = pgEnum("order_status", ["created", "paid", "failed", 
 export type OrderStatus = (typeof orderStatus.enumValues)[number];
 
 /** Fulfillment states; only apply once an order is paid (docs/domain-model.md). */
-export const fulfillmentStatus = pgEnum("fulfillment_status", ["preparing", "shipped", "delivered"]);
+export const fulfillmentStatus = pgEnum("fulfillment_status", ["unfulfilled", "preparing", "shipped", "delivered"]);
 export type FulfillmentStatus = (typeof fulfillmentStatus.enumValues)[number];
 
 /** Payment attempt states (docs/domain-model.md). */

@@ -80,6 +80,8 @@ export default async function CheckoutPage() {
           <ContactAndAddressForm
             initialSession={checkoutSession}
             shippingMethods={shippingMethods}
+            subtotalCents={summary.subtotalCents}
+            totalCents={totalCents}
           />
         </div>
 

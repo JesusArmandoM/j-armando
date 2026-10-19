@@ -5,10 +5,12 @@ import { ContactAndAddressForm } from "./contact-and-address-form.tsx";
 import type { CheckoutSessionData } from "./contact-and-address-form.tsx";
 
 const refreshMock = vi.fn();
+const pushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     refresh: refreshMock,
+    push: pushMock,
   }),
 }));
 
@@ -300,6 +302,98 @@ describe("ContactAndAddressForm", () => {
     const paymentReady = await screen.findByTestId("payment-step-ready");
     expect(paymentReady.textContent).toBe("Ready for Payment");
     expect(screen.getByTestId("payment-step-content")).toBeTruthy();
+    expect(screen.getByTestId("place-order-button")).toBeTruthy();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("renders Place Order button with total amount and redirects to confirmation on payment success", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        reference: "JA-998877",
+        redirectUrl: "/checkout/confirmation/JA-998877",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const sessionWithShipping: CheckoutSessionData = {
+      ...mockSession,
+      shippingMethodId: "standard-id",
+      shippingMethod: {
+        id: "standard-id",
+        slug: "standard",
+        name: "Standard Shipping",
+        description: "Free standard shipping",
+        costCents: 0,
+        deliveryEstimate: "3-5 business days",
+      },
+    };
+
+    render(
+      <ContactAndAddressForm
+        initialSession={sessionWithShipping}
+        subtotalCents={24900}
+        totalCents={26892}
+      />,
+    );
+
+    expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
+    expect(screen.getByTestId("payment-total-amount").textContent).toContain("$268.92");
+
+    const payBtn = screen.getByTestId("place-order-button");
+    expect(payBtn.textContent).toBe("Place Order (Simulated)");
+
+    fireEvent.click(payBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/checkout/pay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+      expect(pushMock).toHaveBeenCalledWith("/checkout/confirmation/JA-998877");
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("displays error message when payment simulation fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error: "Card declined by simulated provider.",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const sessionWithShipping: CheckoutSessionData = {
+      ...mockSession,
+      shippingMethodId: "standard-id",
+      shippingMethod: {
+        id: "standard-id",
+        slug: "standard",
+        name: "Standard Shipping",
+        description: "Free standard shipping",
+        costCents: 0,
+        deliveryEstimate: "3-5 business days",
+      },
+    };
+
+    render(
+      <ContactAndAddressForm
+        initialSession={sessionWithShipping}
+        subtotalCents={24900}
+        totalCents={26892}
+      />,
+    );
+
+    const payBtn = screen.getByTestId("place-order-button");
+    fireEvent.click(payBtn);
+
+    const errorMsg = await screen.findByTestId("payment-error");
+    expect(errorMsg.textContent).toBe("Card declined by simulated provider.");
+    expect((payBtn as HTMLButtonElement).disabled).toBe(false);
 
     vi.unstubAllGlobals();
   });
