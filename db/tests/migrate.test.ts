@@ -15,6 +15,8 @@ const CORE_TABLES = [
   "cart_line",
   "checkout_session",
   "account",
+  "account_session",
+  "account_access_code",
   "address",
   "shipping_method",
   "order",
