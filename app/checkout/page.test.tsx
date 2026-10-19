@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookieState = vi.hoisted(() => ({
@@ -287,4 +287,59 @@ describe("CheckoutPage", () => {
     expect(screen.getByTestId("summary-tax").textContent).toBe("$0.00");
     expect(screen.getByTestId("summary-total").textContent).toBe("$264.00");
   });
+
+  it("handles payment failure and preserves checkout flow allowing retry", async () => {
+    cookieState.value = "mock_session";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
+    vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
+      ...mockCheckoutSession,
+      shippingMethodId: mockShippingMethods[0].id,
+      shippingMethod: mockShippingMethods[0],
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        ok: false,
+        error: "Payment failed: The payment was declined. Please try another payment method.",
+        code: "payment_failed",
+        retryable: true,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ui = await CheckoutPage();
+    render(ui);
+
+    // Order summary is intact
+    expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
+
+    // Scenario controls are rendered
+    expect(screen.getByTestId("simulated-scenario-group")).toBeTruthy();
+    const failRadio = screen.getByTestId("scenario-fail");
+    fireEvent.click(failRadio);
+
+    const payBtn = screen.getByTestId("place-order-button");
+    fireEvent.click(payBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/checkout/pay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scenario: "fail" }),
+      });
+    });
+
+    // Error banner is displayed
+    const errorMsg = await screen.findByTestId("payment-error");
+    expect(errorMsg.textContent).toBe(
+      "Payment failed: The payment was declined. Please try another payment method.",
+    );
+
+    // Place order button remains enabled to allow retry
+    expect((payBtn as HTMLButtonElement).disabled).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
 });
+

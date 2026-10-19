@@ -5,10 +5,11 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `stock-reservation`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `payment-failure-path` (depends on `order-creation-on-payment`, now accepted) or `account-created-at-payment` (depends on `order-creation-on-payment`, now accepted).
+- Current feature in flight: none. `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `account-created-at-payment` or `order-confirmation-email` (both depend on `order-creation-on-payment`).
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
-- Last verified at: 2026-10-19, on `feature/stock-reservation`: `./init.sh` exit 0 (58 test files / 470 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+
 
 ## Project State
 
@@ -725,6 +726,39 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Next best step: Commit `feature/order-creation-on-payment`, push to origin, and open PR linking #32 without merging.
 
 ### Session 035
+
+- Date: 2026-10-19
+- Goal: Implement and validate `payment-failure-path` in dedicated worktree `tienda-worktrees/payment-failure-path` on branch `feature/payment-failure-path` (Issue #34).
+- Completed:
+  - Spec written: `docs/specs/payment-failure-path.md` covering 5 acceptance scenarios for failed payment, pending payment, active cart preservation, stock retention, retry to success, and UI scenario selection.
+  - Order repository (`db/order.ts`):
+    - Added `CreatePaidOrderOptions` supporting `{ provider?, scenario?, failureReason? }`.
+    - In `createPaidOrderFromCheckout`, payment is executed via `paymentProvider`. If outcome is not `payment.succeeded` (e.g. `payment.failed` or `payment.pending`), it returns `{ ok: false, reason: "payment_failed", paymentOutcome, failureReason }` before starting any database transaction, ensuring no order, payment, orderLine, or address rows are created, cart remains `"active"`, and variant stock is untouched.
+  - API Route (`app/api/checkout/pay/route.ts`):
+    - Supported driving scenario (succeed, fail, pending) via request payload or `x-payment-scenario` header.
+    - On failure, returns HTTP 400 with `{ ok: false, error: "Payment failed: The payment was declined. Please try another payment method.", code: "payment_failed", retryable: true, failureReason }`.
+    - On pending, returns HTTP 400 with `{ ok: false, error: "Payment is pending authorization. Please wait or check your account.", code: "payment_pending", retryable: false }`.
+  - Checkout UI (`app/checkout/contact-and-address-form.tsx` & `app/globals.css`):
+    - Added simulated scenario selector in Step 3 (Payment box) with options for Success, Failure (Card Declined), and Pending Authorization.
+    - Rendered failure banner with `data-testid="payment-error"`.
+    - Re-enabled "Place Order (Simulated)" button (`data-testid="place-order-button"`) on failure, allowing the shopper to retry.
+    - On retry to success, order is created, cart converts, and user is redirected to confirmation.
+  - Tests:
+    - `db/tests/payment-failure-path.test.ts`: 3 tests passing. Verifies failed payment creates no order, leaves cart active, does not change variant stock; pending payment creates no order and leaves cart active; retry with success creates paid order and converts cart.
+    - `app/api/checkout/pay/route.test.ts`: 10 tests passing. Verifies failure scenario returns error payload with retryable true; pending scenario returns pending payload with retryable false; retry to success returns redirectUrl.
+    - `app/checkout/contact-and-address-form.test.tsx`: 12 tests passing. Verifies failure error banner rendering with `data-testid="payment-error"`, re-enabled place-order-button, scenario selector, and retry to success.
+    - `app/checkout/page.test.tsx`: 10 tests passing. Verifies CheckoutPage handles payment failure, displays error banner, and allows retry.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/payment-failure-path.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `payment-failure-path` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (58 test files / 474 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /api/checkout/pay` and `ƒ /checkout`.
+- Evidence captured: `feature_list.json` → `payment-failure-path.verification`/`.evidence`; `docs/validations/payment-failure-path.md`; this log.
+- Known risk or unresolved issue: Concurrency stock reservation locking across multiple shoppers is deferred to `stock-reservation`.
+- Next best step: Commit `feature/payment-failure-path`, push to origin, and open PR linking #34 without merging.
+
+### Session 036
 
 - Date: 2026-10-19
 - Goal: Implement and validate `stock-reservation` in dedicated worktree `tienda-worktrees/stock-reservation` on branch `feature/stock-reservation` (Issue #35).
