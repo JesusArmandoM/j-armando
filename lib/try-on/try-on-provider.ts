@@ -40,11 +40,12 @@ export interface TryOnProvider {
 
 /**
  * Error kinds a caller can react to. `configuration` means the adapter is not
- * usable yet (missing base URL, model or key) and maps to HTTP 503; `provider`
- * means the upstream provider failed or returned something unusable and maps
- * to HTTP 502.
+ * usable yet (missing base URL, model or key) and maps to HTTP 503; `timeout`
+ * means the provider did not answer within the adapter's bound and maps to
+ * HTTP 504; `provider` means the upstream provider failed or returned
+ * something unusable and maps to HTTP 502.
  */
-export type TryOnProviderErrorKind = "configuration" | "provider";
+export type TryOnProviderErrorKind = "configuration" | "timeout" | "provider";
 
 /**
  * Typed error surfaced by every {@link TryOnProvider} adapter. Messages are

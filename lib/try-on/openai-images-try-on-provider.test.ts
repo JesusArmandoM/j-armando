@@ -7,6 +7,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   buildImagesEditsUrl,
   createOpenAiImagesTryOnProvider,
+  DEFAULT_TRY_ON_TIMEOUT_MS,
+  TRY_ON_TIMEOUT_MESSAGE,
 } from "./openai-images-try-on-provider.ts";
 import { TryOnProviderError } from "./try-on-provider.ts";
 import type { TryOnPhoto } from "./try-on-provider.ts";
@@ -189,7 +191,101 @@ describe("createOpenAiImagesTryOnProvider (contract, injected fetch)", () => {
 
     expect(error).toBeInstanceOf(TryOnProviderError);
     expect(error).toMatchObject({ kind: "provider" });
+    expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("The try-on provider could not be reached.");
+  });
+
+  it("passes a timeout-bounded AbortSignal to fetch and defaults the bound to 30 s", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: [{ b64_json: "AAAA" }] }));
+    const provider = createOpenAiImagesTryOnProvider({
+      apiKey: "k",
+      baseUrl: "https://gateway.test/v1",
+      model: "image-edit",
+      fetch: fetchMock,
+    });
+
+    await provider.generateTryOn({ photo, prompt: "prompt" });
+
+    const init = fetchMock.mock.calls[0][1];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    expect(init?.signal?.aborted).toBe(false);
+    expect(DEFAULT_TRY_ON_TIMEOUT_MS).toBe(30_000);
+  });
+
+  it("aborts fetch after timeoutMs and throws a timeout error with fixed copy", async () => {
+    const fetchMock = vi.fn<typeof fetch>(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+        }),
+    );
+    const provider = createOpenAiImagesTryOnProvider({
+      apiKey: "k",
+      baseUrl: "https://gateway.test/v1",
+      model: "image-edit",
+      timeoutMs: 10,
+      fetch: fetchMock,
+    });
+
+    const error = await provider
+      .generateTryOn({ photo, prompt: "prompt" })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(TryOnProviderError);
+    expect(error).toMatchObject({ kind: "timeout" });
+    expect((error as Error).message).toBe(TRY_ON_TIMEOUT_MESSAGE);
+    expect((error as Error).message).not.toContain("137");
+    expect((error as Error).message).not.toContain(photo.filename);
+  });
+
+  it("maps an aborted fetch (TimeoutError/AbortError) to the timeout kind", async () => {
+    for (const name of ["TimeoutError", "AbortError"] as const) {
+      const fetchMock = vi
+        .fn<typeof fetch>()
+        .mockRejectedValue(new DOMException("The operation was aborted.", name));
+      const provider = createOpenAiImagesTryOnProvider({
+        apiKey: "k",
+        baseUrl: "https://gateway.test/v1",
+        model: "image-edit",
+        timeoutMs: 10,
+        fetch: fetchMock,
+      });
+
+      const error = await provider
+        .generateTryOn({ photo, prompt: "prompt" })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(TryOnProviderError);
+      expect(error).toMatchObject({ kind: "timeout" });
+      expect((error as Error).message).toBe(TRY_ON_TIMEOUT_MESSAGE);
+    }
+  });
+
+  it("maps an abort while reading the response body to the timeout kind", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    } as unknown as Response);
+    const provider = createOpenAiImagesTryOnProvider({
+      apiKey: "k",
+      baseUrl: "https://gateway.test/v1",
+      model: "image-edit",
+      timeoutMs: 10,
+      fetch: fetchMock,
+    });
+
+    const error = await provider
+      .generateTryOn({ photo, prompt: "prompt" })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(TryOnProviderError);
+    expect(error).toMatchObject({ kind: "timeout", status: 200 });
+    expect((error as Error).message).toBe(TRY_ON_TIMEOUT_MESSAGE);
   });
 });
 
