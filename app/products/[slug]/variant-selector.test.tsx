@@ -58,6 +58,15 @@ describe("VariantSelector", () => {
       "Select a size and color to see availability.",
     );
     expect(screen.getByTestId("variant-live-region").getAttribute("aria-live")).toBe("polite");
+
+    // The add-to-cart control is mounted but disabled until a variant resolves.
+    expect(screen.getByTestId("add-to-cart")).toBeTruthy();
+    expect(screen.getByTestId("add-to-cart-hint").textContent).toBe(
+      "Select a size and color to add to cart.",
+    );
+    expect((screen.getByRole("button", { name: "Add to cart" }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it("updates price, stock message and URL when a base-price variant is selected", () => {
@@ -85,6 +94,12 @@ describe("VariantSelector", () => {
     expect(screen.getByRole("button", { name: "Ivory" }).getAttribute("aria-pressed")).toBe(
       "true",
     );
+
+    // A selectable variant enables the add control and clears the hint.
+    expect(screen.queryByTestId("add-to-cart-hint")).toBeNull();
+    expect(
+      (screen.getByRole("button", { name: "Add to cart" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
   });
 
   it("uses the variant price override instead of the base price", () => {
@@ -181,8 +196,12 @@ describe("VariantSelector", () => {
       "true",
     );
 
-    // Every option is keyboard focusable (no native disabled).
-    for (const button of screen.getAllByRole("button")) {
+    // Every variant option is keyboard focusable (no native disabled).
+    const optionButtons = screen
+      .getAllByRole("button")
+      .filter((button) => button.hasAttribute("data-state"));
+    expect(optionButtons.length).toBeGreaterThan(0);
+    for (const button of optionButtons) {
       expect(button.hasAttribute("disabled")).toBe(false);
     }
 
