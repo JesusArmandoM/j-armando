@@ -17,6 +17,15 @@ import {
 import { calculateSalesTax } from "@/lib/tax/sales-tax.ts";
 import type { PaymentFailureReason, PaymentProvider } from "@/payments/payment-provider.ts";
 import { createSimulatedPaymentProvider } from "@/payments/simulated-provider.ts";
+import type { PaymentScenario } from "@/payments/simulated-provider.ts";
+
+export type { PaymentScenario };
+
+export interface CreatePaidOrderOptions {
+  provider?: PaymentProvider;
+  scenario?: PaymentScenario;
+  failureReason?: PaymentFailureReason;
+}
 
 // Order repository. Orders represent immutable purchases with frozen snapshots
 // of product names, sizes, colors, and prices in integer cents.
@@ -107,7 +116,7 @@ export function generateOrderReference(): string {
 export async function createPaidOrderFromCheckout(
   db: Db,
   sessionToken: string,
-  provider?: PaymentProvider,
+  providerOrOptions?: PaymentProvider | CreatePaidOrderOptions,
 ): Promise<CreatePaidOrderResult> {
   // 1. Fetch active cart
   const [activeCart] = await db
@@ -180,7 +189,18 @@ export async function createPaidOrderFromCheckout(
   const totalCents = subtotalCents + shippingCents + taxCents;
 
   // 5. Process Payment via PaymentProvider
-  const paymentProvider = provider ?? createSimulatedPaymentProvider({ scenario: "succeed" });
+  let paymentProvider: PaymentProvider;
+  if (providerOrOptions && "createPayment" in providerOrOptions) {
+    paymentProvider = providerOrOptions;
+  } else if (providerOrOptions && "provider" in providerOrOptions && providerOrOptions.provider) {
+    paymentProvider = providerOrOptions.provider;
+  } else {
+    const scenario = (providerOrOptions as CreatePaidOrderOptions | undefined)?.scenario ?? "succeed";
+    const failureReason =
+      (providerOrOptions as CreatePaidOrderOptions | undefined)?.failureReason ?? "card_declined";
+    paymentProvider = createSimulatedPaymentProvider({ scenario, failureReason });
+  }
+
   const paymentAttempt = await paymentProvider.createPayment({
     reference: `checkout_${activeCart.id}`,
     amountCents: totalCents,

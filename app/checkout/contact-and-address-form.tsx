@@ -69,6 +69,7 @@ export function ContactAndAddressForm({
   const [isEditing, setIsEditing] = useState<boolean>(!initialSession);
   const [isPaying, setIsPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [simulatedScenario, setSimulatedScenario] = useState<"succeed" | "fail" | "pending">("succeed");
 
   // Form field state
   const [email, setEmail] = useState(savedSession?.email ?? "");
@@ -174,19 +175,22 @@ export function ContactAndAddressForm({
     (subtotalCents ?? 0) + selectedShippingCost + (taxCalculation?.taxCents ?? 0);
   const effectiveTotalCents = totalCents ?? clientTotalCents;
 
-  async function handlePay() {
+  async function handlePay(scenarioToUse?: "succeed" | "fail" | "pending") {
     setPaymentError(null);
     setIsPaying(true);
+
+    const scenario = scenarioToUse ?? simulatedScenario;
 
     try {
       const response = await fetch("/api/checkout/pay", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scenario }),
       });
 
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
+      if (!response.ok || !data.ok) {
         setPaymentError(
           data?.error || "Payment simulation failed. Please try again.",
         );
@@ -206,6 +210,7 @@ export function ContactAndAddressForm({
       setIsPaying(false);
     }
   }
+
 
   return (
     <div className="checkout-flow" data-testid="checkout-flow">
@@ -562,6 +567,50 @@ export function ContactAndAddressForm({
                 </p>
               ) : null}
 
+              <div
+                className="checkout-payment-box__scenarios"
+                data-testid="simulated-scenario-group"
+              >
+                <p className="checkout-payment-box__scenarios-title">
+                  Simulate Payment Outcome:
+                </p>
+                <div className="checkout-payment-box__scenario-options">
+                  <label className="checkout-payment-box__scenario-option">
+                    <input
+                      type="radio"
+                      name="simulated-payment-scenario"
+                      value="succeed"
+                      checked={simulatedScenario === "succeed"}
+                      onChange={() => setSimulatedScenario("succeed")}
+                      data-testid="scenario-succeed"
+                    />
+                    <span>Success (Approved)</span>
+                  </label>
+                  <label className="checkout-payment-box__scenario-option">
+                    <input
+                      type="radio"
+                      name="simulated-payment-scenario"
+                      value="fail"
+                      checked={simulatedScenario === "fail"}
+                      onChange={() => setSimulatedScenario("fail")}
+                      data-testid="scenario-fail"
+                    />
+                    <span>Failure (Card Declined)</span>
+                  </label>
+                  <label className="checkout-payment-box__scenario-option">
+                    <input
+                      type="radio"
+                      name="simulated-payment-scenario"
+                      value="pending"
+                      checked={simulatedScenario === "pending"}
+                      onChange={() => setSimulatedScenario("pending")}
+                      data-testid="scenario-pending"
+                    />
+                    <span>Pending Authorization</span>
+                  </label>
+                </div>
+              </div>
+
               {paymentError ? (
                 <p
                   className="checkout-form__error checkout-form__error--banner"
@@ -576,7 +625,7 @@ export function ContactAndAddressForm({
                 <button
                   type="button"
                   className="checkout-form__submit-btn checkout-payment-box__pay-btn"
-                  onClick={handlePay}
+                  onClick={() => handlePay()}
                   disabled={isPaying}
                   data-testid="place-order-button"
                 >

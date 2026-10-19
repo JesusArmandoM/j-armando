@@ -100,7 +100,7 @@ describe("POST /api/checkout/pay", () => {
     expect(body.error).toContain("select a shipping method");
   });
 
-  it("returns 400 when payment provider fails", async () => {
+  it("returns 400 with retryable error payload when payment provider fails", async () => {
     cookieState.value = "test-session";
     createPaidOrderFromCheckoutMock.mockResolvedValueOnce({
       ok: false,
@@ -114,8 +114,127 @@ describe("POST /api/checkout/pay", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
 
     const body = await response.json();
-    expect(body.error).toContain("Payment simulation failed");
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe(
+      "Payment failed: The payment was declined. Please try another payment method.",
+    );
+    expect(body.code).toBe("payment_failed");
+    expect(body.retryable).toBe(true);
     expect(body.failureReason).toBe("card_declined");
+  });
+
+  it("drives payment scenario 'fail' with failureReason from request body", async () => {
+    cookieState.value = "test-session";
+    createPaidOrderFromCheckoutMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "payment_failed",
+      paymentOutcome: "payment.failed",
+      failureReason: "insufficient_funds",
+    });
+
+    const request = new Request("http://localhost/api/checkout/pay", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scenario: "fail", failureReason: "insufficient_funds" }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+
+    expect(createPaidOrderFromCheckoutMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "test-session",
+      { scenario: "fail", failureReason: "insufficient_funds" },
+    );
+
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe(
+      "Payment failed: Insufficient funds. Please try another payment method.",
+    );
+    expect(body.code).toBe("payment_failed");
+    expect(body.retryable).toBe(true);
+    expect(body.failureReason).toBe("insufficient_funds");
+  });
+
+  it("drives payment scenario 'pending' via request header and returns non-retryable pending response", async () => {
+    cookieState.value = "test-session";
+    createPaidOrderFromCheckoutMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "payment_failed",
+      paymentOutcome: "payment.pending",
+    });
+
+    const request = new Request("http://localhost/api/checkout/pay", {
+      method: "POST",
+      headers: { "x-payment-scenario": "pending" },
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+
+    expect(createPaidOrderFromCheckoutMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "test-session",
+      { scenario: "pending", failureReason: "card_declined" },
+    );
+
+    const body = await response.json();
+    expect(body.ok).toBe(false);
+    expect(body.error).toBe(
+      "Payment is pending authorization. Please wait or check your account.",
+    );
+    expect(body.code).toBe("payment_pending");
+    expect(body.retryable).toBe(false);
+  });
+
+  it("supports retrying after failure and returns 200 with redirectUrl on success", async () => {
+    cookieState.value = "test-session";
+    // First attempt: failure
+    createPaidOrderFromCheckoutMock.mockResolvedValueOnce({
+      ok: false,
+      reason: "payment_failed",
+      paymentOutcome: "payment.failed",
+      failureReason: "card_declined",
+    });
+
+    const failReq = new Request("http://localhost/api/checkout/pay", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scenario: "fail" }),
+    });
+
+    const failResponse = await POST(failReq);
+    expect(failResponse.status).toBe(400);
+    const failBody = await failResponse.json();
+    expect(failBody.retryable).toBe(true);
+
+    // Second attempt: retry with success
+    createPaidOrderFromCheckoutMock.mockResolvedValueOnce({
+      ok: true,
+      order: {
+        id: "order-retry-1",
+        reference: "JA-112233",
+        totalCents: 24900,
+        contactEmail: "shopper@example.com",
+      },
+    });
+
+    const retryReq = new Request("http://localhost/api/checkout/pay", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scenario: "succeed" }),
+    });
+
+    const retryResponse = await POST(retryReq);
+    expect(retryResponse.status).toBe(200);
+
+    const retryBody = await retryResponse.json();
+    expect(retryBody.ok).toBe(true);
+    expect(retryBody.reference).toBe("JA-112233");
+    expect(retryBody.redirectUrl).toBe("/checkout/confirmation/JA-112233");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cart");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/checkout");
   });
 
   it("returns 200 with redirectUrl and revalidates paths on payment success", async () => {

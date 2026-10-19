@@ -351,6 +351,7 @@ describe("ContactAndAddressForm", () => {
       expect(fetchMock).toHaveBeenCalledWith("/api/checkout/pay", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scenario: "succeed" }),
       });
       expect(pushMock).toHaveBeenCalledWith("/checkout/confirmation/JA-998877");
     });
@@ -394,6 +395,131 @@ describe("ContactAndAddressForm", () => {
     const errorMsg = await screen.findByTestId("payment-error");
     expect(errorMsg.textContent).toBe("Card declined by simulated provider.");
     expect((payBtn as HTMLButtonElement).disabled).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("allows selecting simulated failure scenario and displays failure error with enabled retry", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        ok: false,
+        error: "Payment failed: The payment was declined. Please try another payment method.",
+        code: "payment_failed",
+        retryable: true,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const sessionWithShipping: CheckoutSessionData = {
+      ...mockSession,
+      shippingMethodId: "standard-id",
+      shippingMethod: {
+        id: "standard-id",
+        slug: "standard",
+        name: "Standard Shipping",
+        description: "Free standard shipping",
+        costCents: 0,
+        deliveryEstimate: "3-5 business days",
+      },
+    };
+
+    render(
+      <ContactAndAddressForm
+        initialSession={sessionWithShipping}
+        subtotalCents={24900}
+        totalCents={26892}
+      />,
+    );
+
+    // Select fail scenario
+    const failRadio = screen.getByTestId("scenario-fail");
+    fireEvent.click(failRadio);
+    expect((failRadio as HTMLInputElement).checked).toBe(true);
+
+    const payBtn = screen.getByTestId("place-order-button");
+    fireEvent.click(payBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/checkout/pay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scenario: "fail" }),
+      });
+    });
+
+    const errorMsg = await screen.findByTestId("payment-error");
+    expect(errorMsg.textContent).toBe(
+      "Payment failed: The payment was declined. Please try another payment method.",
+    );
+    expect((payBtn as HTMLButtonElement).disabled).toBe(false);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("allows retrying payment after failure and redirects on success", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          ok: false,
+          error: "Payment failed: The payment was declined. Please try another payment method.",
+          code: "payment_failed",
+          retryable: true,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          reference: "JA-554433",
+          redirectUrl: "/checkout/confirmation/JA-554433",
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const sessionWithShipping: CheckoutSessionData = {
+      ...mockSession,
+      shippingMethodId: "standard-id",
+      shippingMethod: {
+        id: "standard-id",
+        slug: "standard",
+        name: "Standard Shipping",
+        description: "Free standard shipping",
+        costCents: 0,
+        deliveryEstimate: "3-5 business days",
+      },
+    };
+
+    render(
+      <ContactAndAddressForm
+        initialSession={sessionWithShipping}
+        subtotalCents={24900}
+        totalCents={26892}
+      />,
+    );
+
+    // Initial attempt: fail
+    const failRadio = screen.getByTestId("scenario-fail");
+    fireEvent.click(failRadio);
+
+    const payBtn = screen.getByTestId("place-order-button");
+    fireEvent.click(payBtn);
+
+    const errorMsg = await screen.findByTestId("payment-error");
+    expect(errorMsg.textContent).toContain("Payment failed");
+    expect((payBtn as HTMLButtonElement).disabled).toBe(false);
+
+    // Switch scenario to succeed and retry
+    const succeedRadio = screen.getByTestId("scenario-succeed");
+    fireEvent.click(succeedRadio);
+    fireEvent.click(payBtn);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(pushMock).toHaveBeenCalledWith("/checkout/confirmation/JA-554433");
+    });
 
     vi.unstubAllGlobals();
   });
