@@ -13,7 +13,7 @@
 
 Make the storefront assistant safe to ship: it must never state a shipping cost, return policy, price or other store fact that is not backed by a verified source. Policies come from a repo-owned, versioned knowledge module (`lib/chat/guardrails/store-knowledge.ts`); prices come from the catalog database, published products only, formatted from integer cents. Anything the store has not published is answered with an explicit "I don't know", and clearly out-of-scope requests are declined without generating content.
 
-The guarantee is **deterministic, not prompt-only**: policy, price and out-of-scope questions are routed by a guardrail decorator before the LLM is called. The LLM is only used for in-scope product/sizing/fabric/care conversation, with verified facts injected into its context and a post-generation check that discards fabricated dollar amounts.
+The guarantee is **deterministic, not prompt-only**: policy, price, explicit sizing/product-info and out-of-scope questions are routed by a guardrail decorator before the LLM is called. The LLM is only used for open-ended in-scope conversation, with verified facts injected into its context and a post-generation check that discards fabricated dollar amounts. (The 2026-10-19 follow-up note below extends deterministic routing to generic category, sizing and explicit product-info asks.)
 
 ### Resolved decision (owns blocking open question #4)
 
@@ -87,7 +87,7 @@ And the LLM is not called.
 
 ### Scenario 6: In-scope questions still work and are grounded
 
-Given the shopper asks a product, sizing, fabric or care question that is not a policy/price ask
+Given the shopper asks an open-ended product question that is not a policy/price ask and is not an explicit sizing, style/material/care or availability ask (those are deterministic per the follow-up note)
 When the guardrail delegates to the configured assistant
 Then the assistant receives the conversation plus a `verifiedFacts` context containing only knowledge facts and matched published product facts
 And the reply is returned unchanged unless `guardLlmAnswer` finds an unverified dollar amount.
@@ -321,6 +321,41 @@ These are known limits of the deterministic guard. They are recorded rather than
 - **F4 — the post-generation guard only inspects dollar amounts.** An in-scope answer can still volunteer unverified non-price policy prose (for example "shipping is free") because `guardLlmAnswer` does not rewrite non-price claims. Policy questions are intercepted before the LLM, and the provider is instructed not to volunteer policies, but that part is mitigation rather than a deterministic guarantee. The guard discards unverified dollar amounts; it does not validate prose.
 - **Guard behaviour is discard-only.** Any reply containing an unverified amount is replaced wholesale by `UNVERIFIED_PRICE_REPLY`; the guard never rewrites a price. Amounts are matched as exact normalized strings (`$` spacing and thousands separators normalized), so `$349.00` is accepted only when that exact amount appears in a verified fact, and `$3`, `$34`, `$349` or `$349.0` are rejected even when `$349.00` is allowed.
 - **Live-provider prose quality is sampled, not guaranteed.** The optional live transcript covers four deterministic questions plus one in-scope question; ongoing provider wording is outside the automated gate.
+
+## Follow-up implementation note (2026-10-19): catalog-grounded generic product questions
+
+Live use after acceptance exposed three gaps: generic "coat" questions did not match the
+published overcoat (the matcher was name/slug-only), the chat facts omitted category and variants
+so sizing could not be answered, and the generic verb "offer" made "Do you offer free shipping?"
+append the promotions unknown. The feature remains accepted; this follow-up keeps the same
+verified-source principle and adds deterministic catalog grounding.
+
+- `ProductFact` now carries `categorySlug`, `categoryName` and non-discontinued `variants`
+  (`size`, `color`, `stockQty`). `listPublishedProductFacts` joins category and variants, remains
+  published-only and needs no migration.
+- `matchProducts` uses curated category synonyms (`coat/coats`, `overcoat`, `outerwear`,
+  `blazer/sport coat`, `dress`, `sweater/knitwear`, `shirt`, `trousers/pants`). Multi-word
+  synonyms outrank broad ones; a specific product mention still outranks its category.
+  Ambiguous `jacket`/`gown` synonyms are excluded because they collide with the draft
+  `Cropped Tweed Jacket` and archived `Satin Evening Gown`. Material-only asks still do not match.
+- `hasSizingIntent` routes to `composeProductSizingAnswer`, built from published variants: sizes,
+  colors and in-stock/out-of-stock pairs, followed by `NO_SIZE_CHART_REPLY` because the catalog has
+  no body measurements or size chart. No measurement is invented.
+- `hasProductInfoIntent` routes explicit style/material/care/details/availability asks to
+  `composeProductInfoAnswer`, built from the published description, composition, care, sizes,
+  colors and base price. Open-ended in-scope asks still delegate to the LLM with expanded
+  `verifiedFacts`.
+- `formatProductGroundingFact` now includes category, available sizes/colors and in-stock pairs.
+- Shipping/promotions precedence: when shipping-cost matches, promotions are suppressed if the
+  only trigger is the generic verb "offer"; explicit promo/discount/coupon/sale words keep them.
+- Tests: focused chat suites 7 files / 71 tests; `./init.sh` 35 files / 261 tests. New coverage
+  includes category matching, specific-over-category ranking, material-only no-match, variant
+  grounding, deterministic sizing/product-info, the generic no-size-chart fallback, discontinued
+  variants excluded from chat facts, and shipping/promotions routing.
+- Residual: no body measurements/size chart are published, so fit guidance is limited to available
+  sizes/stock plus a referral to the store; adding measurements is a content decision. Category
+  synonyms are curated and must be reviewed when categories/products (especially unpublished
+  names) change. F3/F4 above remain unchanged.
 
 ## Validator Checklist
 

@@ -3,6 +3,13 @@
 // products can never be matched or disclosed. Matching is intentionally
 // conservative: no fuzzy edit-distance guessing (see the spec's edge cases).
 
+export interface ProductFactVariant {
+  size: string;
+  color: string;
+  /** Non-negative units currently in stock for this size/color. */
+  stockQty: number;
+}
+
 export interface ProductFact {
   slug: string;
   name: string;
@@ -12,6 +19,27 @@ export interface ProductFact {
   /** Tax-exclusive base price in integer cents. */
   basePriceCents: number;
   currency: string;
+  categorySlug: string;
+  categoryName: string;
+  /** Non-discontinued variants only; empty when the product has none. */
+  variants: readonly ProductFactVariant[];
+}
+
+/**
+ * Shopper words that refer to a published category rather than a product name.
+ * Only unambiguous garment nouns live here; material words never do.
+ */
+const CATEGORY_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
+  coats: ["coat", "coats", "overcoat", "overcoats", "outerwear"],
+  blazers: ["blazer", "blazers", "sport coat", "sport coats"],
+  dresses: ["dress", "dresses"],
+  knitwear: ["sweater", "sweaters", "knitwear", "jumper", "jumpers", "pullover", "pullovers"],
+  shirts: ["shirt", "shirts", "button down", "button up"],
+  trousers: ["trouser", "trousers", "pants", "slacks"],
+};
+
+function hasPhrase(text: string, phrase: string): boolean {
+  return ` ${text} `.includes(` ${normalize(phrase)} `);
 }
 
 /** Material words say little about which garment is meant; ignore them when ranking. */
@@ -77,6 +105,17 @@ export function matchProducts(
     let score = tokens.filter((token) => messageTokens.has(token)).length;
     if (text.includes(normalize(fact.name))) {
       score += 1;
+    }
+
+    // A category word ("coat") finds every published product in that category,
+    // but ranks below a specific product mention so "the overcoat" still wins
+    // when several coats share the category.
+    const synonyms = CATEGORY_SYNONYMS[fact.categorySlug] ?? [];
+    const matchedSynonyms = synonyms.filter((phrase) => hasPhrase(text, phrase));
+    if (matchedSynonyms.length > 0) {
+      // A multi-word synonym ("sport coat") is more specific than "coat", so it
+      // outranks the broader category word instead of tying with it.
+      score += Math.max(...matchedSynonyms.map((phrase) => phrase.split(" ").length));
     }
     if (score === 0) continue;
 

@@ -35,6 +35,22 @@ export function hasPriceIntent(message: string): boolean {
   return PRICE_INTENT.test(normalizeMessage(message)) || /\$\s?\d/.test(message);
 }
 
+const SIZING_INTENT =
+  /\b(size|sizes|sizing|fit|fits|fitting|measurement|measurements|measure|true to size|size chart|size guide)\b/;
+
+/** True when the shopper asks about sizing, fit or measurements. */
+export function hasSizingIntent(message: string): boolean {
+  return SIZING_INTENT.test(normalizeMessage(message));
+}
+
+const PRODUCT_INFO_INTENT =
+  /\b(made of|material|materials|fabric|composition|care|wash|clean|dry clean|describe|detail|details|tell me about|style|styles|design|color|colors|available|what do you have|looking for)\b/;
+
+/** True when the shopper asks about a product's style, fabric, care or availability. */
+export function hasProductInfoIntent(message: string): boolean {
+  return PRODUCT_INFO_INTENT.test(normalizeMessage(message));
+}
+
 const OUT_OF_SCOPE_PATTERNS: readonly RegExp[] = [
   // Prompt injection / attempts to reveal configuration.
   /\b(ignore (all |your |the )?(previous |prior )?instructions|system prompt|developer prompt|hidden prompt|reveal (your |the )?(prompt|instructions|key)|your (api|secret) key|api key|secret key|jailbreak|developer mode|you are now)\b/,

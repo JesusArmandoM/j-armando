@@ -10,6 +10,9 @@ function product(overrides: Partial<ProductFact> & Pick<ProductFact, "slug" | "n
     care: "Care",
     basePriceCents: 10000,
     currency: "USD",
+    categorySlug: "coats",
+    categoryName: "Coats",
+    variants: [{ size: "M", color: "Black", stockQty: 5 }],
     ...overrides,
   };
 }
@@ -18,16 +21,25 @@ const overcoat = product({
   slug: "longline-wool-overcoat",
   name: "Longline Wool Overcoat",
   basePriceCents: 34900,
+  variants: [
+    { size: "S", color: "Camel", stockQty: 0 },
+    { size: "M", color: "Camel", stockQty: 14 },
+    { size: "L", color: "Charcoal", stockQty: 6 },
+  ],
 });
 const blazer = product({
   slug: "double-breasted-linen-blazer",
   name: "Double-Breasted Linen Blazer",
   basePriceCents: 24900,
+  categorySlug: "blazers",
+  categoryName: "Blazers",
 });
 const sweater = product({
   slug: "merino-crewneck-sweater",
   name: "Merino Crewneck Sweater",
   basePriceCents: 12900,
+  categorySlug: "knitwear",
+  categoryName: "Knitwear",
 });
 const catalog = [overcoat, blazer, sweater];
 
@@ -46,19 +58,47 @@ describe("matchProducts", () => {
     expect(matchProducts("Tell me about the crewneck.", catalog)).toEqual([sweater]);
   });
 
-  it("does not guess from a generic garment or material word", () => {
-    expect(matchProducts("How much is the coat?", catalog)).toEqual([]);
+  it("matches a generic garment category to its published product", () => {
+    expect(matchProducts("How much is the coat?", catalog)).toEqual([overcoat]);
+    expect(matchProducts("Tell me about coats.", catalog)).toEqual([overcoat]);
+    expect(matchProducts("Do you have sweaters?", catalog)).toEqual([sweater]);
+    expect(matchProducts("I'm looking for a sport coat.", catalog)).toEqual([blazer]);
+    expect(matchProducts("I'm looking for trousers.", catalog)).toEqual([]);
+  });
+
+  it("does not guess from a material word alone", () => {
     expect(matchProducts("How much is the wool item?", catalog)).toEqual([]);
     expect(matchProducts("Is it wool?", catalog)).toEqual([]);
   });
 
+  it("lets a specific product mention outrank its category", () => {
+    const shortCoat = product({
+      slug: "short-wool-coat",
+      name: "Short Wool Coat",
+      categorySlug: "coats",
+      categoryName: "Coats",
+    });
+    expect(matchProducts("Tell me about the overcoat.", [shortCoat, overcoat])).toEqual([
+      overcoat,
+    ]);
+  });
+
   it("returns all ties when several products match equally", () => {
-    const shirtA = product({ slug: "cotton-poplin-shirt", name: "Cotton Poplin Shirt" });
-    const shirtB = product({ slug: "linen-camp-shirt", name: "Linen Camp Shirt" });
+    const shirtA = product({
+      slug: "cotton-poplin-shirt",
+      name: "Cotton Poplin Shirt",
+      categorySlug: "shirts",
+      categoryName: "Shirts",
+    });
+    const shirtB = product({
+      slug: "linen-camp-shirt",
+      name: "Linen Camp Shirt",
+      categorySlug: "shirts",
+      categoryName: "Shirts",
+    });
     const result = matchProducts("How much are the shirts?", [shirtA, shirtB, overcoat]);
 
-    // "shirts" does not match the singular token "shirt": no fuzzy guessing.
-    expect(result).toEqual([]);
+    expect(result).toEqual([shirtA, shirtB]);
     expect(matchProducts("Which shirt is it?", [shirtA, shirtB, overcoat])).toEqual([
       shirtA,
       shirtB,

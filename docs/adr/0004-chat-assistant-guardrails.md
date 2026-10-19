@@ -46,3 +46,35 @@ behind repo-owned ports.
 - When shipping/returns are decided, update `store-knowledge.ts` and its tests only.
 - `ChatAssistant.answer` gains an optional grounding context; deterministic answers need no key.
 - The gate remains offline/key-free; a live transcript is optional evidence.
+
+## Amendment (2026-10-19) — catalog-grounded generic product questions
+
+Live use after acceptance showed that generic garment questions ("What coat styles and materials
+do you have?") reached the LLM with no catalog facts and produced "I don't have the catalog"
+replies. Sizing questions could not be answered because the chat facts omitted variants, and
+"Do you offer free shipping?" appended an unrelated promotions unknown because "offer" was a
+promotions trigger. The principle above is unchanged: verified sources only, deterministic where
+the answer is a fact. The verified source now covers more published catalog fields.
+
+1. `listPublishedProductFacts` joins the published product's category and non-discontinued
+   variants, returning `categorySlug`, `categoryName`, and `{ size, color, stockQty }` variants
+   alongside composition, care and the integer-cent base price. Still published-only; no migration.
+2. `matchProducts` gains curated category synonyms (`coat/coats`, `overcoat`, `outerwear`,
+   `blazer/sport coat`, `dress`, `sweater/knitwear`, `shirt`, `trousers/pants`). Multi-word
+   synonyms outrank broad ones, and a specific product mention still outranks its category.
+   Ambiguous `jacket`/`gown` synonyms are deliberately excluded because they collide with the
+   draft `Cropped Tweed Jacket` and archived `Satin Evening Gown`; material-only asks still do not
+   match.
+3. Explicit sizing/fit questions are answered deterministically from published variants, including
+   in-stock/out-of-stock size/color pairs. No size chart or body measurements exist in the catalog,
+   so the reply says they are not published and points to the product page/store; measurements are
+   never invented.
+4. Explicit style/material/care/details/availability questions are answered deterministically from
+   the published fact sheet (description, composition, care, sizes, colors, base price). Open-ended
+   in-scope conversation still reaches the LLM, now with category/variant facts in `verifiedFacts`.
+5. When shipping-cost matches, the promotions unknown is suppressed if the only trigger is the
+   generic verb "offer"; explicit promo/discount/coupon/sale words still include promotions.
+
+Consequences: the deterministic surface is larger and must stay catalog-grounded; the gate grows
+to 261 tests. Adding a real size chart/measurements is a merchandising content decision, not a
+guardrail change. Category synonyms need review when new categories or products are added.

@@ -177,5 +177,12 @@ export function findFactsFor(
   // asks about shipping cost. When the shipping-cost unknown also matches, it
   // wins: a market statement never answers a rate question.
   if (matched.has("shipping-cost")) matched.delete("market");
+  // "offer" is also a generic verb ("Do you offer free shipping?"). Keep the
+  // promotions unknown only when the shopper actually names a promotion.
+  if (matched.has("shipping-cost") && matched.has("promotions")) {
+    if (!/\b(promo|promotion|promotions|discount|discounts|coupon|coupons|sale)\b/.test(text)) {
+      matched.delete("promotions");
+    }
+  }
   return [...matched.values()];
 }

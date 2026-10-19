@@ -10,7 +10,9 @@
 import type { ChatAnswer, ChatAssistant, ChatMessage } from "./chat-assistant.ts";
 import {
   CANNOT_CONFIRM_PRICE_REPLY,
+  composeProductInfoAnswer,
   composeProductPriceAnswer,
+  composeProductSizingAnswer,
   composePriceWithFactsAnswer,
   composeVerifiedFactsAnswer,
   formatProductGroundingFact,
@@ -19,6 +21,8 @@ import { guardLlmAnswer } from "./guardrails/answer-guard.ts";
 import {
   OUT_OF_SCOPE_REPLY,
   hasPriceIntent,
+  hasProductInfoIntent,
+  hasSizingIntent,
   isOutOfScope,
   matchPolicyTopics,
 } from "./guardrails/intents.ts";
@@ -120,6 +124,24 @@ export function createGuardedChatAssistant(
       // Clearly unrelated requests: fixed refusal, no generated content.
       if (isOutOfScope(latest)) {
         return { content: OUT_OF_SCOPE_REPLY };
+      }
+
+      // Sizing/fit: answer from published variants, never from the LLM.
+      if (hasSizingIntent(latest)) {
+        const products = await readPublishedProducts();
+        const matched =
+          products === null ? [] : matchWithAntecedent(messages, products);
+        return { content: composeProductSizingAnswer(matched) };
+      }
+
+      // Style/fabric/care/availability: answer from published product facts.
+      if (hasProductInfoIntent(latest)) {
+        const products = await readPublishedProducts();
+        const matched =
+          products === null ? [] : matchWithAntecedent(messages, products);
+        if (matched.length > 0) {
+          return { content: composeProductInfoAnswer(matched) };
+        }
       }
 
       // In-scope conversation: ground the provider with verified facts only.

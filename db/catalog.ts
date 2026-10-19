@@ -446,14 +446,16 @@ export async function getPublishedProductBySlug(
 }
 
 /**
- * Lean published-only catalog reader used to ground chat answers. Returns
- * exactly the fields the guardrail needs (price in integer cents, USD,
- * tax-exclusive) and never exposes draft or archived products. One round trip,
- * no joins, no user input in the query.
+ * Published-only catalog reader used to ground chat answers. Returns exactly
+ * the fields the guardrail needs (integer-cent price, category, composition,
+ * care and non-discontinued size/color/stock variants) and never exposes draft
+ * or archived products. Two parameterless queries (products + category, then
+ * variants); no user input is interpolated into SQL.
  */
 export async function listPublishedProductFacts(db: Db): Promise<ProductFact[]> {
-  return db
+  const rows = await db
     .select({
+      productId: product.id,
       slug: product.slug,
       name: product.name,
       description: product.description,
@@ -461,9 +463,56 @@ export async function listPublishedProductFacts(db: Db): Promise<ProductFact[]> 
       care: product.care,
       basePriceCents: product.basePriceCents,
       currency: product.currency,
+      categorySlug: category.slug,
+      categoryName: category.name,
     })
     .from(product)
+    .innerJoin(category, eq(product.categoryId, category.id))
     .where(eq(product.status, "published"))
     .orderBy(asc(product.name));
+
+  if (rows.length === 0) return [];
+
+  const variantRows = await db
+    .select({
+      productId: variant.productId,
+      size: variant.size,
+      color: variant.color,
+      stockQty: variant.stockQty,
+    })
+    .from(variant)
+    .where(
+      and(
+        inArray(
+          variant.productId,
+          rows.map((row) => row.productId),
+        ),
+        eq(variant.discontinued, false),
+      ),
+    )
+    .orderBy(asc(variant.size), asc(variant.color));
+
+  const variantsByProduct = new Map<
+    string,
+    { size: string; color: string; stockQty: number }[]
+  >();
+  for (const row of variantRows) {
+    const list = variantsByProduct.get(row.productId) ?? [];
+    list.push({ size: row.size, color: row.color, stockQty: row.stockQty });
+    variantsByProduct.set(row.productId, list);
+  }
+
+  return rows.map((row) => ({
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    composition: row.composition,
+    care: row.care,
+    basePriceCents: row.basePriceCents,
+    currency: row.currency,
+    categorySlug: row.categorySlug,
+    categoryName: row.categoryName,
+    variants: variantsByProduct.get(row.productId) ?? [],
+  }));
 }
 

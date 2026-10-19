@@ -70,6 +70,10 @@ describe("STORE_KNOWLEDGE", () => {
       "payment-methods",
     ]);
     expect(findFactsFor("Do you have any promo codes?").map((f) => f.id)).toEqual(["promotions"]);
+    expect(findFactsFor("Do you offer free shipping?").map((f) => f.id)).toEqual([
+      "shipping-cost",
+    ]);
+    expect(findFactsFor("Do you have any offers?").map((f) => f.id)).toEqual(["promotions"]);
     expect(findFactsFor("Is tax included?").map((f) => f.id)).toEqual(["tax-display"]);
     expect(findFactsFor("Where do you ship?").map((f) => f.id)).toEqual(["market"]);
   });

@@ -5,6 +5,7 @@ import type { ChatAssistant } from "./chat-assistant.ts";
 import { createGuardedChatAssistant } from "./guarded-chat-assistant.ts";
 import {
   CANNOT_CONFIRM_PRICE_REPLY,
+  NO_SIZE_CHART_REPLY,
   NO_VERIFIED_PRICE_REPLY,
   UNVERIFIED_PRICE_REPLY,
 } from "./guardrails/answer.ts";
@@ -20,6 +21,13 @@ const overcoat: ProductFact = {
   care: "Dry clean only. Steam to refresh.",
   basePriceCents: 34900,
   currency: "USD",
+  categorySlug: "coats",
+  categoryName: "Coats",
+  variants: [
+    { size: "S", color: "Camel", stockQty: 0 },
+    { size: "M", color: "Camel", stockQty: 14 },
+    { size: "L", color: "Charcoal", stockQty: 6 },
+  ],
 };
 
 const blazer: ProductFact = {
@@ -28,6 +36,9 @@ const blazer: ProductFact = {
   name: "Double-Breasted Linen Blazer",
   composition: "Shell: 100% linen.",
   basePriceCents: 24900,
+  categorySlug: "blazers",
+  categoryName: "Blazers",
+  variants: [{ size: "M", color: "Navy", stockQty: 3 }],
 };
 
 const sweater: ProductFact = {
@@ -36,6 +47,9 @@ const sweater: ProductFact = {
   name: "Merino Crewneck Sweater",
   composition: "100% extra-fine merino wool.",
   basePriceCents: 12900,
+  categorySlug: "knitwear",
+  categoryName: "Knitwear",
+  variants: [{ size: "M", color: "Cream", stockQty: 8 }],
 };
 
 // Only published products are ever exposed to the decorator.
@@ -157,15 +171,20 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
     const { answer, factory } = fakeAssistant("The overcoat is a soft wool blend.");
     const assistant = build(factory, fakeCatalog());
 
-    const reply = await assistant.answer(ask("What is the Longline Wool Overcoat made of?"));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(answer).toHaveBeenCalledTimes(1);
     const [messages, context] = answer.mock.calls[0];
-    expect(messages).toEqual(ask("What is the Longline Wool Overcoat made of?"));
+    expect(messages).toEqual(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
     expect(context?.instructions).toBeTruthy();
     expect(context?.verifiedFacts?.some((line) => line.includes("$349.00"))).toBe(true);
     expect(context?.verifiedFacts?.some((line) => line.includes("70% wool"))).toBe(true);
+    expect(context?.verifiedFacts?.some((line) => line.includes("Available sizes"))).toBe(true);
     expect(reply.content).toBe("The overcoat is a soft wool blend.");
   });
 
@@ -173,7 +192,9 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
     const { factory } = fakeAssistant("It costs $999.00.");
     const assistant = build(factory, fakeCatalog());
 
-    const reply = await assistant.answer(ask("Tell me about the Longline Wool Overcoat."));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(reply.content).toBe(UNVERIFIED_PRICE_REPLY);
@@ -185,7 +206,9 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
     const { factory } = fakeAssistant("It costs $3 more for express shipping.");
     const assistant = build(factory, fakeCatalog());
 
-    const reply = await assistant.answer(ask("Tell me about the Longline Wool Overcoat."));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(reply.content).toBe(UNVERIFIED_PRICE_REPLY);
@@ -228,12 +251,55 @@ describe("GuardedChatAssistant (edges)", () => {
       "Do you ship free?",
       "Do you ship free over $100?",
       "What are your shipping rates?",
+      "Do you offer free shipping?",
     ]) {
       const answer = await assistant.answer(ask(question));
       expect(answer.content).toBe(fact("shipping-cost"));
       expect(answer.content).not.toContain("$");
       expect(answer.content).not.toMatch(/free|express|100/i);
     }
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("answers a generic coat sizing question from published variants without the LLM", async () => {
+    const { factory } = fakeAssistant("Sizes run true to measure.");
+    const assistant = build(factory, fakeCatalog());
+
+    const answer = await assistant.answer(ask("What sizes does the coat come in?"));
+
+    expect(answer.content).toContain("The Longline Wool Overcoat");
+    expect(answer.content).toContain("sizes S, M, L");
+    expect(answer.content).toContain("colors Camel, Charcoal");
+    expect(answer.content).toContain("In stock: M in Camel, L in Charcoal.");
+    expect(answer.content).toContain("Currently out of stock: S in Camel.");
+    expect(answer.content).toContain("body measurements");
+    expect(answer.content).not.toContain("$");
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("answers a generic coat style/material question from published facts without the LLM", async () => {
+    const { factory } = fakeAssistant("I don't have the coat catalog.");
+    const assistant = build(factory, fakeCatalog());
+
+    const answer = await assistant.answer(
+      ask("What styles and materials do you have for coats?"),
+    );
+
+    expect(answer.content).toContain("The Longline Wool Overcoat (Coats)");
+    expect(answer.content).toContain("Composition: Shell: 70% wool");
+    expect(answer.content).toContain("Available sizes: S, M, L");
+    expect(answer.content).toContain("Available colors: Camel, Charcoal");
+    expect(answer.content).toContain("$349.00");
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the generic size guide when no product matches", async () => {
+    const { factory } = fakeAssistant("Sizes run true to measure.");
+    const assistant = build(factory, fakeCatalog());
+
+    const answer = await assistant.answer(ask("How does sizing run?"));
+
+    expect(answer.content).toBe(NO_SIZE_CHART_REPLY);
     expect(factory).not.toHaveBeenCalled();
   });
 
@@ -286,7 +352,9 @@ describe("GuardedChatAssistant (edges)", () => {
     const { answer, factory } = fakeAssistant("Sizes run true to measure.");
     const assistant = build(factory, rejectingCatalog());
 
-    const reply = await assistant.answer(ask("How does sizing run?"));
+    const reply = await assistant.answer(
+      ask("Would the Longline Wool Overcoat work for a winter wedding?"),
+    );
 
     expect(factory).toHaveBeenCalledTimes(1);
     expect(answer).toHaveBeenCalledTimes(1);

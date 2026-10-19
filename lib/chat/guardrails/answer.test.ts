@@ -2,13 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   CANNOT_CONFIRM_PRICE_REPLY,
+  NO_SIZE_CHART_REPLY,
   NO_VERIFIED_PRICE_REPLY,
   UNVERIFIED_PRICE_REPLY,
+  composeProductInfoAnswer,
   composeProductPriceAnswer,
+  composeProductSizingAnswer,
   composePriceWithFactsAnswer,
   composeVerifiedFactsAnswer,
   formatProductGroundingFact,
+  formatProductInfo,
   formatProductPrice,
+  formatProductSizing,
 } from "./answer.ts";
 import type { ProductFact } from "./product-match.ts";
 import { STORE_KNOWLEDGE } from "./store-knowledge.ts";
@@ -21,6 +26,13 @@ const overcoat: ProductFact = {
   care: "Dry clean only.",
   basePriceCents: 34900,
   currency: "USD",
+  categorySlug: "coats",
+  categoryName: "Coats",
+  variants: [
+    { size: "S", color: "Camel", stockQty: 0 },
+    { size: "M", color: "Camel", stockQty: 14 },
+    { size: "L", color: "Charcoal", stockQty: 6 },
+  ],
 };
 
 const blazer: ProductFact = {
@@ -28,6 +40,8 @@ const blazer: ProductFact = {
   slug: "double-breasted-linen-blazer",
   name: "Double-Breasted Linen Blazer",
   basePriceCents: 24900,
+  categorySlug: "blazers",
+  categoryName: "Blazers",
 };
 
 const shipping = STORE_KNOWLEDGE.find((fact) => fact.id === "shipping-cost")!;
@@ -72,12 +86,45 @@ describe("deterministic answer composition", () => {
     expect(UNVERIFIED_PRICE_REPLY).not.toContain("$");
   });
 
-  it("builds one grounding fact string with price, composition and care", () => {
+  it("builds one grounding fact string with price, category, sizes and composition", () => {
     const fact = formatProductGroundingFact(overcoat);
     expect(fact).toContain("Longline Wool Overcoat");
     expect(fact).toContain("longline-wool-overcoat");
+    expect(fact).toContain("Category: Coats.");
     expect(fact).toContain("$349.00");
     expect(fact).toContain("Composition: 70% wool.");
     expect(fact).toContain("Care: Dry clean only.");
+    expect(fact).toContain("Available sizes: S, M, L.");
+    expect(fact).toContain("Available colors: Camel, Charcoal.");
+    expect(fact).toContain("In stock: M in Camel, L in Charcoal.");
+  });
+
+  it("answers sizing from published variants and never invents measurements", () => {
+    const answer = formatProductSizing(overcoat);
+    expect(answer).toContain("The Longline Wool Overcoat comes in sizes S, M, L");
+    expect(answer).toContain("colors Camel, Charcoal");
+    expect(answer).toContain("In stock: M in Camel, L in Charcoal.");
+    expect(answer).toContain("Currently out of stock: S in Camel.");
+    expect(answer).toContain(NO_SIZE_CHART_REPLY);
+    expect(answer).not.toContain("$");
+  });
+
+  it("falls back to the generic size guide when no product matched", () => {
+    expect(composeProductSizingAnswer([])).toBe(NO_SIZE_CHART_REPLY);
+    expect(NO_SIZE_CHART_REPLY).toContain("body measurements");
+    expect(NO_SIZE_CHART_REPLY).not.toContain("$");
+  });
+
+  it("builds a product fact sheet for style/material/care questions", () => {
+    const answer = formatProductInfo(overcoat);
+    expect(answer).toContain("The Longline Wool Overcoat (Coats)");
+    expect(answer).toContain("Composition: 70% wool.");
+    expect(answer).toContain("Care: Dry clean only.");
+    expect(answer).toContain("Available sizes: S, M, L.");
+    expect(answer).toContain("Available colors: Camel, Charcoal.");
+    expect(answer).toContain("$349.00");
+    expect(composeProductInfoAnswer([overcoat, blazer])).toContain(
+      "Double-Breasted Linen Blazer (Blazers)",
+    );
   });
 });
