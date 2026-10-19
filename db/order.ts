@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, sql } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import type { FulfillmentStatus, OrderStatus } from "./schema/index.ts";
@@ -19,6 +19,27 @@ import {
 import { calculateSalesTax } from "@/lib/tax/sales-tax.ts";
 import type { PaymentFailureReason, PaymentProvider } from "@/payments/payment-provider.ts";
 import { createSimulatedPaymentProvider } from "@/payments/simulated-provider.ts";
+import type { PaymentScenario } from "@/payments/simulated-provider.ts";
+
+export type { PaymentScenario };
+
+export interface CreatePaidOrderOptions {
+  provider?: PaymentProvider;
+  scenario?: PaymentScenario;
+  failureReason?: PaymentFailureReason;
+}
+
+export class OutOfStockError extends Error {
+  readonly variantId: string;
+  readonly productName: string;
+
+  constructor(details: { variantId: string; productName: string }) {
+    super(`Variant ${details.variantId} (${details.productName}) is out of stock`);
+    this.name = "OutOfStockError";
+    this.variantId = details.variantId;
+    this.productName = details.productName;
+  }
+}
 
 // Order repository. Orders represent immutable purchases with frozen snapshots
 // of product names, sizes, colors, and prices in integer cents.
@@ -93,9 +114,12 @@ export type CreatePaidOrderResult =
         | "cart_empty"
         | "address_required"
         | "shipping_method_required"
-        | "payment_failed";
+        | "payment_failed"
+        | "out_of_stock";
       paymentOutcome?: string;
       failureReason?: PaymentFailureReason;
+      variantId?: string;
+      productName?: string;
     };
 
 /**
@@ -114,7 +138,7 @@ export function generateOrderReference(): string {
 export async function createPaidOrderFromCheckout(
   db: Db,
   sessionToken: string,
-  provider?: PaymentProvider,
+  providerOrOptions?: PaymentProvider | CreatePaidOrderOptions,
 ): Promise<CreatePaidOrderResult> {
   // 1. Fetch active cart
   const [activeCart] = await db
@@ -187,7 +211,18 @@ export async function createPaidOrderFromCheckout(
   const totalCents = subtotalCents + shippingCents + taxCents;
 
   // 5. Process Payment via PaymentProvider
-  const paymentProvider = provider ?? createSimulatedPaymentProvider({ scenario: "succeed" });
+  let paymentProvider: PaymentProvider;
+  if (providerOrOptions && "createPayment" in providerOrOptions) {
+    paymentProvider = providerOrOptions;
+  } else if (providerOrOptions && "provider" in providerOrOptions && providerOrOptions.provider) {
+    paymentProvider = providerOrOptions.provider;
+  } else {
+    const scenario = (providerOrOptions as CreatePaidOrderOptions | undefined)?.scenario ?? "succeed";
+    const failureReason =
+      (providerOrOptions as CreatePaidOrderOptions | undefined)?.failureReason ?? "card_declined";
+    paymentProvider = createSimulatedPaymentProvider({ scenario, failureReason });
+  }
+
   const paymentAttempt = await paymentProvider.createPayment({
     reference: `checkout_${activeCart.id}`,
     amountCents: totalCents,
@@ -204,128 +239,166 @@ export async function createPaidOrderFromCheckout(
     };
   }
 
-  // 6. Execute atomic transaction to freeze snapshot, create/link account, and create order
-  return db.transaction(async (tx) => {
-    const txDb = tx as unknown as Db;
+  // 6. Execute atomic transaction to reserve stock, freeze snapshot, create/link account, and create order
+  try {
+    return await db.transaction(async (tx) => {
+      const txDb = tx as unknown as Db;
 
-    // Normalize contact email
-    const normalizedEmail = session.email.trim().toLowerCase();
-
-    // Look up existing account
-    const [existingAccount] = await txDb
-      .select({ id: account.id })
-      .from(account)
-      .where(eq(account.email, normalizedEmail))
-      .limit(1);
-
-    let targetAccountId: string;
-
-    if (existingAccount) {
-      targetAccountId = existingAccount.id;
-    } else {
-      const [newAccount] = await txDb
-        .insert(account)
-        .values({ email: normalizedEmail })
-        .returning({ id: account.id });
-      targetAccountId = newAccount.id;
-
-      await txDb.insert(accountRole).values({
-        accountId: targetAccountId,
-        role: "customer",
+      // 6a. Sort cart lines deterministically by variantId to prevent database deadlocks
+      const sortedLines = [...lines].sort((a, b) => {
+        if (!a.variantId || !b.variantId) return 0;
+        return a.variantId.localeCompare(b.variantId);
       });
-    }
 
-    // 6a. Insert address snapshot (linked to targetAccountId)
-    const [insertedAddress] = await txDb
-      .insert(address)
-      .values({
-        accountId: targetAccountId,
-        recipientName: session.recipientName,
-        line1: session.line1,
-        line2: session.line2,
-        city: session.city,
-        state: session.state,
-        zip: session.zip,
-        country: session.country,
-        phone: session.phone,
-      })
-      .returning();
+      // 6b. Atomic conditional stock decrement for each variant
+      for (const line of sortedLines) {
+        if (!line.variantId) continue;
 
-    // 6b. Generate unique reference and insert order
-    const reference = generateOrderReference();
-    const now = new Date();
+        const updated = await txDb
+          .update(variant)
+          .set({
+            stockQty: sql`${variant.stockQty} - ${line.quantity}`,
+          })
+          .where(and(eq(variant.id, line.variantId), gte(variant.stockQty, line.quantity)))
+          .returning({ id: variant.id, newStockQty: variant.stockQty });
 
-    const [createdOrder] = await txDb
-      .insert(order)
-      .values({
-        reference,
-        accountId: targetAccountId,
-        contactEmail: normalizedEmail,
-        status: "paid",
-        fulfillmentStatus: "unfulfilled",
-        addressId: insertedAddress.id,
-        shippingMethodId: selectedShipping.id,
-        subtotalCents,
-        shippingCents,
-        taxCents,
-        totalCents,
-        currency: "USD",
-        createdAt: now,
-        paidAt: now,
-      })
-      .returning();
+        if (updated.length === 0) {
+          throw new OutOfStockError({
+            variantId: line.variantId,
+            productName: line.productName,
+          });
+        }
+      }
 
-    // 6c. Insert frozen order lines
-    const lineValues = lines.map((line) => {
-      const unitPriceCents = line.priceOverrideCents ?? line.basePriceCents;
-      const lineTotalCents = unitPriceCents * line.quantity;
-      return {
+      // Normalize contact email
+      const normalizedEmail = session.email.trim().toLowerCase();
+
+      // Look up existing account
+      const [existingAccount] = await txDb
+        .select({ id: account.id })
+        .from(account)
+        .where(eq(account.email, normalizedEmail))
+        .limit(1);
+
+      let targetAccountId: string;
+
+      if (existingAccount) {
+        targetAccountId = existingAccount.id;
+      } else {
+        const [newAccount] = await txDb
+          .insert(account)
+          .values({ email: normalizedEmail })
+          .returning({ id: account.id });
+        targetAccountId = newAccount.id;
+
+        await txDb.insert(accountRole).values({
+          accountId: targetAccountId,
+          role: "customer",
+        });
+      }
+
+      // 6c. Insert address snapshot (linked to targetAccountId)
+      const [insertedAddress] = await txDb
+        .insert(address)
+        .values({
+          accountId: targetAccountId,
+          recipientName: session.recipientName,
+          line1: session.line1,
+          line2: session.line2,
+          city: session.city,
+          state: session.state,
+          zip: session.zip,
+          country: session.country,
+          phone: session.phone,
+        })
+        .returning();
+
+      // 6d. Generate unique reference and insert order
+      const reference = generateOrderReference();
+      const now = new Date();
+
+      const [createdOrder] = await txDb
+        .insert(order)
+        .values({
+          reference,
+          accountId: targetAccountId,
+          contactEmail: normalizedEmail,
+          status: "paid",
+          fulfillmentStatus: "unfulfilled",
+          addressId: insertedAddress.id,
+          shippingMethodId: selectedShipping.id,
+          subtotalCents,
+          shippingCents,
+          taxCents,
+          totalCents,
+          currency: "USD",
+          createdAt: now,
+          paidAt: now,
+        })
+        .returning();
+
+      // 6e. Insert frozen order lines
+      const lineValues = lines.map((line) => {
+        const unitPriceCents = line.priceOverrideCents ?? line.basePriceCents;
+        const lineTotalCents = unitPriceCents * line.quantity;
+        return {
+          orderId: createdOrder.id,
+          variantId: line.variantId,
+          productName: line.productName,
+          variantSize: line.size,
+          variantColor: line.color,
+          unitPriceCents,
+          quantity: line.quantity,
+          lineTotalCents,
+        };
+      });
+
+      await txDb.insert(orderLine).values(lineValues);
+
+      // 6f. Insert payment row
+      await txDb.insert(payment).values({
         orderId: createdOrder.id,
-        variantId: line.variantId,
-        productName: line.productName,
-        variantSize: line.size,
-        variantColor: line.color,
-        unitPriceCents,
-        quantity: line.quantity,
-        lineTotalCents,
-      };
-    });
-
-    await txDb.insert(orderLine).values(lineValues);
-
-    // 6d. Insert payment row
-    await txDb.insert(payment).values({
-      orderId: createdOrder.id,
-      status: "succeeded",
-      provider: "simulated",
-      amountCents: totalCents,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // 6e. Update cart to converted and link accountId
-    await txDb
-      .update(cart)
-      .set({
-        accountId: targetAccountId,
-        status: "converted",
+        status: "succeeded",
+        provider: "simulated",
+        amountCents: totalCents,
+        createdAt: now,
         updatedAt: now,
-      })
-      .where(eq(cart.id, activeCart.id));
+      });
 
-    return {
-      ok: true,
-      order: {
-        id: createdOrder.id,
-        reference: createdOrder.reference,
-        totalCents: createdOrder.totalCents,
-        contactEmail: createdOrder.contactEmail,
+      // 6g. Update cart to converted and link accountId
+      await txDb
+        .update(cart)
+        .set({
+          accountId: targetAccountId,
+          status: "converted",
+          updatedAt: now,
+        })
+        .where(eq(cart.id, activeCart.id));
+
+      return {
+        ok: true,
+        order: {
+          id: createdOrder.id,
+          reference: createdOrder.reference,
+          totalCents: createdOrder.totalCents,
+          contactEmail: createdOrder.contactEmail,
+          accountId: targetAccountId,
+        },
         accountId: targetAccountId,
-      },
-      accountId: targetAccountId,
-      isNewAccount: !existingAccount,
-    } as const;
-  });
+        isNewAccount: !existingAccount,
+      } as const;
+    });
+  } catch (error) {
+    if (error instanceof OutOfStockError) {
+      return {
+        ok: false,
+        reason: "out_of_stock",
+        variantId: error.variantId,
+        productName: error.productName,
+      };
+    }
+    throw error;
+  }
 }
 
 /**

@@ -26,7 +26,9 @@
     "area": "bootstrap",
     "title": "PostgreSQL schema is defined and migrates cleanly, and the catalog is seeded with demo data",
     "user_visible_behavior": "A managed PostgreSQL database can be created and migrated from empty to the full catalog/cart/order/account schema, the application can read and write through the chosen data-access layer, and the database is seeded with example catalog data (categories, products and variants with size, color, stock and price) that the UI can display.",
-    "depends_on": ["bootstrap-app-skeleton"],
+    "depends_on": [
+      "bootstrap-app-skeleton"
+    ],
     "status": "accepted",
     "verification": [
       "Migrations run against an empty PostgreSQL database and exit 0, creating the core tables (category, product, product_image, variant, cart, cart_line, account, address, shipping_method, order, order_line, payment): `pnpm db:migrate` on an empty DATABASE_URL; backed by db/tests/migrate.test.ts 'scenario 1: runs against an empty database and creates the core tables'.",
@@ -54,7 +56,9 @@
     "area": "catalog",
     "title": "Shopper sees a grid of published products",
     "user_visible_behavior": "The catalog page shows each published product exactly once with its image, name and price in a responsive grid. Draft and archived products are not visible.",
-    "depends_on": ["bootstrap-database-schema"],
+    "depends_on": [
+      "bootstrap-database-schema"
+    ],
     "status": "accepted",
     "verification": [
       "With seeded data containing published, draft and archived products, only the 6 published ones render on the catalog page: verified in db/tests/catalog-listing.test.ts 'scenario 1: returns only published products and omits draft and archived products'.",
@@ -76,7 +80,9 @@
     "area": "catalog",
     "title": "Shopper narrows and orders the catalog listing",
     "user_visible_behavior": "The shopper can filter products by category, size, color and price limit, and can sort the results by newest, price ascending, price descending and name. The result count updates and filters can be reset.",
-    "depends_on": ["catalog-product-listing"],
+    "depends_on": [
+      "catalog-product-listing"
+    ],
     "status": "accepted",
     "verification": [
       "Filtering by each facet narrows the listing and updates the count: category/size/color/maxPrice each return the documented seeded sets — backed by db/tests/catalog-filtering.test.ts 'filters by a single category slug' (category=coats -> 1), 'filters by size through non-discontinued variants' (size=L -> 5), 'filters by color through non-discontinued variants' (color=Navy -> 1), 'filters by max price using the base price in integer cents' (maxPrice=150 -> 2), and 'combines facets with AND' (category=blazers&size=M -> 1).",
@@ -102,7 +108,9 @@
     "area": "catalog",
     "title": "Shopper opens a product detail page",
     "user_visible_behavior": "The shopper can open a product and see its image gallery, name, price, description, composition and care information.",
-    "depends_on": ["catalog-product-listing"],
+    "depends_on": [
+      "catalog-product-listing"
+    ],
     "status": "accepted",
     "verification": [
       "Opening a published product (/products/longline-wool-overcoat) shows its gallery, name, USD tax-exclusive price (formatPriceUSD), description, composition and care; backed by app/products/[slug]/page.test.tsx 'scenario 1: renders name, USD price, description, composition and care' and db/tests/product-detail.test.ts 'scenario 1: returns the full detail payload for a published product'.",
@@ -126,7 +134,9 @@
     "area": "catalog",
     "title": "Shopper selects a size and color variant",
     "user_visible_behavior": "The shopper can pick a size and a color on the product detail page. Out-of-stock size/color combinations are visibly disabled and cannot be selected. The selected variant drives the price shown and the stock message.",
-    "depends_on": ["product-detail-page"],
+    "depends_on": [
+      "product-detail-page"
+    ],
     "status": "accepted",
     "verification": [
       "Options are derived from non-discontinued variants: sizes in XS→XL order and colors alphabetically with their stored hex, and a discontinued XS/Black row never reaches the storefront payload — backed by db/tests/product-variant-selection.test.ts 'returns only non-discontinued variants ordered by size then color' and 'excludes a discontinued variant from the storefront payload', plus app/products/[slug]/variant-selection.test.ts 'derives distinct sizes in XS→XL order and colors alphabetically with swatches'.",
@@ -154,7 +164,9 @@
     "area": "shopping",
     "title": "Guest adds a variant to the cart",
     "user_visible_behavior": "A shopper with no account can select a variant, choose a quantity and add it to the cart, and sees the cart reflect the new line.",
-    "depends_on": ["product-variant-selection"],
+    "depends_on": [
+      "product-variant-selection"
+    ],
     "status": "accepted",
     "verification": [
       "Adding a selected variant with quantity 2 creates exactly one active guest cart with account_id null and one cart_line with quantity 2; adding the same variant again increments that line (2 → 3) with no duplicate row; concurrent adds of the same variant converge on one line with the summed quantity (db/tests/guest-cart-add.test.ts scenarios 1, 2 and 7; manual transcript POST 2 → {lineQuantity:2} then /cart Qty 2 / $498.00, POST 1 → {lineQuantity:3} then /cart Qty 3 / $747.00).",
@@ -181,7 +193,9 @@
     "area": "shopping",
     "title": "Guest edits quantities and removes cart lines",
     "user_visible_behavior": "The shopper can change a line's quantity, remove a line, and see line subtotals and the cart total update. The cart survives a page reload.",
-    "depends_on": ["guest-cart-add"],
+    "depends_on": [
+      "guest-cart-add"
+    ],
     "status": "accepted",
     "verification": [
       "Changing a quantity updates that line's subtotal and the cart total (stepper 1 to 10; - disabled at 1, + disabled at 10).",
@@ -204,7 +218,9 @@
     "area": "shopping",
     "title": "Cart respects available stock",
     "user_visible_behavior": "A shopper cannot add or increase a line beyond the variant's available stock, and a line whose stock has dropped is marked and adjusted explicitly rather than failing silently at payment.",
-    "depends_on": ["guest-cart-manage"],
+    "depends_on": [
+      "guest-cart-manage"
+    ],
     "status": "accepted",
     "verification": [
       "Attempting to set a quantity above available stock is rejected and the UI shows why.",
@@ -225,7 +241,9 @@
     "area": "checkout",
     "title": "Shopper enters contact email and shipping address at checkout",
     "user_visible_behavior": "The checkout collects a contact email and a shipping address from the shopper, validates required fields, and carries them forward to the rest of the flow.",
-    "depends_on": ["guest-cart-manage"],
+    "depends_on": [
+      "guest-cart-manage"
+    ],
     "status": "accepted",
     "verification": [
       "Submitting valid contact and address data advances the checkout to Step 2 and values persist to later steps.",
@@ -248,7 +266,9 @@
     "area": "checkout",
     "title": "Shopper chooses a shipping method and sees its cost",
     "user_visible_behavior": "The shopper can choose among available shipping methods, each showing its cost and delivery expectation, and the order total reflects the chosen method.",
-    "depends_on": ["checkout-contact-and-address"],
+    "depends_on": [
+      "checkout-contact-and-address"
+    ],
     "status": "accepted",
     "verification": [
       "Each shipping method shows its own cost ($0.00 / Free, $15.00) and delivery expectation.",
@@ -271,7 +291,9 @@
     "area": "checkout",
     "title": "Sales tax is calculated from the shipping address",
     "user_visible_behavior": "The order summary shows a separate sales tax line calculated from the shipping address (state / ZIP), with catalog prices shown tax-exclusive, and the total equals subtotal plus shipping plus tax.",
-    "depends_on": ["checkout-shipping-method"],
+    "depends_on": [
+      "checkout-shipping-method"
+    ],
     "status": "accepted",
     "verification": [
       "Changing the shipping address's state changes the calculated sales tax.",
@@ -293,7 +315,9 @@
     "area": "payments",
     "title": "PaymentProvider interface with a simulated implementation",
     "user_visible_behavior": "Payments execute through a PaymentProvider interface whose simulated implementation can return success, failure and pending, and the checkout surfaces each outcome to the shopper.",
-    "depends_on": ["bootstrap-app-skeleton"],
+    "depends_on": [
+      "bootstrap-app-skeleton"
+    ],
     "status": "accepted",
     "verification": [
       "The simulated provider can be driven to return success, failure and pending on demand, each with a non-empty opaque providerRef and the requested integer cents/USD echoed unchanged: payments/simulated-provider.test.ts (4 tests).",
@@ -319,7 +343,10 @@
     "area": "orders",
     "title": "A successful payment creates a paid order with frozen prices",
     "user_visible_behavior": "When the simulated payment succeeds, an order is created in 'paid' state with frozen line prices, sales tax and shipping cost, and the shopper sees an order confirmation referencing that order.",
-    "depends_on": ["checkout-sales-tax", "payment-provider-abstraction"],
+    "depends_on": [
+      "checkout-sales-tax",
+      "payment-provider-abstraction"
+    ],
     "status": "accepted",
     "verification": [
       "A successful payment transitions the order to paid, fulfillment status to unfulfilled, and creates order lines with frozen prices.",
@@ -342,14 +369,24 @@
     "area": "payments",
     "title": "A failed payment leaves no paid order and preserves the cart",
     "user_visible_behavior": "When the simulated payment fails, the shopper sees a clear failure message, no paid order exists, no stock is permanently consumed, and the cart is still recoverable so the payment can be retried.",
-    "depends_on": ["order-creation-on-payment"],
-    "status": "not_started",
-    "verification": [
-      "Provisional: a failed payment produces no order in 'paid' state.",
-      "Provisional: stock is not permanently decremented after a failed payment.",
-      "Provisional: the cart still contains the intended lines and the payment can be retried to success."
+    "depends_on": [
+      "order-creation-on-payment"
     ],
-    "evidence": [],
+    "status": "accepted",
+    "verification": [
+      "A failed payment produces no order in \"paid\" state (0 rows in order, order_line, payment, and address).",
+      "Stock is not permanently decremented after a failed payment (variant.stock_qty unchanged).",
+      "The active cart is preserved with its lines intact and can be retried to success, which produces a paid order and converts the cart.",
+      "The pending payment outcome is handled cleanly without creating a paid order or converting the cart."
+    ],
+    "evidence": [
+      "./init.sh (2026-10-19): exit 0. 58 test files, 474 tests passed. Lint and typecheck clean.",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build successfully generates all routes including dynamic /api/checkout/pay and /checkout.",
+      "DB integration tests: db/tests/payment-failure-path.test.ts (3/3 passed) confirms failed payment creates no order, leaves cart active, does not change variant stock; pending payment creates no order and leaves cart active; retry with success creates paid order and converts cart.",
+      "Route tests: app/api/checkout/pay/route.test.ts (10/10 passed) confirms driving scenario (fail, pending, succeed) via payload or header, returning 400 with retryable true, pending response with retryable false, and retry to success.",
+      "UI tests: app/checkout/contact-and-address-form.test.tsx (12/12 passed) and app/checkout/page.test.tsx (10/10 passed) confirm error banner rendering with data-testid=\"payment-error\", re-enabled place order button, scenario selector, and retry to success.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All acceptance scenarios pass; integer cents money discipline; US English copy."
+    ],
     "notes": "This path is explicitly in the MVP validation plan (docs/mvp-scope.md, docs/build-brief.md). Also handle the 'pending' outcome without creating a paid order."
   },
   {
@@ -357,21 +394,32 @@
     "area": "inventory",
     "title": "The last unit of a variant cannot be oversold",
     "user_visible_behavior": "When two shoppers attempt to buy the last unit of the same variant at the same time, exactly one order succeeds and the other is told the item is unavailable, with no negative or inconsistent stock.",
-    "depends_on": ["order-creation-on-payment"],
-    "status": "not_started",
-    "verification": [
-      "Provisional: a concurrency test with two simultaneous checkouts of the last unit yields exactly one paid order.",
-      "Provisional: the losing shopper gets a clear message and stock never goes below zero."
+    "depends_on": [
+      "order-creation-on-payment"
     ],
-    "evidence": [],
-    "notes": "Use a transactional reservation or conditional update; see the implementation-time question on reservation strategy in docs/risks-and-open-questions.md. This is the concurrency guarantee behind cart-stock-limits."
+    "status": "accepted",
+    "verification": [
+      "A concurrency test with two simultaneous checkouts of the last unit yields exactly one paid order: db/tests/stock-reservation.test.ts 'concurrent checkouts of the last unit yield exactly one paid order and never negative stock'.",
+      "The losing shopper gets a clear message and stock never goes below zero: app/api/checkout/pay/route.test.ts 'returns 409 when cart items are out of stock', db/tests/stock-reservation.test.ts, and app/checkout/contact-and-address-form.test.tsx 'displays out of stock error and return to cart link when API returns out_of_stock'."
+    ],
+    "evidence": [
+      "Automated verification: 58 test files / 470 tests pass via `CI=true ./init.sh`. Lint and typecheck clean.",
+      "Focused test suites: `db/tests/stock-reservation.test.ts` (3/3), `app/api/checkout/pay/route.test.ts` (8/8), `app/checkout/contact-and-address-form.test.tsx` (11/11), `db/tests/order-creation.test.ts` (6/6), `app/checkout/page.test.tsx` (9/9).",
+      "Atomic conditional stock decrement: `UPDATE variant SET stock_qty = stock_qty - qty WHERE id = variant_id AND stock_qty >= qty RETURNING id, stock_qty` executed inside `createPaidOrderFromCheckout` with deterministic `variantId` line sorting to prevent deadlocks.",
+      "Losing shopper UX: API returns HTTP 409 Conflict with `{ error, code: 'out_of_stock', variantId, productName }`; Step 3 Payment banner displays friendly explanation and accessible link to return to `/cart`; losing cart remains active and unconverted.",
+      "Production build: `pnpm build` exits 0 with Next.js 16.4.0 Turbopack.",
+      "Validation report: docs/validations/stock-reservation.md (verdict: ACCEPT)."
+    ],
+    "notes": "Validated and decremented atomically at payment time via conditional update, resolving the reservation strategy question in docs/risks-and-open-questions.md. No temporary locks or expiry timers needed. Concurrency guarantee behind cart-stock-limits."
   },
   {
     "id": "account-created-at-payment",
     "area": "identity",
     "title": "Payment creates or links the account by email",
     "user_visible_behavior": "When payment succeeds, an account is created for the contact email if none exists, or the order is attached to the existing account if that email is already registered. No second account is ever created for the same email.",
-    "depends_on": ["order-creation-on-payment"],
+    "depends_on": [
+      "order-creation-on-payment"
+    ],
     "status": "accepted",
     "verification": [
       "A first-time email results in one new account in the account table with role customer owning the new order, shipping address, and cart: verified in db/tests/account-created-at-payment.test.ts (Scenario 1).",
@@ -392,7 +440,9 @@
     "area": "identity",
     "title": "Shopper can set an optional password at checkout",
     "user_visible_behavior": "During checkout the shopper can choose to set a password for quick access, or skip it and still complete the purchase. The choice is reflected in the created account.",
-    "depends_on": ["account-created-at-payment"],
+    "depends_on": [
+      "account-created-at-payment"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: completing checkout with a password set creates an account that can later sign in with that password.",
@@ -406,7 +456,9 @@
     "area": "identity",
     "title": "Customer signs in and out",
     "user_visible_behavior": "A customer with an account can sign in and sign out, and stays signed in across page loads until they sign out. A shopper without a password can still reach their account through the agreed mechanism.",
-    "depends_on": ["account-quick-access-password"],
+    "depends_on": [
+      "account-quick-access-password"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: signing in with correct credentials establishes a session that survives a page reload.",
@@ -421,7 +473,10 @@
     "area": "orders",
     "title": "Customer sees their order history",
     "user_visible_behavior": "A signed-in customer sees a list of their own orders with lines, prices, sales tax and shipping, and can open one order to see its detail. Customers never see anyone else's orders.",
-    "depends_on": ["account-signin-signout", "order-creation-on-payment"],
+    "depends_on": [
+      "account-signin-signout",
+      "order-creation-on-payment"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: a signed-in customer sees exactly the orders they own, with correct lines and totals.",
@@ -436,7 +491,9 @@
     "area": "notifications",
     "title": "Order confirmation email is sent on a paid order",
     "user_visible_behavior": "When an order becomes paid, a confirmation email is sent to the contact email with the order reference, lines and totals.",
-    "depends_on": ["order-creation-on-payment"],
+    "depends_on": [
+      "order-creation-on-payment"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: a paid order triggers exactly one confirmation email to the contact email.",
@@ -451,7 +508,9 @@
     "area": "backoffice",
     "title": "Admin role gates the backoffice",
     "user_visible_behavior": "Only accounts with the admin role can reach backoffice routes; non-admin and signed-out users are refused. Admin routes and data are not otherwise exposed.",
-    "depends_on": ["account-signin-signout"],
+    "depends_on": [
+      "account-signin-signout"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: an admin account can open the backoffice.",
@@ -466,7 +525,9 @@
     "area": "backoffice",
     "title": "Admin creates a product with variants and stock",
     "user_visible_behavior": "An admin can create a product with its core fields, add size/color variants and set per-variant stock, and the saved data is visible in the backoffice.",
-    "depends_on": ["admin-role-gate"],
+    "depends_on": [
+      "admin-role-gate"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: creating a product with two variants and stock persists and is listed in the backoffice.",
@@ -481,7 +542,9 @@
     "area": "backoffice",
     "title": "Admin publishes and archives products",
     "user_visible_behavior": "An admin can move a product between draft, published and archived, and only published products appear in the storefront catalog and product detail.",
-    "depends_on": ["admin-product-create"],
+    "depends_on": [
+      "admin-product-create"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: publishing a draft product makes it appear in the storefront catalog.",
@@ -496,7 +559,10 @@
     "area": "backoffice",
     "title": "Admin lists all orders",
     "user_visible_behavior": "An admin can see a list of every order across all customers with its reference, customer email, totals and current status.",
-    "depends_on": ["admin-role-gate", "order-creation-on-payment"],
+    "depends_on": [
+      "admin-role-gate",
+      "order-creation-on-payment"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: the admin order list shows orders from all customers, not just the admin's own.",
@@ -510,7 +576,9 @@
     "area": "backoffice",
     "title": "Admin moves an order through fulfillment",
     "user_visible_behavior": "An admin can move a paid order through preparing, shipped and delivered, and the customer sees the current fulfillment state on that order.",
-    "depends_on": ["admin-order-list"],
+    "depends_on": [
+      "admin-order-list"
+    ],
     "status": "not_started",
     "verification": [
       "Provisional: an admin can transition a paid order through preparing, shipped and delivered in order.",
@@ -525,7 +593,9 @@
     "area": "ai",
     "title": "Shopper talks to the chat assistant on the storefront",
     "user_visible_behavior": "The shopper can open a chat panel on the storefront, ask a question about products, sizing, fabric or shipping, and receive a relevant answer generated by the configured LLM through the ChatAssistant interface.",
-    "depends_on": ["catalog-product-listing"],
+    "depends_on": [
+      "catalog-product-listing"
+    ],
     "status": "accepted",
     "verification": [
       "A product, sizing, fabric and shipping question each returns a non-empty assistant reply and the shopper's exact question is forwarded to the assistant: app/chat/chat-panel.test.tsx 'answers a product, sizing, fabric and shipping question each with a non-empty reply (scenario 1)' (4 questions, user + assistant bubbles) and app/api/chat/route.test.ts 'forwards the shopper's exact message content to the assistant'.",
@@ -554,7 +624,9 @@
     "area": "ai",
     "title": "Chat assistant does not invent store policies",
     "user_visible_behavior": "When asked about shipping costs, return policy, prices or anything outside verified store data, the assistant answers from a verified source or says it does not know, and never fabricates a policy or a price.",
-    "depends_on": ["chat-assistant"],
+    "depends_on": [
+      "chat-assistant"
+    ],
     "status": "accepted",
     "verification": [
       "Shipping cost is answered with the exact verified policy (standard free in 3–5 business days; express $15.00 flat in 1–2 business days) and return policy with the exact repo-owned unknown copy; neither makes an LLM call: lib/chat/guarded-chat-assistant.test.ts 'scenario 1: answers shipping cost with the exact verified fact and never calls the LLM' and 'scenario 2: answers return and refund questions with the exact unknown fact and never calls the LLM' (factory call count 0); lib/chat/guardrails/store-knowledge.test.ts exact-copy tests; lib/chat/guardrails/intents.test.ts 'treats a shipping-cost question as a shipping fact, not a product price'; app/api/chat/route.test.ts 'answers a shipping-cost question with the verified copy and no provider key'. Free-shipping and shipping-rate phrasings route to the same verified fact: lib/chat/guardrails/intents.test.ts 'routes free-shipping and shipping-rate phrasings to the shipping unknown, not the market fact' ('Do you ship free?', 'Do you ship free over $100?', 'What are your shipping rates?') while 'still routes a market question to the market fact' keeps 'Do you sell in the US?' and 'Where do you ship?'; lib/chat/guarded-chat-assistant.test.ts 'answers a free-shipping phrasing with the verified fact and no LLM call'.",
@@ -588,7 +660,9 @@
     "area": "ai",
     "title": "Shopper uploads a photo and sees a try-on result",
     "user_visible_behavior": "On a product detail page the shopper can upload a photo, trigger the virtual try-on for the selected variant, and see the generated result of themselves wearing the garment.",
-    "depends_on": ["product-detail-page"],
+    "depends_on": [
+      "product-detail-page"
+    ],
     "status": "accepted",
     "verification": [
       "A valid photo plus consent and a published non-discontinued variant produce a generated image in the panel: app/products/[slug]/try-on-panel.test.tsx 'sends the selected garment context with consent and shows a loading state (scenarios 1 and 2)' and 'displays the single generated result with meaningful alt text (scenario 1)'; app/api/try-on/route.test.ts 'returns the generated image and a no-store response on the happy path'; manual live provider returned HTTP 200 with a non-empty base64 image.",
@@ -620,7 +694,11 @@
     "area": "catalog",
     "title": "Published size charts and body measurements appear in the catalog and chat",
     "user_visible_behavior": "Each published product page shows a size guide with approximate body measurements for the sizes the product offers, and the chat assistant answers sizing questions with the same published measurements instead of saying they are unavailable.",
-    "depends_on": ["bootstrap-database-schema", "product-detail-page", "chat-assistant-guardrails"],
+    "depends_on": [
+      "bootstrap-database-schema",
+      "product-detail-page",
+      "chat-assistant-guardrails"
+    ],
     "status": "accepted",
     "verification": [
       "A category-level size_chart table (category_id, size, JSON body measurements, unique category/size) is created by a generated migration: pnpm db:migrate; backed by db/tests/migrate.test.ts 'scenario 1: runs against an empty database and creates the core tables' including size_chart.",
@@ -645,7 +723,9 @@
     "area": "ai",
     "title": "Virtual try-on fails gracefully",
     "user_visible_behavior": "When the photo is invalid, the provider times out or the provider errors, the shopper sees a clear message and can retry, and browsing and adding to cart remain unaffected.",
-    "depends_on": ["virtual-tryon-generation"],
+    "depends_on": [
+      "virtual-tryon-generation"
+    ],
     "status": "accepted",
     "verification": [
       "Scenario 1 — an invalid photo is rejected before any provider call: `lib/try-on/photo-validation.test.ts` 8 tests cover the empty/unsupported/4 MiB/signature rules ('rejects an empty file...', 'rejects unsupported and missing MIME types before the size check', 'accepts exactly 4 MiB (inclusive boundary)...', 'rejects one byte over 4 MiB...', 'recognises PNG, JPEG and WebP magic bytes', 'rejects a spoofed text file, truncated headers and empty input'). `app/api/try-on/route.test.ts` 'returns 400 invalid_photo for an empty photo before any catalog or provider call (scenario 1)', 'returns 400 invalid_photo for a non-image declared type before any catalog or provider call (scenario 1)' and 'rejects a spoofed extension whose bytes are not PNG/JPEG/WebP before any catalog or provider call (scenario 1)' all assert code `invalid_photo` and that `getTryOnGarmentContext`/`getTryOnProvider` were never called. The panel rejects an unsupported type locally before fetch and disables the action ('rejects an unsupported declared type before any request (scenario 1)'), and a server `invalid_photo` clears the selection ('clears the selection when the server rejects the photo and never enables a retry (scenario 1)').",

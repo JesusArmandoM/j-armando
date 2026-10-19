@@ -5,10 +5,11 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `account-created-at-payment`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `account-quick-access-password` or `payment-failure-path`.
+- Current feature in flight: none. `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `order-confirmation-email` or `account-quick-access-password`.
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
-- Last verified at: 2026-10-19, on `feature/account-created-at-payment`: `./init.sh` exit 0 (58 test files / 471 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+
 
 ## Project State
 
@@ -725,6 +726,70 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 ### Session 035
 
 - Date: 2026-10-19
+- Goal: Implement and validate `payment-failure-path` in dedicated worktree `tienda-worktrees/payment-failure-path` on branch `feature/payment-failure-path` (Issue #34).
+- Completed:
+  - Spec written: `docs/specs/payment-failure-path.md` covering 5 acceptance scenarios for failed payment, pending payment, active cart preservation, stock retention, retry to success, and UI scenario selection.
+  - Order repository (`db/order.ts`):
+    - Added `CreatePaidOrderOptions` supporting `{ provider?, scenario?, failureReason? }`.
+    - In `createPaidOrderFromCheckout`, payment is executed via `paymentProvider`. If outcome is not `payment.succeeded` (e.g. `payment.failed` or `payment.pending`), it returns `{ ok: false, reason: "payment_failed", paymentOutcome, failureReason }` before starting any database transaction, ensuring no order, payment, orderLine, or address rows are created, cart remains `"active"`, and variant stock is untouched.
+  - API Route (`app/api/checkout/pay/route.ts`):
+    - Supported driving scenario (succeed, fail, pending) via request payload or `x-payment-scenario` header.
+    - On failure, returns HTTP 400 with `{ ok: false, error: "Payment failed: The payment was declined. Please try another payment method.", code: "payment_failed", retryable: true, failureReason }`.
+    - On pending, returns HTTP 400 with `{ ok: false, error: "Payment is pending authorization. Please wait or check your account.", code: "payment_pending", retryable: false }`.
+  - Checkout UI (`app/checkout/contact-and-address-form.tsx` & `app/globals.css`):
+    - Added simulated scenario selector in Step 3 (Payment box) with options for Success, Failure (Card Declined), and Pending Authorization.
+    - Rendered failure banner with `data-testid="payment-error"`.
+    - Re-enabled "Place Order (Simulated)" button (`data-testid="place-order-button"`) on failure, allowing the shopper to retry.
+    - On retry to success, order is created, cart converts, and user is redirected to confirmation.
+  - Tests:
+    - `db/tests/payment-failure-path.test.ts`: 3 tests passing. Verifies failed payment creates no order, leaves cart active, does not change variant stock; pending payment creates no order and leaves cart active; retry with success creates paid order and converts cart.
+    - `app/api/checkout/pay/route.test.ts`: 10 tests passing. Verifies failure scenario returns error payload with retryable true; pending scenario returns pending payload with retryable false; retry to success returns redirectUrl.
+    - `app/checkout/contact-and-address-form.test.tsx`: 12 tests passing. Verifies failure error banner rendering with `data-testid="payment-error"`, re-enabled place-order-button, scenario selector, and retry to success.
+    - `app/checkout/page.test.tsx`: 10 tests passing. Verifies CheckoutPage handles payment failure, displays error banner, and allows retry.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/payment-failure-path.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `payment-failure-path` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (58 test files / 474 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /api/checkout/pay` and `ƒ /checkout`.
+- Evidence captured: `feature_list.json` → `payment-failure-path.verification`/`.evidence`; `docs/validations/payment-failure-path.md`; this log.
+- Known risk or unresolved issue: Concurrency stock reservation locking across multiple shoppers is deferred to `stock-reservation`.
+- Next best step: Commit `feature/payment-failure-path`, push to origin, and open PR linking #34 without merging.
+
+### Session 036
+
+- Date: 2026-10-19
+- Goal: Implement and validate `stock-reservation` in dedicated worktree `tienda-worktrees/stock-reservation` on branch `feature/stock-reservation` (Issue #35).
+- Completed:
+  - Spec written: `docs/specs/stock-reservation.md` covering 6 acceptance scenarios for concurrent checkout races on the last unit, atomic conditional decrement, zero/negative stock guards, HTTP 409 out-of-stock response, and storefront UI recovery link to `/cart`.
+  - Database layer (`db/order.ts`):
+    - Exported `OutOfStockError` class carrying `variantId` and `productName`.
+    - Updated `CreatePaidOrderResult` type with `reason: "out_of_stock"`, `variantId`, and `productName`.
+    - In `createPaidOrderFromCheckout`: sorted cart lines deterministically by `variantId` to prevent deadlocks across concurrent multi-line checkouts; executed atomic conditional update `UPDATE variant SET stock_qty = stock_qty - qty WHERE id = variant_id AND stock_qty >= qty RETURNING id, stock_qty` inside the transaction.
+    - If `updated.length === 0`, throws `OutOfStockError` to roll back the transaction cleanly. Caught and returned as `{ ok: false, reason: "out_of_stock", variantId, productName }`.
+  - API Route (`app/api/checkout/pay/route.ts`):
+    - On `result.reason === "out_of_stock"`, returns HTTP 409 Conflict with `{ error, code: "out_of_stock", variantId, productName }` and `Cache-Control: no-store`.
+  - Storefront UI (`app/checkout/contact-and-address-form.tsx` & `app/globals.css`):
+    - Added `isOutOfStock` state in Step 3 Payment box.
+    - When payment API returns `code: "out_of_stock"`, displays the error message and an accessible "Return to cart" link (`data-testid="out-of-stock-cart-link"`) with `href="/cart"`.
+  - Tests created / updated:
+    - `db/tests/stock-reservation.test.ts` (3 tests): concurrent checkout race of the last unit yields exactly 1 paid order, 1 out_of_stock failure, exactly 0 remaining stock, and preserves the losing cart in active state; 0 stock fails immediately; exceeding stock fails immediately without updating stock.
+    - `app/api/checkout/pay/route.test.ts` (8 tests): asserts 409 Conflict with `code: "out_of_stock"` and no-store header.
+    - `app/checkout/contact-and-address-form.test.tsx` (11 tests): asserts rendering of out of stock message and Return to cart link.
+  - Validation: All 6 acceptance scenarios verified and recorded in `docs/validations/stock-reservation.md`. Verdict: ACCEPT.
+  - Updated `docs/risks-and-open-questions.md` recording the payment-time atomic reservation decision under Resolved.
+  - Updated `feature_list.json` marking `stock-reservation` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (58 test files / 470 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Turbopack production build).
+- Evidence captured: `feature_list.json` → `stock-reservation.verification`/`.evidence`; `docs/validations/stock-reservation.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/stock-reservation`, push to origin, and open PR linking #35 without merging.
+
+### Session 037
+
+- Date: 2026-10-19
 - Goal: Implement and validate `account-created-at-payment` in dedicated worktree `tienda-worktrees/account-created-at-payment` on branch `feature/account-created-at-payment` (Issue #36).
 - Completed:
   - Spec written: `docs/specs/account-created-at-payment.md` covering 5 acceptance scenarios for account creation/linking upon payment, email normalization, check constraint enforcement, and confirmation page notice.
@@ -751,6 +816,7 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `account-created-at-payment.verification`/`.evidence`; `docs/validations/account-created-at-payment.md`; this log.
 - Known risk or unresolved issue: Password creation at checkout is deferred to `account-quick-access-password`.
 - Next best step: Commit `feature/account-created-at-payment`, push to origin, and open PR linking #36 without merging.
+
 
 
 
