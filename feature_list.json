@@ -443,12 +443,25 @@
     "depends_on": [
       "account-created-at-payment"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: completing checkout with a password set creates an account that can later sign in with that password.",
-      "Provisional: completing checkout without a password still creates the account and the order."
+      "Completing checkout with a password set creates an account that can later sign in with that password.",
+      "Completing checkout without a password still creates the account and the order.",
+      "Password is optional: shopper can leave it blank and complete checkout normally.",
+      "If a password is entered, it must be validated (minimum 8 characters). Shorter passwords show inline validation.",
+      "Passwords are securely hashed (scrypt with unique salt); plaintext passwords are never stored or logged."
     ],
-    "evidence": [],
+    "evidence": [
+      "./init.sh (2026-10-19): exit 0. 64 test files, 522 tests passed (install + lint + typecheck + test).",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build successfully generated.",
+      "Unit tests in lib/auth/password.test.ts (11/11 passed): verifies password validation, scrypt hashing with unique random salt, timing-safe comparison, and error handling.",
+      "Unit tests in app/checkout/checkout-input.test.ts (12/12 passed): verifies optional password parsing, length validation, and error reporting.",
+      "Integration tests in db/tests/account-quick-access-password.test.ts (4/4 passed): verifies checkout with password sets passwordHash, checkout without password leaves passwordHash null, repeat purchase upgrades passwordless account, and existing password is preserved.",
+      "Route tests in app/api/checkout/contact-and-address/route.test.ts (11/11 passed): verifies password hashing, 400 rejection for passwords < 8 chars, and non-exposure of passwordHash.",
+      "UI tests in app/checkout/contact-and-address-form.test.tsx (18/18 passed): verifies password input rendering, helper text, inline validation error, submission, and summary card status.",
+      "UI tests in app/checkout/confirmation/[reference]/page.test.tsx (11/11 passed): verifies password notice rendering when account has a Quick Access password.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 5 acceptance scenarios in docs/specs/account-quick-access-password.md verified and recorded in docs/validations/account-quick-access-password.md."
+    ],
     "notes": "Password is optional by explicit decision (docs/user-and-access-model.md). How a password-less account later reaches its orders is blocking open question #1 in docs/risks-and-open-questions.md and must be resolved here or in account-signin-signout."
   },
   {

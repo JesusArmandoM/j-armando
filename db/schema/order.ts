@@ -99,6 +99,8 @@ export const checkoutSession = pgTable("checkout_session", {
   zip: text("zip").notNull(),
   country: char("country", { length: 2 }).notNull().default("US"),
   phone: text("phone"),
+  /** Nullable: optional Quick Access password set during checkout (account-quick-access-password). */
+  passwordHash: text("password_hash"),
   shippingMethodId: uuid("shipping_method_id").references(() => shippingMethod.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -221,6 +221,7 @@ describe("POST /api/checkout/pay", () => {
       },
       accountId: "account-123",
       isNewAccount: true,
+      hasPassword: false,
     });
 
     const retryReq = new Request("http://localhost/api/checkout/pay", {
@@ -253,6 +254,7 @@ describe("POST /api/checkout/pay", () => {
       },
       accountId: "acc-uuid-1",
       isNewAccount: true,
+      hasPassword: false,
     });
 
     const response = await POST();

@@ -25,6 +25,8 @@ export interface CheckoutSessionData {
   zip: string;
   country: string;
   phone?: string | null;
+  passwordHash?: string | null;
+  hasPassword?: boolean;
   shippingMethodId?: string | null;
   shippingMethod?: ShippingMethodData | null;
 }
@@ -82,6 +84,7 @@ export function ContactAndAddressForm({
   const [state, setState] = useState(savedSession?.state ?? "NY");
   const [zip, setZip] = useState(savedSession?.zip ?? "");
   const [phone, setPhone] = useState(savedSession?.phone ?? "");
+  const [password, setPassword] = useState("");
 
   const [errors, setErrors] = useState<CheckoutInputErrors>({});
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -98,6 +101,7 @@ export function ContactAndAddressForm({
       setZip(savedSession.zip);
       setPhone(savedSession.phone ?? "");
     }
+    setPassword("");
     setErrors({});
     setGlobalError(null);
     setIsEditing(true);
@@ -117,6 +121,7 @@ export function ContactAndAddressForm({
       zip,
       country: "US",
       phone: phone || null,
+      ...(password ? { password } : {}),
     };
 
     // Client-side validation first
@@ -150,6 +155,7 @@ export function ContactAndAddressForm({
 
       setSavedSession((prev) => ({
         ...data.checkoutSession,
+        hasPassword: data.checkoutSession?.hasPassword ?? Boolean(password),
         shippingMethodId: prev?.shippingMethodId ?? null,
         shippingMethod: prev?.shippingMethod ?? null,
       }));
@@ -246,6 +252,15 @@ export function ContactAndAddressForm({
               </div>
 
               <div className="checkout-summary-card__group">
+                <span className="checkout-summary-card__label">Quick Access</span>
+                <p className="checkout-summary-card__text" data-testid="summary-quick-access">
+                  {savedSession.hasPassword || Boolean(savedSession.passwordHash)
+                    ? "Password set for quick access"
+                    : "No password set (guest checkout)"}
+                </p>
+              </div>
+
+              <div className="checkout-summary-card__group">
                 <span className="checkout-summary-card__label">Delivery Destination</span>
                 <p
                   className="checkout-summary-card__text checkout-summary-card__name"
@@ -316,6 +331,32 @@ export function ContactAndAddressForm({
               {errors.email ? (
                 <p className="checkout-form__error" role="alert" data-testid="error-email">
                   {errors.email}
+                </p>
+              ) : null}
+            </div>
+
+            {/* Quick Access Password Field */}
+            <div className="checkout-form__field">
+              <label htmlFor="checkout-password" className="checkout-form__label">
+                Create password for quick access <span className="checkout-form__optional">(Optional)</span>
+              </label>
+              <input
+                id="checkout-password"
+                name="password"
+                type="password"
+                className={`checkout-form__input ${errors.password ? "checkout-form__input--error" : ""}`}
+                placeholder="Choose a password (optional)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                data-testid="input-password"
+              />
+              <p className="checkout-form__hint checkout-form__hint--field" data-testid="password-help-text">
+                Minimum 8 characters. Skip if you prefer not to set a password now.
+              </p>
+              {errors.password ? (
+                <p className="checkout-form__error" role="alert" data-testid="error-password">
+                  {errors.password}
                 </p>
               ) : null}
             </div>

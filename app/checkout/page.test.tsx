@@ -84,6 +84,7 @@ const mockCheckoutSession: CheckoutSessionWithShipping = {
   zip: "10001",
   country: "US",
   phone: "+1 555-019-2834",
+  passwordHash: null,
   shippingMethodId: null,
   createdAt: new Date(),
   updatedAt: new Date(),

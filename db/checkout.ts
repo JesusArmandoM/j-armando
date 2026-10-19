@@ -18,6 +18,7 @@ export interface CheckoutContactAndAddressInput {
   zip: string;
   country?: string;
   phone?: string | null;
+  passwordHash?: string | null;
 }
 
 export interface CheckoutSessionWithShipping extends CheckoutSession {
@@ -115,6 +116,7 @@ export async function saveCheckoutContactAndAddress(
     const zip = input.zip.trim();
     const country = input.country?.toUpperCase().trim() || "US";
     const phone = input.phone?.trim() || null;
+    const passwordHash = input.passwordHash ?? null;
     const now = new Date();
 
     const [saved] = await txDb
@@ -130,6 +132,7 @@ export async function saveCheckoutContactAndAddress(
         zip,
         country,
         phone,
+        passwordHash,
         createdAt: now,
         updatedAt: now,
       })
@@ -145,6 +148,7 @@ export async function saveCheckoutContactAndAddress(
           zip,
           country,
           phone,
+          ...(input.passwordHash !== undefined ? { passwordHash } : {}),
           updatedAt: now,
         },
       })

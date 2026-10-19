@@ -71,6 +71,7 @@ export interface CheckoutContactAndAddressData {
   zip: string;
   country: string;
   phone: string | null;
+  password?: string;
 }
 
 export interface CheckoutInputErrors {
@@ -82,6 +83,7 @@ export interface CheckoutInputErrors {
   zip?: string;
   country?: string;
   phone?: string;
+  password?: string;
 }
 
 export type ParseCheckoutResult =
@@ -163,6 +165,12 @@ export function parseCheckoutContactAndAddress(raw: unknown): ParseCheckoutResul
   // Phone (optional)
   const rawPhone = typeof record.phone === "string" ? record.phone.trim() : "";
 
+  // Password (optional Quick Access password, min 8 characters)
+  const rawPassword = typeof record.password === "string" ? record.password : "";
+  if (rawPassword.length > 0 && rawPassword.length < 8) {
+    errors.password = "Password must be at least 8 characters long";
+  }
+
   if (Object.keys(errors).length > 0) {
     return { ok: false, errors };
   }
@@ -179,6 +187,7 @@ export function parseCheckoutContactAndAddress(raw: unknown): ParseCheckoutResul
       zip: rawZip,
       country: "US",
       phone: rawPhone ? rawPhone : null,
+      ...(rawPassword.length >= 8 ? { password: rawPassword } : {}),
     },
   };
 }

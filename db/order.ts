@@ -82,6 +82,7 @@ export interface OrderWithDetails {
   reference: string;
   accountId: string | null;
   isNewAccount?: boolean;
+  hasPassword?: boolean;
   contactEmail: string;
   status: OrderStatus;
   fulfillmentStatus: FulfillmentStatus | null;
@@ -106,9 +107,11 @@ export type CreatePaidOrderResult =
         totalCents: number;
         contactEmail: string;
         accountId?: string | null;
+        hasPassword?: boolean;
       };
       accountId: string;
       isNewAccount: boolean;
+      hasPassword: boolean;
     }
   | {
       ok: false;
@@ -252,9 +255,11 @@ export async function createPaidOrderFromCheckout(
       totalCents: number;
       contactEmail: string;
       accountId: string;
+      hasPassword: boolean;
     };
     accountId: string;
     isNewAccount: boolean;
+    hasPassword: boolean;
   };
 
   try {
@@ -292,21 +297,39 @@ export async function createPaidOrderFromCheckout(
 
       // Look up existing account
       const [existingAccount] = await txDb
-        .select({ id: account.id })
+        .select({ id: account.id, passwordHash: account.passwordHash })
         .from(account)
         .where(eq(account.email, normalizedEmail))
         .limit(1);
 
       let targetAccountId: string;
+      let finalHasPassword = false;
 
       if (existingAccount) {
         targetAccountId = existingAccount.id;
+        if (!existingAccount.passwordHash && session.passwordHash) {
+          await txDb
+            .update(account)
+            .set({
+              passwordHash: session.passwordHash,
+              updatedAt: new Date(),
+            })
+            .where(eq(account.id, targetAccountId));
+          finalHasPassword = true;
+        } else {
+          finalHasPassword = Boolean(existingAccount.passwordHash);
+        }
       } else {
+        const passwordHashToSet = session.passwordHash ?? null;
         const [newAccount] = await txDb
           .insert(account)
-          .values({ email: normalizedEmail })
+          .values({
+            email: normalizedEmail,
+            passwordHash: passwordHashToSet,
+          })
           .returning({ id: account.id });
         targetAccountId = newAccount.id;
+        finalHasPassword = Boolean(passwordHashToSet);
 
         await txDb.insert(accountRole).values({
           accountId: targetAccountId,
@@ -400,9 +423,11 @@ export async function createPaidOrderFromCheckout(
           totalCents: createdOrder.totalCents,
           contactEmail: createdOrder.contactEmail,
           accountId: targetAccountId,
+          hasPassword: finalHasPassword,
         },
         accountId: targetAccountId,
         isNewAccount: !existingAccount,
+        hasPassword: finalHasPassword,
       } as const;
     });
   } catch (error) {
@@ -490,6 +515,7 @@ export async function getOrderByReference(
   }
 
   let isNewAccount: boolean | undefined = undefined;
+  let hasPassword: boolean | undefined = undefined;
   if (orderRow.order.accountId) {
     const ordersForAccount = await db
       .select({ id: order.id })
@@ -499,6 +525,13 @@ export async function getOrderByReference(
     if (ordersForAccount.length > 0) {
       isNewAccount = ordersForAccount[0].id === orderRow.order.id;
     }
+
+    const [acc] = await db
+      .select({ passwordHash: account.passwordHash })
+      .from(account)
+      .where(eq(account.id, orderRow.order.accountId))
+      .limit(1);
+    hasPassword = Boolean(acc?.passwordHash);
   }
 
   const lines = await db
@@ -520,6 +553,7 @@ export async function getOrderByReference(
     reference: orderRow.order.reference,
     accountId: orderRow.order.accountId,
     isNewAccount,
+    hasPassword,
     contactEmail: orderRow.order.contactEmail,
     status: orderRow.order.status,
     fulfillmentStatus: orderRow.order.fulfillmentStatus,
