@@ -81,6 +81,8 @@ describe("AccountPage", () => {
     expect(screen.getByTestId("account-email").textContent).toBe("customer@j-armando.com");
     expect(screen.getByTestId("account-roles").textContent).toBe("customer");
     expect(screen.getByTestId("sign-out-btn")).toBeTruthy();
+    expect(screen.getByTestId("account-orders-btn")).toBeTruthy();
+    expect(screen.getByTestId("account-orders-link")).toBeTruthy();
   });
 });
 

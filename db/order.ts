@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import type { FulfillmentStatus, OrderStatus } from "./schema/index.ts";
@@ -96,6 +96,27 @@ export interface OrderWithDetails {
   shippingAddress: OrderAddressSnapshot;
   shippingMethod: OrderShippingMethodSnapshot;
   lines: OrderLineItem[];
+}
+
+export interface OrderSummary {
+  id: string;
+  reference: string;
+  accountId: string | null;
+  contactEmail: string;
+  status: OrderStatus;
+  fulfillmentStatus: FulfillmentStatus | null;
+  subtotalCents: number;
+  shippingCents: number;
+  taxCents: number;
+  totalCents: number;
+  currency: string;
+  createdAt: Date;
+  paidAt: Date | null;
+  lineCount: number;
+  itemCount: number;
+  lines: OrderLineItem[];
+  shippingAddress: OrderAddressSnapshot;
+  shippingMethod: OrderShippingMethodSnapshot;
 }
 
 export type CreatePaidOrderResult =
@@ -583,3 +604,183 @@ export async function getOrderByReference(
     lines,
   };
 }
+
+/**
+ * Lists all orders placed by an account, ordered by creation date descending.
+ * Includes line items, item counts, and frozen financial totals.
+ */
+export async function listOrdersForAccount(
+  db: Db,
+  accountId: string,
+): Promise<OrderSummary[]> {
+  if (!accountId) {
+    return [];
+  }
+
+  const orderRows = await db
+    .select({
+      order: order,
+      address: address,
+      shippingMethod: shippingMethod,
+    })
+    .from(order)
+    .innerJoin(address, eq(address.id, order.addressId))
+    .innerJoin(shippingMethod, eq(shippingMethod.id, order.shippingMethodId))
+    .where(eq(order.accountId, accountId))
+    .orderBy(desc(order.createdAt));
+
+  if (orderRows.length === 0) {
+    return [];
+  }
+
+  const orderIds = orderRows.map((r) => r.order.id);
+  const lines = await db
+    .select({
+      id: orderLine.id,
+      orderId: orderLine.orderId,
+      variantId: orderLine.variantId,
+      productName: orderLine.productName,
+      variantSize: orderLine.variantSize,
+      variantColor: orderLine.variantColor,
+      unitPriceCents: orderLine.unitPriceCents,
+      quantity: orderLine.quantity,
+      lineTotalCents: orderLine.lineTotalCents,
+    })
+    .from(orderLine)
+    .where(inArray(orderLine.orderId, orderIds));
+
+  const linesByOrderId = new Map<string, OrderLineItem[]>();
+  for (const line of lines) {
+    const existing = linesByOrderId.get(line.orderId) ?? [];
+    existing.push({
+      id: line.id,
+      variantId: line.variantId,
+      productName: line.productName,
+      variantSize: line.variantSize,
+      variantColor: line.variantColor,
+      unitPriceCents: line.unitPriceCents,
+      quantity: line.quantity,
+      lineTotalCents: line.lineTotalCents,
+    });
+    linesByOrderId.set(line.orderId, existing);
+  }
+
+  return orderRows.map((r) => {
+    const orderLines = linesByOrderId.get(r.order.id) ?? [];
+    const lineCount = orderLines.length;
+    const itemCount = orderLines.reduce((acc, l) => acc + l.quantity, 0);
+
+    return {
+      id: r.order.id,
+      reference: r.order.reference,
+      accountId: r.order.accountId,
+      contactEmail: r.order.contactEmail,
+      status: r.order.status,
+      fulfillmentStatus: r.order.fulfillmentStatus,
+      subtotalCents: r.order.subtotalCents,
+      shippingCents: r.order.shippingCents,
+      taxCents: r.order.taxCents,
+      totalCents: r.order.totalCents,
+      currency: r.order.currency,
+      createdAt: r.order.createdAt,
+      paidAt: r.order.paidAt,
+      lineCount,
+      itemCount,
+      lines: orderLines,
+      shippingAddress: {
+        recipientName: r.address.recipientName,
+        line1: r.address.line1,
+        line2: r.address.line2,
+        city: r.address.city,
+        state: r.address.state,
+        zip: r.address.zip,
+        country: r.address.country,
+        phone: r.address.phone,
+      },
+      shippingMethod: {
+        id: r.shippingMethod.id,
+        name: r.shippingMethod.name,
+        costCents: r.shippingMethod.costCents,
+        deliveryEstimate: r.shippingMethod.deliveryEstimate,
+      },
+    };
+  });
+}
+
+/**
+ * Retrieves an order by its reference strictly matching the specified accountId.
+ * If the order does not exist or belongs to another customer, returns null.
+ */
+export async function getOrderByReferenceForAccount(
+  db: Db,
+  reference: string,
+  accountId: string,
+): Promise<OrderWithDetails | null> {
+  if (!reference || !accountId) {
+    return null;
+  }
+
+  const [orderRow] = await db
+    .select({
+      order: order,
+      address: address,
+      shippingMethod: shippingMethod,
+    })
+    .from(order)
+    .innerJoin(address, eq(address.id, order.addressId))
+    .innerJoin(shippingMethod, eq(shippingMethod.id, order.shippingMethodId))
+    .where(and(eq(order.reference, reference), eq(order.accountId, accountId)))
+    .limit(1);
+
+  if (!orderRow) {
+    return null;
+  }
+
+  const lines = await db
+    .select({
+      id: orderLine.id,
+      variantId: orderLine.variantId,
+      productName: orderLine.productName,
+      variantSize: orderLine.variantSize,
+      variantColor: orderLine.variantColor,
+      unitPriceCents: orderLine.unitPriceCents,
+      quantity: orderLine.quantity,
+      lineTotalCents: orderLine.lineTotalCents,
+    })
+    .from(orderLine)
+    .where(eq(orderLine.orderId, orderRow.order.id));
+
+  return {
+    id: orderRow.order.id,
+    reference: orderRow.order.reference,
+    accountId: orderRow.order.accountId,
+    contactEmail: orderRow.order.contactEmail,
+    status: orderRow.order.status,
+    fulfillmentStatus: orderRow.order.fulfillmentStatus,
+    subtotalCents: orderRow.order.subtotalCents,
+    shippingCents: orderRow.order.shippingCents,
+    taxCents: orderRow.order.taxCents,
+    totalCents: orderRow.order.totalCents,
+    currency: orderRow.order.currency,
+    createdAt: orderRow.order.createdAt,
+    paidAt: orderRow.order.paidAt,
+    shippingAddress: {
+      recipientName: orderRow.address.recipientName,
+      line1: orderRow.address.line1,
+      line2: orderRow.address.line2,
+      city: orderRow.address.city,
+      state: orderRow.address.state,
+      zip: orderRow.address.zip,
+      country: orderRow.address.country,
+      phone: orderRow.address.phone,
+    },
+    shippingMethod: {
+      id: orderRow.shippingMethod.id,
+      name: orderRow.shippingMethod.name,
+      costCents: orderRow.shippingMethod.costCents,
+      deliveryEstimate: orderRow.shippingMethod.deliveryEstimate,
+    },
+    lines,
+  };
+}
+

@@ -5,9 +5,9 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `order-history`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
-- Last verified at: 2026-10-19: `./init.sh` exit 0 (72 test files / 556 tests green), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19: `./init.sh` exit 0 (77 test files / 577 tests green), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 
 ## Project State
@@ -944,6 +944,44 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Evidence captured: `feature_list.json` → `account-signin-signout.evidence`; `docs/validations/account-signin-signout.md`; this log.
 - Known risk or unresolved issue: Cart merge on sign-in (separate follow-up feature); try-on photo privacy remains open under #3.
 - Next best step: Commit `feature/account-signin-signout`, push to origin, and open PR linking Closes #44 without merging.
+
+### Session 041
+
+- Date: 2026-10-19
+- Goal: Implement and independently validate `order-history` (Customer sees their own order history with cross-customer isolation and frozen totals).
+- Completed:
+  - Feature spec written: `docs/specs/order-history.md` covering all 6 acceptance scenarios for listing orders, empty states, detailed order views, cross-customer isolation, unauthenticated redirection, and account navigation.
+  - Data Access Layer (`db/order.ts`):
+    - Added `OrderSummary` interface representing order snapshots with item counts, frozen totals, delivery details, and lines.
+    - `listOrdersForAccount`: retrieves all orders belonging to an account sorted by `createdAt desc`. Attaches address, shipping method, and lines snapshot in integer cents.
+    - `getOrderByReferenceForAccount`: retrieves order matching both `reference` and `accountId`. Returns `null` if not found or if the order belongs to another customer.
+  - Route Handlers (`app/api/account/orders/`):
+    - `GET /api/account/orders`: reads `ja_account_session` cookie; returns `{ ok: true, orders }` or 401 Unauthorized if unauthenticated.
+    - `GET /api/account/orders/[reference]`: reads `ja_account_session` cookie; returns `{ ok: true, order }` if owned, 404 Not Found if unowned or non-existent, or 401 Unauthorized if signed out.
+  - Storefront UI & Layout (`app/account/orders/`, `app/account/`, `app/globals.css`):
+    - `app/account/orders/page.tsx`: server component displaying customer's order history. Redirects unauthenticated visitors to `/account/signin?returnUrl=/account/orders`. Shows empty state (`data-testid="orders-empty"`) with catalog link if no orders, or order list cards (`data-testid="order-list-item"`) with reference, date, status, fulfillment status, item count, formatted total in USD (`formatPriceUSD`), and link to detail page.
+    - `app/account/orders/[reference]/page.tsx`: server component displaying complete order detail. Calls `notFound()` when accessing unowned orders. Displays items ordered with product, size, color, quantity, unit price, and line total; delivery details with shipping address and shipping method; financial summary (Subtotal, Shipping, Estimated Tax, Total in USD); and back link to order history.
+    - `app/account/page.tsx`: added Order History action button and footer link.
+    - `app/globals.css`: added responsive styling for orders page, cards, empty states, and badges.
+  - Tests (all green):
+    - `db/tests/order-history.test.ts` (3 tests passing): empty orders handling, descending order list with lines and frozen totals, cross-customer data isolation in `getOrderByReferenceForAccount`.
+    - `app/api/account/orders/route.test.ts` (4 tests passing): 401 on unauthenticated or expired session, 200 with orders array for authenticated account, 500 on db failure.
+    - `app/api/account/orders/[reference]/route.test.ts` (5 tests passing): 401 on unauthenticated, 404 on unowned or non-existent order, 200 with order details for owner, 500 on db failure.
+    - `app/account/orders/page.test.tsx` (4 tests passing): unauthenticated redirect with returnUrl, empty state rendering, populated order history list rendering.
+    - `app/account/orders/[reference]/page.test.tsx` (5 tests passing): unauthenticated redirect, `notFound()` on unowned order, full order detail rendering with frozen prices and delivery info.
+    - `app/account/page.test.tsx` (updated): asserts presence of Order History links.
+  - Live Dev Server Verification:
+    - Tested against PostgreSQL on PORT 3014: unauthenticated 307 redirect and 401 API responses; customer A sees their own order and cannot see customer B's order; cross-customer access to order detail returns 404; customer C sees empty state.
+  - Validation: All 6 acceptance scenarios verified and recorded in `docs/validations/order-history.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `order-history` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (77 test files / 577 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds; all routes dynamic).
+- Evidence captured: `feature_list.json` → `order-history.evidence`; `docs/validations/order-history.md`; this log.
+- Known risk or unresolved issue: none for order-history.
+- Next best step: Commit `feature/order-history`, push to origin, and open PR linking Closes #46 without merging.
+
 
 
 
