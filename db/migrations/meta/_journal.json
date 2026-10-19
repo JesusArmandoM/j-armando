@@ -22,6 +22,13 @@
       "when": 1792436874959,
       "tag": "0002_daily_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792438776691,
+      "tag": "0003_freezing_vargas",
+      "breakpoints": true
     }
   ]
 }

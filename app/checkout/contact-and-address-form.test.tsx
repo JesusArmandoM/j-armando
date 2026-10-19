@@ -245,4 +245,63 @@ describe("ContactAndAddressForm", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("completing Step 2 activates Step 3 (Ready for Payment)", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("shipping-method")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            ok: true,
+            checkoutSession: {
+              ...mockSession,
+              shippingMethodId: "d0000000-0000-4000-8000-000000000001",
+              shippingMethod: {
+                id: "d0000000-0000-4000-8000-000000000001",
+                slug: "standard",
+                name: "Standard Shipping",
+                description: "Free standard shipping across the United States.",
+                costCents: 0,
+                deliveryEstimate: "3–5 business days",
+              },
+            },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ ok: true, checkoutSession: mockSession }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Initial state with Step 1 completed
+    render(<ContactAndAddressForm initialSession={mockSession} />);
+
+    // Step 2 is ready for selection
+    expect(screen.getByTestId("shipping-step-ready")).toBeTruthy();
+    expect(screen.getByTestId("checkout-submit-shipping")).toBeTruthy();
+
+    // Step 3 is currently pending
+    expect(screen.queryByTestId("payment-step-ready")).toBeNull();
+
+    // Select standard shipping and submit
+    fireEvent.click(screen.getByTestId("radio-shipping-standard"));
+    fireEvent.click(screen.getByTestId("checkout-submit-shipping"));
+
+    // Step 2 displays completed summary card
+    const shippingSummary = await screen.findByTestId("shipping-summary-card");
+    expect(shippingSummary).toBeTruthy();
+    expect(screen.getByTestId("summary-shipping-name").textContent).toBe(
+      "Standard Shipping",
+    );
+
+    // Step 3 is now activated
+    const paymentReady = await screen.findByTestId("payment-step-ready");
+    expect(paymentReady.textContent).toBe("Ready for Payment");
+    expect(screen.getByTestId("payment-step-content")).toBeTruthy();
+
+    vi.unstubAllGlobals();
+  });
 });
+

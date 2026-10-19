@@ -1,0 +1,2 @@
+ALTER TABLE "checkout_session" ADD COLUMN "shipping_method_id" uuid;--> statement-breakpoint
+ALTER TABLE "checkout_session" ADD CONSTRAINT "checkout_session_shipping_method_id_shipping_method_id_fk" FOREIGN KEY ("shipping_method_id") REFERENCES "public"."shipping_method"("id") ON DELETE no action ON UPDATE no action;

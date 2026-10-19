@@ -139,6 +139,7 @@ describe("POST /api/checkout/contact-and-address", () => {
         zip: "10001",
         country: "US",
         phone: "+1 555-019-2834",
+        shippingMethodId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -193,6 +194,7 @@ describe("GET /api/checkout/contact-and-address", () => {
       zip: "90210",
       country: "US",
       phone: null,
+      shippingMethodId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

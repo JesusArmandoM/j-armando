@@ -29,7 +29,8 @@ vi.mock("@/db/client.ts", () => ({
 import * as cartDb from "@/db/cart.ts";
 import type { CartSummary } from "@/db/cart.ts";
 import * as checkoutDb from "@/db/checkout.ts";
-import type { CheckoutSession } from "@/db/schema/index.ts";
+import type { CheckoutSessionWithShipping } from "@/db/checkout.ts";
+import type { ShippingMethod } from "@/db/schema/index.ts";
 
 import CheckoutPage from "./page";
 
@@ -52,7 +53,26 @@ const mockSummary: CartSummary = {
   currency: "USD",
 };
 
-const mockCheckoutSession: CheckoutSession = {
+const mockShippingMethods: ShippingMethod[] = [
+  {
+    id: "11111111-1111-4111-8111-111111111111",
+    slug: "standard",
+    name: "Standard Shipping",
+    description: "Free standard shipping across the United States.",
+    costCents: 0,
+    deliveryEstimate: "3–5 business days",
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222222",
+    slug: "express",
+    name: "Express Shipping",
+    description: "Flat-rate express shipping across the United States.",
+    costCents: 1500,
+    deliveryEstimate: "1–2 business days",
+  },
+];
+
+const mockCheckoutSession: CheckoutSessionWithShipping = {
   id: "session-uuid-1",
   cartId: "cart-uuid-1",
   email: "alexandra.vance@studio.com",
@@ -64,14 +84,19 @@ const mockCheckoutSession: CheckoutSession = {
   zip: "10001",
   country: "US",
   phone: "+1 555-019-2834",
+  shippingMethodId: null,
   createdAt: new Date(),
   updatedAt: new Date(),
+  shippingMethod: null,
 };
 
 describe("CheckoutPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     cookieState.value = undefined;
+    vi.spyOn(checkoutDb, "listShippingMethods").mockResolvedValue(
+      mockShippingMethods,
+    );
   });
 
   it("renders empty checkout state when no cart session cookie is present", async () => {
@@ -112,7 +137,7 @@ describe("CheckoutPage", () => {
     expect(screen.getByRole("link", { name: "Return to Cart" })).toBeTruthy();
   });
 
-  it("renders order summary and checkout flow when cart has items", async () => {
+  it("renders order summary and checkout flow when cart has items without chosen shipping", async () => {
     cookieState.value = "mock_session";
     vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
     vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce(undefined);
@@ -128,7 +153,10 @@ describe("CheckoutPage", () => {
     expect(screen.getByText("Double-Breasted Linen Blazer")).toBeTruthy();
     expect(screen.getByText("Size M · Ivory · Qty 1")).toBeTruthy();
     expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
-    expect(screen.getByText("Calculated next step")).toBeTruthy();
+    expect(screen.getByTestId("summary-shipping-hint").textContent).toBe(
+      "Calculated next step",
+    );
+    expect(screen.getByTestId("summary-total").textContent).toBe("$249.00");
     expect(screen.getByRole("link", { name: "Edit Cart" }).getAttribute("href")).toBe("/cart");
 
     // Checkout form is rendered in initial mode
@@ -152,5 +180,57 @@ describe("CheckoutPage", () => {
     expect(screen.getByTestId("summary-recipient-name").textContent).toBe(
       "Alexandra Vance",
     );
+    // Step 2 is ready
+    expect(screen.getByTestId("shipping-step-ready")).toBeTruthy();
+  });
+
+  it("renders Order Summary with standard shipping ($0.00) and updates total", async () => {
+    cookieState.value = "mock_session";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
+    vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
+      ...mockCheckoutSession,
+      shippingMethodId: mockShippingMethods[0].id,
+      shippingMethod: mockShippingMethods[0],
+    });
+
+    const ui = await CheckoutPage();
+    render(ui);
+
+    expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
+    expect(screen.getByTestId("summary-shipping").textContent).toBe("$0.00");
+    expect(screen.getByTestId("summary-total").textContent).toBe("$249.00");
+
+    // Step 2 shows completed standard shipping
+    expect(screen.getByTestId("shipping-summary-card")).toBeTruthy();
+    expect(screen.getByTestId("summary-shipping-name").textContent).toBe(
+      "Standard Shipping",
+    );
+    // Step 3 is ready for payment
+    expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
+  });
+
+  it("renders Order Summary with express shipping ($15.00) and calculates total ($264.00)", async () => {
+    cookieState.value = "mock_session";
+    vi.spyOn(cartDb, "getCartSummary").mockResolvedValueOnce(mockSummary);
+    vi.spyOn(checkoutDb, "getCheckoutSession").mockResolvedValueOnce({
+      ...mockCheckoutSession,
+      shippingMethodId: mockShippingMethods[1].id,
+      shippingMethod: mockShippingMethods[1],
+    });
+
+    const ui = await CheckoutPage();
+    render(ui);
+
+    expect(screen.getByTestId("summary-subtotal").textContent).toBe("$249.00");
+    expect(screen.getByTestId("summary-shipping").textContent).toBe("$15.00");
+    expect(screen.getByTestId("summary-total").textContent).toBe("$264.00");
+
+    // Step 2 shows completed express shipping
+    expect(screen.getByTestId("shipping-summary-card")).toBeTruthy();
+    expect(screen.getByTestId("summary-shipping-name").textContent).toBe(
+      "Express Shipping",
+    );
+    // Step 3 is ready for payment
+    expect(screen.getByTestId("payment-step-ready")).toBeTruthy();
   });
 });
