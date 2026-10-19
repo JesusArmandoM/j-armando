@@ -2,24 +2,24 @@
 
 ## Current Verified State
 
-- Repository root: `/Users/armando/Documents/tienda-worktrees/product-variant-selection` (feature worktree; base checkout untouched)
+- Repository root: `/Users/armando/Documents/Ai Tienda de Ropa`
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `product-variant-selection` is `accepted` (independently validated 2026-10-19); `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are also `accepted`
-- Current next ready feature: `guest-cart-add` (depends on `product-variant-selection`, accepted) is next in `feature_list.json` order; `chat-assistant-guardrails` (depends on `chat-assistant`, accepted) also follows
-- Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question and the chat LLM-provider question are resolved — see *Resolved*)
-- Last verified at: 2026-10-19, `product-variant-selection` independently accepted (`feature-validator`, ACCEPT) — `./init.sh` exit 0 (21 test files / 140 tests), `pnpm lint` / `pnpm typecheck` exit 0, `pnpm build` exit 0 with `/products/[slug]` dynamic, live disposable-PostgreSQL HTTP matrix (base vs override price, disabled out-of-stock tiles, deep links, invalid params) and headless-Chrome `replaceState` check. `chat-assistant` residual R1 remains closed (live DevExpert gateway transcript, 2026-10-19).
+- Current feature in flight: none. `product-variant-selection` and `chat-assistant-guardrails` are both `accepted` (independently validated 2026-10-19). `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are also `accepted`.
+- Current next ready feature: `guest-cart-add` (depends on `product-variant-selection`, accepted) and `order-creation-on-payment` (needs `checkout-sales-tax`) follow; `virtual-tryon-generation` is dependency-ready on its own branch.
+- Current blocker: none for the shipped features. Five discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question, the chat LLM-provider question and chat guardrails #4 are resolved — see *Resolved*).
+- Last verified at: 2026-10-19, `product-variant-selection` (21 test files / 140 tests) and `chat-assistant-guardrails` (25 test files / 167 tests) are independently accepted; `./init.sh` and `pnpm build` exit 0 on the combined tree, key-free with provider/DB env unset; validator independently reproduced the F1 price-guard matrix and F2 routing; optional live transcript against the DevExpert gateway returned the exact unknown shipping/return copy, `$349.00` for the overcoat and the fixed weather refusal.
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog (listing, filtering, detail) + payments port + chat assistant shipped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script); the storefront `/catalog` lists published products with URL-driven filtering/sorting and `/products/[slug]` renders product detail with client-side size/color variant selection (price override + stock message, URL-mirrored); `payments/` holds the framework-agnostic `PaymentProvider` port, simulated adapter and outcome mapper with a presentational `app/checkout/` outcome surface; the storefront chat panel talks to `POST /api/chat` behind the `lib/chat/` `ChatAssistant` port + OpenAI adapter. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Phase: **application shell + PostgreSQL data layer + storefront catalog (listing, filtering, detail with variant selection) + payments port + chat assistant with deterministic guardrails shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (schema, committed SQL migrations, demo catalog seed, verify script); the storefront `/catalog` lists published products with URL-driven filtering/sorting and `/products/[slug]` renders product detail with client-side size/color variant selection (price override + stock message, URL-mirrored); `payments/` holds the framework-agnostic `PaymentProvider` port, simulated adapter and outcome mapper with a presentational `app/checkout/` outcome surface; the storefront chat panel talks to `POST /api/chat` behind the `lib/chat/` `ChatAssistant` port + OpenAI adapter, with deterministic policy/price/out-of-scope guardrails in `lib/chat/guardrails/` and server composition in `app/api/chat/composition.ts`. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking, never starts a dev server and never touches a database. `pnpm build` produces a static production build without `DATABASE_URL`.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 in two projects — `ui` (jsdom + Testing Library) and `db` (node, embedded PostgreSQL 17 per run). No browser E2E harness yet.
 - Data layer: Drizzle ORM (`drizzle-orm` + `drizzle-kit` over `pg`) — ADR 0002. Money is integer cents, USD, tax-exclusive; migrations are generated once and never edited; the seed is insert-if-missing and never overwrites rows (`CONSTRAINTS.md`).
 - Planned stack: Next.js (App Router) + TypeScript + PostgreSQL, Vercel + managed Postgres (Neon vs Supabase still undecided; everything connects through `DATABASE_URL`). See `docs/technical-discovery.md`.
 - Market: United States, USD, sales tax added at checkout. UI copy and documentation in English.
-- Feature inventory: 30 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction` and `chat-assistant` accepted; the rest not started.
+- Feature inventory: 30 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant` and `chat-assistant-guardrails` accepted; the rest not started.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -30,9 +30,10 @@ These must be answered before or during the relevant features. Full detail in `d
 1. Sign-in mechanism for accounts created without a password (magic link / email OTP / forced password creation).
 2. Virtual try-on provider selection (quality, latency, cost, data-processing terms).
 3. Photo consent and retention policy (privacy-critical).
-4. Chat assistant guardrails behaviour (products/sizing/fabric/shipping scope is settled; verified-policy/price-grounding refusal is owned by `chat-assistant-guardrails`).
-5. Shipping cost rules (flat rate / free above threshold / weight-based).
+5. Shipping cost rules (flat rate / free above threshold / weight-based). The assistant answers shipping cost as unknown until this is decided.
 6. Sales tax rate table and whether nexus tracking is needed.
+
+Numbering is preserved from earlier sessions; #4 (chat assistant guardrails behaviour) is resolved — see `docs/risks-and-open-questions.md` → *Resolved* and ADR 0004.
 
 ## Session Log
 
@@ -287,3 +288,53 @@ These must be answered before or during the relevant features. Full detail in `d
 - Known risk or unresolved issue: (1) no persistent browser E2E harness exists; `history.replaceState` was verified in jsdom plus headless Chrome rather than a committed browser suite; (2) disabled options are focusable by design (`aria-disabled` + guarded no-op), not natively `disabled`, to keep the reason discoverable; (3) the live region is populated on first render (possible initial screen-reader announcement — Low); (4) no variant-specific imagery, add-to-cart, quantity or try-on was added (non-goals).
 - Next best step: take `guest-cart-add` (depends on `product-variant-selection`, now `accepted`) — run `planner` first (no spec exists).
 
+
+### Session 019
+
+- Date: 2026-10-19
+- Goal: Implement `chat-assistant-guardrails` (the assistant never invents store policies or prices) per `docs/specs/chat-assistant-guardrails.md`. Implementer role in the dedicated worktree; no commit (the orchestrator commits after independent validation).
+- Completed:
+  - Port extension: `ChatAssistant.answer(messages, context?)` with optional `ChatAnswerContext { verifiedFacts?, instructions? }`; existing callers/tests unchanged.
+  - Guardrail modules: `lib/chat/guardrails/store-knowledge.ts` (six reviewed `VerifiedFact` records — shipping-cost, return-policy, tax-display, market, payment-methods, promotions — with exact copy, status and source), `intents.ts` (policy/price/out-of-scope/prompt-injection matchers + fixed `OUT_OF_SCOPE_REPLY`), `product-match.ts` (deterministic published-only name/slug/token ranking, multi-product and ambiguity handling), `answer.ts` (exact price/policy/no-match/multi-match/cannot-confirm copy; `formatPriceUSD` only), `answer-guard.ts` (unverified `$` amounts discarded), `instructions.ts` (`GUARDRAIL_INSTRUCTIONS`).
+  - Decorator: `lib/chat/guarded-chat-assistant.ts` — policy answers verbatim, price answers from the injected published catalog, out-of-scope refusal, all without invoking the provider; in-scope questions receive matched product/composition/care facts plus instructions and pass through `guardLlmAnswer`; latest-message + two-turn antecedent resolution; catalog failure never falls back to the LLM.
+  - Adapter: `openai-chat-assistant.ts` merges `instructions` and a bulleted verified-facts list into the system message (user text never enters it); without context the system message is still exactly `CHAT_SYSTEM_PROMPT`.
+  - Data/server: `db/catalog.ts` `listPublishedProductFacts` (published-only lean query, integer cents), `app/api/chat/composition.ts` (lazy knowledge + DB reader + provider), route calls `answerChat(messages)` with its 400/502/503 mapping unchanged.
+  - Tests (+7 files / +53 tests): `store-knowledge.test.ts` (7), `intents.test.ts` (8), `product-match.test.ts` (7), `answer.test.ts` (7), `answer-guard.test.ts` (5), `guarded-chat-assistant.test.ts` (13: scenarios 1–8 + edges), `db/tests/chat-catalog.test.ts` (3); `openai-chat-assistant.test.ts` +1 context test, `route.test.ts` rewritten to exercise the real guardrail composition with the provider key absent (9).
+  - Docs: `docs/adr/0004-chat-assistant-guardrails.md`; `docs/risks-and-open-questions.md` #4 → Resolved (ADR/module pointer), #5 shipping rules left blocking and noted as unknown in chat; `ARCHITECTURE.md` (status, route surface, layout, layering, AI configuration); `CONSTRAINTS.md` rule 7; `docs/technical-discovery.md` AI row.
+- Verification run: `./init.sh` exit 0 (25 files / 160 tests; baseline 18 / 107); `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm test` exit 0 (25 / 160); `pnpm build` exit 0 with `.env` moved aside and `DATABASE_URL`/`OPENAI_API_KEY`/`OPENAI_BASE_URL`/`CHAT_ASSISTANT_MODEL` unset (`/api/chat` and `/catalog` dynamic). Optional live transcript on `PORT=3012` against the dedicated `.env` database (migrate/seed/verify) and the DevExpert gateway: shipping and returns returned the exact unknown copy, overcoat `$349.00 (USD, tax-exclusive)`, weather the fixed refusal, and an in-scope merino fabric question a grounded live answer. Dev server stopped; `.env` untouched, gitignored and uncommitted.
+- Evidence captured: `feature_list.json` → `chat-assistant-guardrails.verification` (6 concrete, test-backed statements) and `.evidence` (9 entries incl. exact scenario test names and the live transcript); this log.
+- Files or artifacts updated: created `lib/chat/guardrails/{store-knowledge,intents,product-match,answer,answer-guard,instructions}.ts` + tests, `lib/chat/guarded-chat-assistant.ts` + test, `app/api/chat/composition.ts`, `db/tests/chat-catalog.test.ts`, `docs/adr/0004-chat-assistant-guardrails.md`; modified `lib/chat/{chat-assistant,openai-chat-assistant,openai-chat-assistant.test}.ts`, `app/api/chat/{route,route.test}.ts`, `db/catalog.ts`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `docs/risks-and-open-questions.md`, `docs/technical-discovery.md`, `feature_list.json`, this file.
+- Known risk or unresolved issue for the validator: (1) product matching is deliberately conservative (generic "the coat" does not match "overcoat"; material-only words are ignored) — extend with tests rather than loosening to guess. (2) Shipping cost and returns stay explicit unknowns until #5/returns are decided; only `store-knowledge.ts` changes then. (3) The optional live transcript used the dedicated local `.env` DB/gateway and is not part of the gate; `.env` was restored after the key-free build. (4) Pre-existing Turbopack `db/env.ts` dynamic-filesystem tracing warning remains; not introduced here. (5) The repo still has no browser E2E harness; focused Vitest service/adapter/route/DB coverage is the convention and the UI is unchanged.
+- Next best step: run `feature-validator` against `docs/specs/chat-assistant-guardrails.md`; the orchestrator commits after acceptance.
+
+
+### Session 020
+
+- Date: 2026-10-19
+- Goal: Repair validator finding F1 (High) in `chat-assistant-guardrails` and harden F2 (Low); keep the feature `passing` after re-verification. No commit.
+- Root cause (F1): `lib/chat/guardrails/answer-guard.ts` checked `allowedFacts.join("\n").includes(amount)`, so short fabricated amounts (`$3`, `$34`, `$349`, `$349.0`) were treated as verified substrings of a real `$349.00` fact.
+- Fix: extract every dollar amount from the verified facts and compare exact canonical strings (`$` spacing and thousands separators normalized) as set membership; never compare against the concatenated fact text. `$349.00` is still accepted only when that exact amount is verified; truncated variants are discarded with `UNVERIFIED_PRICE_REPLY`.
+- F2: added `free shipping`, `ship free`, `shipping free`, `shipping rate(s)` and `for free` topics plus a shipping-cost-over-market precedence in `findFactsFor`, so "Do you ship free?", "Do you ship free over $100?" and "shipping rates" return the shipping unknown instead of the market fact. Market questions ("Do you sell in the US?", "Where do you ship?") still route to the market fact.
+- Regression tests: `answer-guard.test.ts` — `rejects a truncated amount that only prefixes a verified price` ($3/$34/$349/$349.0), `replaces an answer that mixes a verified amount with an unverified short amount` ($349.00 plus $3), `accepts a verified amount with whitespace or thousands separators normalized`; `guarded-chat-assistant.test.ts` — `scenario 7b: discards a fabricated short amount even when a real price is verified` (fake "It costs $3 more for express shipping." discarded while the $349.00 fact is allowed) and `answers a free-shipping phrasing with the shipping unknown and no LLM call`; `intents.test.ts` — free-shipping/shipping-rate routing and market-regression tests.
+- F3/F4 recorded honestly as accepted residual risks in `docs/specs/chat-assistant-guardrails.md` and `feature_list.json` notes: non-price questions naming draft/archived products can still delegate (published-only data, hallucination risk only), and the guard discards unverified dollar amounts but does not rewrite non-price policy prose from the LLM.
+- Verification run: `pnpm test` exit 0 (25 files / 167 tests; was 25 / 160, +7); `./init.sh` exit 0 (25 / 167); `pnpm lint` exit 0; `pnpm typecheck` exit 0; `pnpm build` exit 0 with `.env` moved aside and `DATABASE_URL`/`OPENAI_API_KEY`/`OPENAI_BASE_URL`/`CHAT_ASSISTANT_MODEL` unset, `.env` restored.
+- Files or artifacts updated: `lib/chat/guardrails/answer-guard.ts` + test, `lib/chat/guardrails/store-knowledge.ts`, `lib/chat/guardrails/intents.test.ts`, `lib/chat/guarded-chat-assistant.test.ts`, `docs/specs/chat-assistant-guardrails.md`, `feature_list.json`, this file. No schema/migration/persistence/UI change.
+- Known risk or unresolved issue: F3/F4 remain residual (documented, non-blocking); the guard is a dollar-amount discard, not a general answer validator.
+- Next best step: re-run `feature-validator` for `chat-assistant-guardrails`; the orchestrator commits after acceptance.
+
+### Session 021
+
+- Date: 2026-10-19
+- Goal: Orchestrate `feature-flow` (until-accepted) for `chat-assistant-guardrails` only in the dedicated worktree: plan → implement → validate → repair → accept → commit. No push, no PR.
+- Completed:
+  - Planner → spec `docs/specs/chat-assistant-guardrails.md` (8 acceptance scenarios mapped to the 3 verification bullets). Resolved blocking open question #4 with a deterministic design: repo-owned `store-knowledge.ts` for policies, published-only catalog prices from integer cents, and a fixed refusal for out-of-scope asks — not prompt-only instructions.
+  - Implementer → guardrail modules, `ChatAssistant` decorator, additive port context, lazy server composition, published-only `listPublishedProductFacts`, offline tests, ADR 0004 and durable-doc updates. Self-verified `passing` (25 files / 160 tests).
+  - Validator round 1 → **revise** with one High finding (F1: substring price guard accepted `$3`/`$34`/`$349`/`$349.0` as prefixes of a verified `$349.00`), plus optional F2.
+  - Repair → exact canonicalized amount set membership in `answer-guard.ts`, guard + end-to-end decorator regressions, free-shipping/shipping-rate routing hardened; F3/F4 recorded as honest residual risks. Re-verified (25 files / 167 tests).
+  - Validator round 2 → **ACCEPT**. F1 independently reproduced closed (including thousands separators), F2 closed, scenarios 1–8 pass, security/scope/docs clean, residuals accurately documented.
+  - Acceptance persisted: `feature_list.json` → `chat-assistant-guardrails.status: accepted` + independent-validator evidence; `docs/validations/chat-assistant-guardrails.md` retained as the validation record.
+- Verification run: validator independently ran `CI=true ./init.sh` exit 0 (25 files / 167 tests, key-free, no configured DB), `pnpm lint`/`pnpm typecheck` exit 0, `pnpm build` exit 0 with provider/DB env unset, plus ad-hoc price-guard/routing probes. Implementer's optional live transcript remains non-gating evidence.
+- Evidence captured: `feature_list.json` → `chat-assistant-guardrails.verification` (6 concrete statements) and `.evidence` (11 entries incl. repair and independent acceptance); `docs/validations/chat-assistant-guardrails.md`; this log.
+- Files or artifacts updated: see Sessions 019/020 plus `docs/specs/chat-assistant-guardrails.md`, `docs/validations/chat-assistant-guardrails.md`, `feature_list.json`, this file.
+- Known risk or unresolved issue: shipping cost (#5) and returns policy remain unpublished; the assistant answers both as explicit unknowns until those decisions are recorded in `store-knowledge.ts`. Residual F3/F4 documented. The six original discovery questions are now five blocking (chat guardrails #4 resolved).
+- Next best step: take `guest-cart-add` (depends on `product-variant-selection`, accepted; needs `planner`).

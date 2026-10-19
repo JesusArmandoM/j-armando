@@ -4,6 +4,7 @@ import {
 } from "./chat-assistant.ts";
 import type {
   ChatAnswer,
+  ChatAnswerContext,
   ChatAssistant,
   ChatMessage,
 } from "./chat-assistant.ts";
@@ -36,6 +37,33 @@ function buildUrl(baseUrl: string): string {
 }
 
 /**
+ * Builds the system message. Without grounding context it is exactly
+ * `CHAT_SYSTEM_PROMPT` (the pre-guardrail contract). With context, the
+ * verified facts and instructions are appended as system-level content — user
+ * message text is never concatenated here.
+ */
+export function buildSystemMessage(context?: ChatAnswerContext): string {
+  const hasGrounding =
+    (context?.verifiedFacts?.length ?? 0) > 0 || (context?.instructions ?? "") !== "";
+  if (!hasGrounding) return CHAT_SYSTEM_PROMPT;
+
+  const parts = [CHAT_SYSTEM_PROMPT];
+  if (context?.instructions) parts.push(context.instructions);
+  if (context?.verifiedFacts && context.verifiedFacts.length > 0) {
+    parts.push(
+      [
+        "Verified store facts (the only authoritative source):",
+        ...context.verifiedFacts.map((fact) => `- ${fact}`),
+      ].join("\n"),
+    );
+  }
+  parts.push(
+    "Never invent prices, shipping costs, return policies or other store facts. If a fact is not in the verified list above, say plainly that you do not know and suggest contacting the store. Only state a price that appears in the verified facts.",
+  );
+  return parts.join("\n\n");
+}
+
+/**
  * Creates a {@link ChatAssistant} backed by OpenAI's Chat Completions API.
  * All failures (non-2xx response, malformed body, thrown fetch) surface as a
  * typed {@link ChatAssistantError} with kind `provider`.
@@ -49,11 +77,11 @@ export function createOpenAiChatAssistant(
   const endpoint = buildUrl(baseUrl);
 
   return {
-    async answer(messages: ChatMessage[]): Promise<ChatAnswer> {
+    async answer(messages: ChatMessage[], context?: ChatAnswerContext): Promise<ChatAnswer> {
       const body = {
         model,
         messages: [
-          { role: "system" as const, content: CHAT_SYSTEM_PROMPT },
+          { role: "system" as const, content: buildSystemMessage(context) },
           ...messages,
         ],
         temperature: 0.3,

@@ -2,15 +2,45 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatAssistantError } from "@/lib/chat/chat-assistant.ts";
 import type { ChatAssistant } from "@/lib/chat/chat-assistant.ts";
+import type { ProductFact } from "@/lib/chat/guardrails/product-match.ts";
+import { STORE_KNOWLEDGE } from "@/lib/chat/guardrails/store-knowledge.ts";
 
 vi.mock("@/lib/chat/index.ts", () => ({
   getChatAssistant: vi.fn(),
 }));
 
+// The composition module resolves the DB handle and catalog reader lazily;
+// these mocks keep the route tests offline and database-free.
+vi.mock("@/db/client.ts", () => ({
+  getDb: vi.fn(() => ({})),
+}));
+
+vi.mock("@/db/catalog.ts", () => ({
+  listPublishedProductFacts: vi.fn(),
+}));
+
+import { listPublishedProductFacts } from "@/db/catalog.ts";
 import { getChatAssistant } from "@/lib/chat/index.ts";
 import { POST } from "./route";
 
 const getAssistantMock = vi.mocked(getChatAssistant);
+const listPublishedProductFactsMock = vi.mocked(listPublishedProductFacts);
+
+const overcoat: ProductFact = {
+  slug: "longline-wool-overcoat",
+  name: "Longline Wool Overcoat",
+  description: "A full-length overcoat.",
+  composition: "Shell: 70% wool.",
+  care: "Dry clean only.",
+  basePriceCents: 34900,
+  currency: "USD",
+};
+
+function factAnswer(id: string): string {
+  const found = STORE_KNOWLEDGE.find((entry) => entry.id === id);
+  if (!found) throw new Error(`missing fact ${id}`);
+  return found.answer;
+}
 
 function jsonRequest(body: unknown): Request {
   return { json: async () => body } as unknown as Request;
@@ -24,34 +54,60 @@ function brokenJsonRequest(): Request {
   } as unknown as Request;
 }
 
-function fakeAssistant(answer: string): ChatAssistant {
-  return { answer: vi.fn<ChatAssistant["answer"]>(async () => ({ content: answer })) };
+function chatRequest(content: string): Request {
+  return jsonRequest({ messages: [{ role: "user", content }] });
+}
+
+function unavailableProvider(): never {
+  throw new ChatAssistantError("OPENAI_API_KEY is missing.", {
+    kind: "configuration",
+  });
 }
 
 beforeEach(() => {
   getAssistantMock.mockReset();
+  // Simulate "no provider key configured" for every test unless overridden.
+  getAssistantMock.mockImplementation(unavailableProvider);
+  listPublishedProductFactsMock.mockReset();
+  listPublishedProductFactsMock.mockResolvedValue([overcoat]);
 });
 
 describe("POST /api/chat", () => {
-  it("delegates to the assistant and returns { reply } unchanged", async () => {
+  it("answers a shipping-cost question with the verified unknown copy and no provider key", async () => {
+    const response = await POST(chatRequest("How much does shipping cost?"));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      reply: factAnswer("shipping-cost"),
+    });
+    expect(getAssistantMock).not.toHaveBeenCalled();
+  });
+
+  it("answers a catalog price question from the DB facts and no provider key", async () => {
+    const response = await POST(chatRequest("How much is the Longline Wool Overcoat?"));
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { reply: string };
+    expect(body.reply).toBe(
+      "The Longline Wool Overcoat is $349.00 (USD, tax-exclusive).",
+    );
+    expect(getAssistantMock).not.toHaveBeenCalled();
+    expect(listPublishedProductFactsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("delegates an in-scope question to the assistant and returns { reply } unchanged", async () => {
     const answerSpy = vi.fn<ChatAssistant["answer"]>(async () => ({
       content: "Sizes run true to measure.",
     }));
     getAssistantMock.mockReturnValue({ answer: answerSpy });
 
-    const response = await POST(
-      jsonRequest({
-        messages: [{ role: "user", content: "How does sizing work?" }],
-      }),
-    );
+    const response = await POST(chatRequest("How does sizing work?"));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       reply: "Sizes run true to measure.",
     });
-    expect(answerSpy).toHaveBeenCalledWith([
-      { role: "user", content: "How does sizing work?" },
-    ]);
+    expect(answerSpy).toHaveBeenCalledTimes(1);
   });
 
   it("forwards the shopper's exact message content to the assistant", async () => {
@@ -59,7 +115,7 @@ describe("POST /api/chat", () => {
       content: "Merino wool.",
     }));
     getAssistantMock.mockReturnValue({ answer: answerSpy });
-    const question = "What fabric is the merino blazer made of?";
+    const question = "What fabric is the merino sweater made of?";
 
     await POST(jsonRequest({ messages: [{ role: "user", content: question }] }));
 
@@ -89,16 +145,8 @@ describe("POST /api/chat", () => {
     expect(getAssistantMock).not.toHaveBeenCalled();
   });
 
-  it("returns 503 when the assistant is not configured (missing key)", async () => {
-    getAssistantMock.mockImplementation(() => {
-      throw new ChatAssistantError("OPENAI_API_KEY is missing.", {
-        kind: "configuration",
-      });
-    });
-
-    const response = await POST(
-      jsonRequest({ messages: [{ role: "user", content: "Hi" }] }),
-    );
+  it("returns 503 when an in-scope question needs an unconfigured provider", async () => {
+    const response = await POST(chatRequest("How does sizing run?"));
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toHaveProperty("error");
@@ -111,22 +159,19 @@ describe("POST /api/chat", () => {
       }),
     });
 
-    const response = await POST(
-      jsonRequest({ messages: [{ role: "user", content: "Hi" }] }),
-    );
+    const response = await POST(chatRequest("How does sizing run?"));
 
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toHaveProperty("error");
   });
 
   it("swapping the ChatAssistant implementation changes no route code (scenario 3)", async () => {
-    // A different implementation behind the same port: its reply is returned
-    // unchanged, proving the seam is the port and not the provider.
-    getAssistantMock.mockReturnValue(fakeAssistant("A completely different reply."));
+    const answerSpy = vi.fn<ChatAssistant["answer"]>(async () => ({
+      content: "A completely different reply.",
+    }));
+    getAssistantMock.mockReturnValue({ answer: answerSpy });
 
-    const response = await POST(
-      jsonRequest({ messages: [{ role: "user", content: "Anything" }] }),
-    );
+    const response = await POST(chatRequest("How does sizing work?"));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({

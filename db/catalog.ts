@@ -3,6 +3,7 @@ import type { SQL } from "drizzle-orm";
 
 import type { Db } from "./client.ts";
 import { category, product, productImage, variant } from "./schema/index.ts";
+import type { ProductFact } from "../lib/chat/guardrails/product-match.ts";
 import type {
   Category,
   NewCategory,
@@ -393,5 +394,27 @@ export async function getPublishedProductBySlug(
     images,
     variants,
   };
+}
+
+/**
+ * Lean published-only catalog reader used to ground chat answers. Returns
+ * exactly the fields the guardrail needs (price in integer cents, USD,
+ * tax-exclusive) and never exposes draft or archived products. One round trip,
+ * no joins, no user input in the query.
+ */
+export async function listPublishedProductFacts(db: Db): Promise<ProductFact[]> {
+  return db
+    .select({
+      slug: product.slug,
+      name: product.name,
+      description: product.description,
+      composition: product.composition,
+      care: product.care,
+      basePriceCents: product.basePriceCents,
+      currency: product.currency,
+    })
+    .from(product)
+    .where(eq(product.status, "published"))
+    .orderBy(asc(product.name));
 }
 

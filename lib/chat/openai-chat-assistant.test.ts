@@ -56,6 +56,43 @@ describe("createOpenAiChatAssistant (contract, injected fetch)", () => {
     expect(body.messages.slice(1)).toEqual(messages);
   });
 
+  it("merges verified facts and guardrail instructions into the system message", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(okPayload("The overcoat is dry clean only.")),
+    );
+    const assistant = createOpenAiChatAssistant({
+      apiKey: "test-key",
+      fetch: fetchMock,
+    });
+    const userMessage = "How should I care for the Longline Wool Overcoat?";
+
+    await assistant.answer(
+      [{ role: "user", content: userMessage }],
+      {
+        instructions: "Only use verified store facts.",
+        verifiedFacts: [
+          "The Longline Wool Overcoat is $349.00 (USD, tax-exclusive).",
+          "Care: Dry clean only.",
+        ],
+      },
+    );
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const system = body.messages[0];
+    expect(system.role).toBe("system");
+    expect(system.content).toContain(CHAT_SYSTEM_PROMPT);
+    expect(system.content).toContain("Only use verified store facts.");
+    expect(system.content).toContain(
+      "Verified store facts (the only authoritative source):",
+    );
+    expect(system.content).toContain("- The Longline Wool Overcoat is $349.00 (USD, tax-exclusive).");
+    expect(system.content).toContain("- Care: Dry clean only.");
+    expect(system.content).toContain("Never invent prices");
+    // User content stays in the conversation, never in the system message.
+    expect(system.content).not.toContain(userMessage);
+    expect(body.messages[1]).toEqual({ role: "user", content: userMessage });
+  });
+
   it("parses the provider's message content into a ChatAnswer", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
