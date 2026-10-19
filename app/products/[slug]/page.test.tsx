@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as catalogDb from "@/db/catalog.ts";
+import type { Variant } from "@/db/schema/index.ts";
 import ProductDetailPage, { generateMetadata } from "./page";
 import ProductNotFound from "./not-found";
 
@@ -15,6 +16,42 @@ vi.mock("next/navigation", () => ({
   }),
   usePathname: () => "/products/longline-wool-overcoat",
 }));
+
+const mockVariants: Variant[] = [
+  {
+    id: "var-1",
+    productId: "prod-1",
+    size: "M",
+    color: "Camel",
+    colorHex: "#C19A6B",
+    sku: "JA-OWO-CML-M",
+    priceOverrideCents: null,
+    stockQty: 14,
+    discontinued: false,
+  },
+  {
+    id: "var-2",
+    productId: "prod-1",
+    size: "L",
+    color: "Charcoal",
+    colorHex: "#3B4045",
+    sku: "JA-OWO-CHR-L",
+    priceOverrideCents: null,
+    stockQty: 6,
+    discontinued: false,
+  },
+  {
+    id: "var-3",
+    productId: "prod-1",
+    size: "S",
+    color: "Camel",
+    colorHex: "#C19A6B",
+    sku: "JA-OWO-CML-S-OLD",
+    priceOverrideCents: null,
+    stockQty: 0,
+    discontinued: true,
+  },
+];
 
 const mockProduct: catalogDb.ProductDetail = {
   id: "prod-1",
@@ -121,6 +158,10 @@ const mockBlazer: catalogDb.ProductDetail = {
 };
 
 describe("ProductDetailPage", () => {
+  beforeEach(() => {
+    vi.spyOn(catalogDb, "listVariantsByProductId").mockResolvedValue(mockVariants);
+  });
+
   it("scenario 1: renders name, USD price, description, composition and care", async () => {
     vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
 
@@ -229,6 +270,41 @@ describe("ProductDetailPage", () => {
     expect(screen.getByTestId("variant-stock-message").textContent).toBe(
       "Select a size and color to see availability.",
     );
+  });
+
+  it("mounts the try-on panel with non-discontinued variant context only", async () => {
+    vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
+
+    const ui = await ProductDetailPage({
+      params: Promise.resolve({ slug: "longline-wool-overcoat" }),
+    });
+    render(ui);
+
+    expect(screen.getByTestId("try-on-panel")).toBeTruthy();
+    const colors = screen.getByLabelText("Color") as HTMLSelectElement;
+    expect([...colors.options].map((option) => option.value)).toEqual(["Camel"]);
+    const sizes = screen.getByLabelText("Size") as HTMLSelectElement;
+    expect([...sizes.options].map((option) => option.value)).toEqual(["M", "L"]);
+
+    // The discontinued combination is not offered.
+    expect([...colors.options].map((option) => option.textContent)).not.toContain(
+      "Camel — Out of stock",
+    );
+  });
+
+  it("still renders the page with an empty try-on variant list when variant reads fail", async () => {
+    vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
+    vi.spyOn(catalogDb, "listVariantsByProductId").mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+
+    const ui = await ProductDetailPage({
+      params: Promise.resolve({ slug: "longline-wool-overcoat" }),
+    });
+    render(ui);
+
+    expect(screen.getByTestId("try-on-unavailable")).toBeTruthy();
+    expect(screen.getByTestId("product-price").textContent).toContain("$349.00");
   });
 
   it("generateMetadata returns the product name as the page title", async () => {

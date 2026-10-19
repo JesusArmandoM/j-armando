@@ -7,8 +7,8 @@ Project: **J. Armando**. Parent documents: `build-brief.md`, `mvp-scope.md`.
 These must be answered before implementation planning is final.
 
 1. **Sign-in for accounts with no password.** Quick Access creates an account with an optional password. How does that customer reach their orders later: magic link, email OTP, or forced password creation on first return? This is the highest-risk gap in the identity model and blocks the auth design.
-2. **Virtual try-on provider selection.** Which external service, with what quality, latency, cost and data-processing terms? Also: what happens to uploaded photos on their side (retention, training, deletion)?
-3. **Photo consent and retention policy.** Legal basis, consent text, retention window, deletion mechanism, and whether photos of minors are prohibited. Privacy-critical for a US store and for any GDPR-covered shoppers.
+2. **Virtual try-on provider selection — resolved 2026-10-19 for this work.** The provider is the **DevExpert gateway image-edit** model (`POST {TRYON_BASE_URL without trailing slashes}/images/edits`; `TRYON_BASE_URL` is the API base already **including** `/v1`, so the `.env` value yields exactly `https://inference.devexpert.io/v1/images/edits`; model `TRYON_MODEL`, OpenAI-compatible images response), behind the repo-owned `TryOnProvider` port. See *Resolved*. The provider-side half of photo handling (retention, training, deletion, DPA) remains open and is tracked under #3; the number is kept so existing references stay valid.
+3. **Photo consent and retention policy.** Legal basis, consent text, retention window, deletion mechanism, and whether photos of minors are prohibited. Privacy-critical for a US store and for any GDPR-covered shoppers. **Still open.** The interim implementation stance is in-memory only (no persistence, no logging of image bytes, no object storage); see `docs/specs/virtual-tryon-generation.md` → Open Questions.
 5. **Shipping cost rules.** The designs show free standard shipping and a paid express option. Confirm the actual rules (flat rate, free above a threshold, weight-based). The chat assistant answers shipping cost as an explicit unknown until this is decided.
 6. **Sales tax rate table.** Sales tax is added at checkout and calculated from the shipping address. Which states/rates apply at launch, and do we need economic-nexus tracking beyond a simple configurable rate table?
 
@@ -21,7 +21,7 @@ Numbering is preserved from earlier sessions; #4 (chat guardrails behaviour) is 
 - Stock reservation strategy at checkout (reserve on add-to-cart vs. validate at payment) and reservation expiry.
 - How a guest conversation or try-on session is attached to an account after sign-in.
 - Email sending provider and templates (order confirmation is the only required one at launch).
-- Object storage provider and access-control model for try-on photos.
+- Object storage provider and access-control model for try-on photos — **deferred** until blocking question #3 is decided. The current try-on slice stores nothing (in-memory per request only), so no storage decision is needed yet.
 - Admin authentication: same account model with an `admin` role, or a separate admin identity.
 - Backoffice product data model details: composition, care, imagery per variant, SKU generation.
 
@@ -31,6 +31,7 @@ Numbering is preserved from earlier sessions; #4 (chat guardrails behaviour) is 
 - **ORM / data-access layer choice** — resolved 2026-10-12 by `bootstrap-database-schema`: **Drizzle ORM** (`drizzle-orm` + `drizzle-kit` over `pg`), with schema in `db/schema/` and committed SQL migrations in `db/migrations/`. See `adr/0002-drizzle-data-access-layer.md`. The managed provider (Neon vs Supabase) intentionally stays undecided — everything connects through `DATABASE_URL`.
 - **Whether `pending` payment state is exposed or collapsed** — resolved 2026-10-14 by `payment-provider-abstraction`: `pending` is **surfaced distinctly** to the shopper, not collapsed into a single generic "processing" message. `pending` is a first-class `payment.pending` event (`payments/payment-provider.ts`) mapped to its own view ("Payment pending") in `payments/payment-outcome.ts` and rendered by `app/checkout/payment-outcome.tsx`; it is never presented as success or failure. This keeps the async-confirmation reality of a future real gateway visible in the UI.
 - **LLM provider for the chat assistant** — resolved 2026-10-14 by `chat-assistant`: **OpenAI Chat Completions** as the first adapter behind the repo-owned `ChatAssistant` port (`lib/chat/openai-chat-assistant.ts`). Key via `OPENAI_API_KEY`; model via `CHAT_ASSISTANT_MODEL` (default `gpt-4o-mini`); optional endpoint override via `OPENAI_BASE_URL`. The provider is swappable without UI changes. Conversations are **ephemeral** for this slice (React state; the server is stateless and touches no database); persistence/ownership is deferred. The automated suite never calls the live provider — the adapter is tested with an injected `fetch` and an in-process HTTP server. See `adr/0003-chat-assistant-llm-provider.md`.
+- **Virtual try-on provider** — resolved 2026-10-19 for `virtual-tryon-generation`: the **DevExpert gateway image-edit** model, called as `POST {TRYON_BASE_URL without trailing slashes}/images/edits` with `multipart/form-data` (`model`, `prompt`, `image`) and Bearer auth, behind the repo-owned `TryOnProvider` port. `TRYON_BASE_URL` is the API base already **including** `/v1` (the `.env` value yields exactly `https://inference.devexpert.io/v1/images/edits`; the adapter appends only `/images/edits`). Configuration is `TRYON_BASE_URL`, `TRYON_MODEL` and `TRYON_API_KEY` (falling back to the existing `DEVEXPERT_API_KEY`). The response follows the OpenAI images API shape (`data[0].b64_json` or `data[0].url`); the adapter prefers `b64_json`. Provider quality, latency, cost and **data-processing terms** are not validated by this decision — review before public launch. The automated suite never calls the live provider (injected `fetch` + in-process HTTP server). **Blocking #3 (photo consent/retention) remains open.**
 
 ## Later / Not MVP
 
@@ -76,9 +77,9 @@ Recorded during discovery; verify before relying on them.
 
 ## Research Tasks
 
-- Evaluate virtual try-on providers: quality, latency, cost per image, data retention and DPA terms.
+- ~~Evaluate virtual try-on providers: quality, latency, cost per image, data retention and DPA terms.~~ Provider chosen 2026-10-19: DevExpert gateway image-edit behind `TryOnProvider` (see *Resolved*). Remaining: evaluate output quality/latency/cost per image and the provider's data-retention/DPA terms before public launch.
 - ~~Evaluate LLM providers for the chat assistant: cost, latency, tool-calling for product data, data-handling terms.~~ Done 2026-10-14: first adapter is OpenAI Chat Completions behind `ChatAssistant` (see *Resolved*). Revisit cost/data-handling terms before public launch; guardrails behaviour is resolved by `chat-assistant-guardrails` (see *Resolved*).
 - Confirm the legal requirements for selling online in the United States: sales tax registration and nexus, state sales tax rules, privacy policy (CCPA/CPRA where applicable), terms of sale, return policy disclosures, ADA website accessibility expectations.
 - Decide the sign-in mechanism for passwordless accounts (magic link vs. email OTP vs. forced password).
-- Decide object storage and signed-URL approach for try-on photos.
+- Decide object storage and signed-URL approach for try-on photos — deferred until blocking #3 is decided; the current slice stores nothing.
 - Check whether a design system is required as tokens/components or whether the reference `DESIGN.md` is sufficient for the MVP.

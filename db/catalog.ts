@@ -321,6 +321,55 @@ export async function listPublishedCatalogFilterOptions(db: Db): Promise<Catalog
   };
 }
 
+export interface TryOnGarmentContext {
+  productId: string;
+  slug: string;
+  name: string;
+  composition: string;
+  size: VariantSize;
+  color: string;
+  colorHex: string;
+}
+
+/**
+ * Resolves the exact garment context for a try-on request: a **published**
+ * product plus a matching **non-discontinued** variant. Returns `undefined`
+ * for unknown slugs, draft/archived products, unknown combinations and
+ * discontinued variants, so the route can reject without revealing catalog
+ * status. Parameterized Drizzle query only; no write, no migration.
+ */
+export async function getTryOnGarmentContext(
+  db: Db,
+  slug: string,
+  size: VariantSize,
+  color: string,
+): Promise<TryOnGarmentContext | undefined> {
+  const rows = await db
+    .select({
+      productId: product.id,
+      slug: product.slug,
+      name: product.name,
+      composition: product.composition,
+      size: variant.size,
+      color: variant.color,
+      colorHex: variant.colorHex,
+    })
+    .from(product)
+    .innerJoin(variant, eq(variant.productId, product.id))
+    .where(
+      and(
+        eq(product.slug, slug),
+        eq(product.status, "published"),
+        eq(variant.size, size),
+        eq(variant.color, color),
+        eq(variant.discontinued, false),
+      ),
+    )
+    .limit(1);
+
+  return rows[0];
+}
+
 /**
  * Returns the full detail payload for a single **published** product, or
  * `undefined` when the slug does not exist or the product is draft/archived.
