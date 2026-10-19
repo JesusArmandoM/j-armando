@@ -1,5 +1,5 @@
 import type { SizeChartMeasurements } from "./schema/catalog.ts";
-import type { ProductStatus, VariantSize } from "./schema/enums.ts";
+import type { AccountRoleName, ProductStatus, VariantSize } from "./schema/enums.ts";
 
 // Declarative demo catalog content for `pnpm db:seed` (spec:
 // `bootstrap-database-schema` → seed inventory). English copy, US market,
@@ -421,3 +421,18 @@ export const seedProducts: SeedProduct[] = [
     ],
   },
 ];
+
+export interface SeedAdminAccount {
+  email: string;
+  passwordHash: string;
+  roles: AccountRoleName[];
+}
+
+export const seedAdminAccount: SeedAdminAccount = {
+  email: "admin@j-armando.store",
+  // scrypt hash of "Admin123!" with 16-byte salt
+  passwordHash:
+    "bd47c7e1fcae4e148b0c4d84fb9252bb:f711bed153cbdf40d9de4fa4c88afaeda4d8c68d103f3cad451c7080fe5b29a8441490fd35f6c6ce4963de38e38912b304b655381237ae799f8b21f793e5839f",
+  roles: ["customer", "admin"],
+};
+

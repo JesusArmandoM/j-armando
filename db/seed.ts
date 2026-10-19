@@ -1,15 +1,18 @@
-import { count, inArray } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 
 import { closeDb, getHandle } from "./client.ts";
 import type { Db } from "./client.ts";
 import { isMainModule } from "./main.ts";
 import {
+  seedAdminAccount,
   seedCategories,
   seedProducts,
   seedShippingMethods,
   seedSizeCharts,
 } from "./seed-data.ts";
 import {
+  account,
+  accountRole,
   category,
   product,
   productImage,
@@ -144,6 +147,32 @@ export async function seedCatalog(db: Db): Promise<void> {
             discontinued: false,
           })
           .onConflictDoNothing({ target: [variant.productId, variant.size, variant.color] });
+      }
+    }
+
+    // Seed default admin account idempotently
+    await tx
+      .insert(account)
+      .values({
+        email: seedAdminAccount.email,
+        passwordHash: seedAdminAccount.passwordHash,
+      })
+      .onConflictDoNothing({ target: account.email });
+
+    const [adminRow] = await tx
+      .select({ id: account.id })
+      .from(account)
+      .where(eq(account.email, seedAdminAccount.email));
+
+    if (adminRow) {
+      for (const role of seedAdminAccount.roles) {
+        await tx
+          .insert(accountRole)
+          .values({
+            accountId: adminRow.id,
+            role,
+          })
+          .onConflictDoNothing({ target: [accountRole.accountId, accountRole.role] });
       }
     }
   });

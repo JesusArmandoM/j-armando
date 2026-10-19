@@ -274,3 +274,42 @@ export async function verifyPasswordlessAccessCode(
     roles: roleRows.map((r) => r.role),
   };
 }
+
+/**
+ * Grants the admin role to an account (idempotent).
+ */
+export async function grantAdminRole(db: Db, accountId: string): Promise<boolean> {
+  const [existing] = await db
+    .select()
+    .from(accountRole)
+    .where(and(eq(accountRole.accountId, accountId), eq(accountRole.role, "admin")))
+    .limit(1);
+
+  if (existing) {
+    return true;
+  }
+
+  await db
+    .insert(accountRole)
+    .values({
+      accountId,
+      role: "admin",
+    })
+    .onConflictDoNothing({ target: [accountRole.accountId, accountRole.role] });
+
+  return true;
+}
+
+/**
+ * Revokes the admin role from an account.
+ * Immediately takes effect on subsequent getAccountFromSessionToken or getAdminSession calls.
+ */
+export async function revokeAdminRole(db: Db, accountId: string): Promise<boolean> {
+  const result = await db
+    .delete(accountRole)
+    .where(and(eq(accountRole.accountId, accountId), eq(accountRole.role, "admin")))
+    .returning({ id: accountRole.id });
+
+  return result.length > 0;
+}
+
