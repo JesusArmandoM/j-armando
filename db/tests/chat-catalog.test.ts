@@ -71,6 +71,12 @@ describe("chat catalog facts (published-only price grounding)", () => {
       "L/Charcoal",
     ]);
     expect(overcoat?.variants.some((variant) => variant.stockQty === 0)).toBe(true);
+    expect(overcoat?.sizeChart.find((entry) => entry.size === "M")?.measurements).toContainEqual({
+      label: "Chest/bust",
+      minIn: 35,
+      maxIn: 36,
+    });
+    expect(overcoat?.sizeChart.map((entry) => entry.size)).toEqual(["XS", "S", "M", "L", "XL"]);
   });
 
   it("excludes discontinued variants from the chat facts", async () => {

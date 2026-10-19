@@ -10,6 +10,7 @@ const CORE_TABLES = [
   "product",
   "product_image",
   "variant",
+  "size_chart",
   "cart",
   "cart_line",
   "account",

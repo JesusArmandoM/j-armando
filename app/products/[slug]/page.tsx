@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import { getDb } from "@/db/client.ts";
 import {
   getPublishedProductBySlug,
+  listSizeChartByCategorySlug,
   listVariantsByProductId,
 } from "@/db/catalog.ts";
-import type { ProductDetail } from "@/db/catalog.ts";
+import type { ProductDetail, SizeChartEntry } from "@/db/catalog.ts";
 import type { Variant } from "@/db/schema/index.ts";
 
 import { ProductGallery } from "./product-gallery";
+import { SizeGuide } from "./size-guide";
 import { TryOnPanel } from "./try-on-panel";
 import { VariantSelector } from "./variant-selector";
 import { parseVariantSelection } from "./variant-selection";
@@ -56,6 +58,16 @@ export default async function ProductDetailPage({
   if (!product) {
     notFound();
   }
+
+  // Published category measurements. A read failure must not break the page:
+  // the guide is omitted and the rest of the product detail still renders.
+  let sizeChart: SizeChartEntry[] = [];
+  try {
+    sizeChart = await listSizeChartByCategorySlug(getDb(), product.categorySlug);
+  } catch (error) {
+    console.error("Failed to load product size guide:", error);
+  }
+  const availableSizes = [...new Set(product.variants.map((variant) => variant.size))];
 
   const initialSelection = parseVariantSelection(resolvedSearchParams, product.variants);
 
@@ -121,6 +133,8 @@ export default async function ProductDetailPage({
               </dd>
             </div>
           </dl>
+
+          <SizeGuide rows={sizeChart} availableSizes={availableSizes} />
 
           <TryOnPanel
             productSlug={product.slug}

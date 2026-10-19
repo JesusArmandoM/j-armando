@@ -13,6 +13,7 @@ function product(overrides: Partial<ProductFact> & Pick<ProductFact, "slug" | "n
     categorySlug: "coats",
     categoryName: "Coats",
     variants: [{ size: "M", color: "Black", stockQty: 5 }],
+    sizeChart: [],
     ...overrides,
   };
 }

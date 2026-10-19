@@ -40,6 +40,8 @@ describe("catalog verification", () => {
     expect(result.stdout).toContain("categories: 6");
     expect(result.stdout).toContain("products:   9");
     expect(result.stdout).toContain("published: 6, draft: 2, archived: 1");
+    expect(result.stdout).toContain("size charts: 30");
+    expect(result.stdout).toContain("shipping methods: 2");
     expect(result.stdout).toContain("OK: catalog is populated");
   });
 
@@ -61,7 +63,13 @@ describe("catalog verification", () => {
 
     const empty = await verifyCatalog(emptyDb.db);
     expect(empty.ok).toBe(false);
-    expect(empty.problems.length).toBeGreaterThanOrEqual(4);
-    expect(empty.counts).toMatchObject({ categories: 0, products: 0, variants: 0 });
+    expect(empty.problems.length).toBeGreaterThanOrEqual(6);
+    expect(empty.counts).toMatchObject({
+      categories: 0,
+      products: 0,
+      variants: 0,
+      sizeCharts: 0,
+      shippingMethods: 0,
+    });
   });
 });

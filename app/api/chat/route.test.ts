@@ -37,6 +37,7 @@ const overcoat: ProductFact = {
   categorySlug: "coats",
   categoryName: "Coats",
   variants: [{ size: "M", color: "Camel", stockQty: 14 }],
+  sizeChart: [],
 };
 
 function factAnswer(id: string): string {
@@ -76,7 +77,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/chat", () => {
-  it("answers a shipping-cost question with the verified unknown copy and no provider key", async () => {
+  it("answers a shipping-cost question with the verified copy and no provider key", async () => {
     const response = await POST(chatRequest("How much does shipping cost?"));
 
     expect(response.status).toBe(200);

@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { formatPriceUSD, getProductBySlug, getPublishedProductBySlug } from "../catalog.ts";
+import {
+  formatPriceUSD,
+  getProductBySlug,
+  getPublishedProductBySlug,
+  listSizeChartByCategorySlug,
+} from "../catalog.ts";
 import { seedCatalog } from "../seed.ts";
 import { createTestDatabase, migrateDatabase } from "./harness.ts";
 import type { TestDatabase } from "./harness.ts";
@@ -62,6 +67,19 @@ describe("product-detail data access", () => {
 
     expect(draft).toBeUndefined();
     expect(archived).toBeUndefined();
+  });
+
+  it("returns the category size chart in XS–XL order", async () => {
+    const chart = await listSizeChartByCategorySlug(testDb.db, "coats");
+
+    expect(chart.map((entry) => entry.size)).toEqual(["XS", "S", "M", "L", "XL"]);
+    expect(chart.find((entry) => entry.size === "M")?.measurements).toEqual({
+      chest: { min: 35, max: 36 },
+      waist: { min: 28, max: 29 },
+      hip: { min: 38, max: 39 },
+      sleeve: { min: 32, max: 33 },
+    });
+    expect(await listSizeChartByCategorySlug(testDb.db, "unknown")).toEqual([]);
   });
 
   it("keeps getProductBySlug status-agnostic (draft still readable by slug)", async () => {

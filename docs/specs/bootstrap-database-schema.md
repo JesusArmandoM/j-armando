@@ -8,6 +8,11 @@
 - `status`: `not_started` at planning time
 - `source`: `feature_list.json`
 
+> **Follow-up (2026-10-19):** a generated migration (`0001_needy_malice.sql`) adds the
+> `size_chart` table, and `shipping_method` is now seeded with standard/express rows after the
+> shipping-cost decision. The original acceptance and evidence below remain historical; see
+> `docs/specs/catalog-size-chart-and-shipping.md` for the new content and verification.
+
 ## Goal
 
 Give the application a real PostgreSQL data layer: the full catalog/cart/order/account schema from `docs/domain-model.md`, defined in a typed data-access layer, migratable from empty to complete and idempotent on re-run. The schema decision (Drizzle vs Prisma vs raw SQL) is made here and recorded as an ADR.

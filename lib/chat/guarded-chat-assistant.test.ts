@@ -5,8 +5,9 @@ import type { ChatAssistant } from "./chat-assistant.ts";
 import { createGuardedChatAssistant } from "./guarded-chat-assistant.ts";
 import {
   CANNOT_CONFIRM_PRICE_REPLY,
-  NO_SIZE_CHART_REPLY,
   NO_VERIFIED_PRICE_REPLY,
+  SIZE_CHART_DISCLAIMER,
+  SIZE_GUIDE_PROMPT_REPLY,
   UNVERIFIED_PRICE_REPLY,
 } from "./guardrails/answer.ts";
 import { OUT_OF_SCOPE_REPLY } from "./guardrails/intents.ts";
@@ -27,6 +28,29 @@ const overcoat: ProductFact = {
     { size: "S", color: "Camel", stockQty: 0 },
     { size: "M", color: "Camel", stockQty: 14 },
     { size: "L", color: "Charcoal", stockQty: 6 },
+  ],
+  sizeChart: [
+    {
+      size: "S",
+      measurements: [
+        { label: "Chest/bust", minIn: 33, maxIn: 34 },
+        { label: "Waist", minIn: 26, maxIn: 27 },
+      ],
+    },
+    {
+      size: "M",
+      measurements: [
+        { label: "Chest/bust", minIn: 35, maxIn: 36 },
+        { label: "Waist", minIn: 28, maxIn: 29 },
+      ],
+    },
+    {
+      size: "L",
+      measurements: [
+        { label: "Chest/bust", minIn: 37, maxIn: 39 },
+        { label: "Waist", minIn: 30, maxIn: 32 },
+      ],
+    },
   ],
 };
 
@@ -91,15 +115,15 @@ function ask(message: string) {
 }
 
 describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
-  it("scenario 1: answers shipping cost with the exact unknown fact and never calls the LLM", async () => {
+  it("scenario 1: answers shipping cost with the exact verified fact and never calls the LLM", async () => {
     const { factory } = fakeAssistant("Shipping is free over $100.");
     const assistant = build(factory, fakeCatalog());
 
     const answer = await assistant.answer(ask("How much does shipping cost?"));
 
     expect(answer.content).toBe(fact("shipping-cost"));
-    expect(answer.content.startsWith("I don't know")).toBe(true);
-    expect(answer.content).not.toContain("$");
+    expect(answer.content).toContain("Standard shipping is free");
+    expect(answer.content).toContain("$15.00");
     expect(factory).not.toHaveBeenCalled();
   });
 
@@ -229,7 +253,7 @@ describe("GuardedChatAssistant (acceptance scenarios 1-8)", () => {
 });
 
 describe("GuardedChatAssistant (edges)", () => {
-  it("combines a catalog price with the shipping unknown without deriving shipping from the price", async () => {
+  it("combines a catalog price with the verified shipping policy", async () => {
     const { factory } = fakeAssistant("Shipping is free.");
     const assistant = build(factory, fakeCatalog());
 
@@ -239,11 +263,11 @@ describe("GuardedChatAssistant (edges)", () => {
 
     expect(answer.content).toContain("$349.00");
     expect(answer.content).toContain(fact("shipping-cost"));
-    expect(answer.content).not.toMatch(/free shipping/i);
+    expect(answer.content).toContain("Standard shipping is free");
     expect(factory).not.toHaveBeenCalled();
   });
 
-  it("answers a free-shipping phrasing with the shipping unknown and no LLM call", async () => {
+  it("answers a free-shipping phrasing with the verified fact and no LLM call", async () => {
     const { factory } = fakeAssistant("Shipping is free over $100.");
     const assistant = build(factory, fakeCatalog());
 
@@ -255,8 +279,7 @@ describe("GuardedChatAssistant (edges)", () => {
     ]) {
       const answer = await assistant.answer(ask(question));
       expect(answer.content).toBe(fact("shipping-cost"));
-      expect(answer.content).not.toContain("$");
-      expect(answer.content).not.toMatch(/free|express|100/i);
+      expect(answer.content).toContain("$15.00");
     }
     expect(factory).not.toHaveBeenCalled();
   });
@@ -272,7 +295,9 @@ describe("GuardedChatAssistant (edges)", () => {
     expect(answer.content).toContain("colors Camel, Charcoal");
     expect(answer.content).toContain("In stock: M in Camel, L in Charcoal.");
     expect(answer.content).toContain("Currently out of stock: S in Camel.");
-    expect(answer.content).toContain("body measurements");
+    expect(answer.content).toContain("Body measurements (inches):");
+    expect(answer.content).toContain("M — chest/bust 35–36, waist 28–29");
+    expect(answer.content).toContain(SIZE_CHART_DISCLAIMER);
     expect(answer.content).not.toContain("$");
     expect(factory).not.toHaveBeenCalled();
   });
@@ -293,13 +318,13 @@ describe("GuardedChatAssistant (edges)", () => {
     expect(factory).not.toHaveBeenCalled();
   });
 
-  it("falls back to the generic size guide when no product matches", async () => {
+  it("asks which garment when no product matches a sizing question", async () => {
     const { factory } = fakeAssistant("Sizes run true to measure.");
     const assistant = build(factory, fakeCatalog());
 
     const answer = await assistant.answer(ask("How does sizing run?"));
 
-    expect(answer.content).toBe(NO_SIZE_CHART_REPLY);
+    expect(answer.content).toBe(SIZE_GUIDE_PROMPT_REPLY);
     expect(factory).not.toHaveBeenCalled();
   });
 

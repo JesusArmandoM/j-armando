@@ -4,6 +4,8 @@ import {
   CANNOT_CONFIRM_PRICE_REPLY,
   NO_SIZE_CHART_REPLY,
   NO_VERIFIED_PRICE_REPLY,
+  SIZE_CHART_DISCLAIMER,
+  SIZE_GUIDE_PROMPT_REPLY,
   UNVERIFIED_PRICE_REPLY,
   composeProductInfoAnswer,
   composeProductPriceAnswer,
@@ -32,6 +34,29 @@ const overcoat: ProductFact = {
     { size: "S", color: "Camel", stockQty: 0 },
     { size: "M", color: "Camel", stockQty: 14 },
     { size: "L", color: "Charcoal", stockQty: 6 },
+  ],
+  sizeChart: [
+    {
+      size: "S",
+      measurements: [
+        { label: "Chest/bust", minIn: 33, maxIn: 34 },
+        { label: "Waist", minIn: 26, maxIn: 27 },
+      ],
+    },
+    {
+      size: "M",
+      measurements: [
+        { label: "Chest/bust", minIn: 35, maxIn: 36 },
+        { label: "Waist", minIn: 28, maxIn: 29 },
+      ],
+    },
+    {
+      size: "L",
+      measurements: [
+        { label: "Chest/bust", minIn: 37, maxIn: 39 },
+        { label: "Waist", minIn: 30, maxIn: 32 },
+      ],
+    },
   ],
 };
 
@@ -69,7 +94,7 @@ describe("deterministic answer composition", () => {
 
   it("answers policy facts verbatim", () => {
     expect(composeVerifiedFactsAnswer([shipping])).toBe(shipping.answer);
-    expect(composeVerifiedFactsAnswer([shipping])).not.toContain("$");
+    expect(composeVerifiedFactsAnswer([shipping])).toContain("$15.00");
   });
 
   it("combines a catalog price with a matched policy fact", () => {
@@ -97,22 +122,33 @@ describe("deterministic answer composition", () => {
     expect(fact).toContain("Available sizes: S, M, L.");
     expect(fact).toContain("Available colors: Camel, Charcoal.");
     expect(fact).toContain("In stock: M in Camel, L in Charcoal.");
+    expect(fact).toContain("Body measurements (inches):");
+    expect(fact).toContain("M — chest/bust 35–36, waist 28–29");
   });
 
-  it("answers sizing from published variants and never invents measurements", () => {
+  it("answers sizing from published variants and body measurements", () => {
     const answer = formatProductSizing(overcoat);
     expect(answer).toContain("The Longline Wool Overcoat comes in sizes S, M, L");
     expect(answer).toContain("colors Camel, Charcoal");
     expect(answer).toContain("In stock: M in Camel, L in Charcoal.");
     expect(answer).toContain("Currently out of stock: S in Camel.");
-    expect(answer).toContain(NO_SIZE_CHART_REPLY);
+    expect(answer).toContain(
+      "Body measurements (inches): S — chest/bust 33–34, waist 26–27; M — chest/bust 35–36, waist 28–29; L — chest/bust 37–39, waist 30–32.",
+    );
+    expect(answer).toContain(SIZE_CHART_DISCLAIMER);
     expect(answer).not.toContain("$");
   });
 
-  it("falls back to the generic size guide when no product matched", () => {
-    expect(composeProductSizingAnswer([])).toBe(NO_SIZE_CHART_REPLY);
-    expect(NO_SIZE_CHART_REPLY).toContain("body measurements");
-    expect(NO_SIZE_CHART_REPLY).not.toContain("$");
+  it("never invents measurements when a matched product has no chart", () => {
+    const answer = formatProductSizing({ ...overcoat, sizeChart: [] });
+    expect(answer).toContain(NO_SIZE_CHART_REPLY);
+    expect(answer).not.toContain("chest");
+  });
+
+  it("asks which garment when a sizing question has no product", () => {
+    expect(composeProductSizingAnswer([])).toBe(SIZE_GUIDE_PROMPT_REPLY);
+    expect(SIZE_GUIDE_PROMPT_REPLY).toContain("specific garment");
+    expect(SIZE_GUIDE_PROMPT_REPLY).not.toContain("$");
   });
 
   it("builds a product fact sheet for style/material/care questions", () => {
@@ -122,6 +158,7 @@ describe("deterministic answer composition", () => {
     expect(answer).toContain("Care: Dry clean only.");
     expect(answer).toContain("Available sizes: S, M, L.");
     expect(answer).toContain("Available colors: Camel, Charcoal.");
+    expect(answer).toContain("Body measurements (inches):");
     expect(answer).toContain("$349.00");
     expect(composeProductInfoAnswer([overcoat, blazer])).toContain(
       "Double-Breasted Linen Blazer (Blazers)",

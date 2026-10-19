@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as catalogDb from "@/db/catalog.ts";
@@ -157,9 +157,80 @@ const mockBlazer: catalogDb.ProductDetail = {
   ],
 };
 
+const mockSizeChart: catalogDb.SizeChartEntry[] = [
+  {
+    size: "XS",
+    measurements: {
+      chest: { min: 31, max: 32 },
+      waist: { min: 24, max: 25 },
+      hip: { min: 34, max: 35 },
+      sleeve: { min: 30, max: 31 },
+    },
+  },
+  {
+    size: "S",
+    measurements: {
+      chest: { min: 33, max: 34 },
+      waist: { min: 26, max: 27 },
+      hip: { min: 36, max: 37 },
+      sleeve: { min: 31, max: 32 },
+    },
+  },
+  {
+    size: "M",
+    measurements: {
+      chest: { min: 35, max: 36 },
+      waist: { min: 28, max: 29 },
+      hip: { min: 38, max: 39 },
+      sleeve: { min: 32, max: 33 },
+    },
+  },
+  {
+    size: "L",
+    measurements: {
+      chest: { min: 37, max: 39 },
+      waist: { min: 30, max: 32 },
+      hip: { min: 40, max: 42 },
+      sleeve: { min: 33, max: 34 },
+    },
+  },
+  {
+    size: "XL",
+    measurements: {
+      chest: { min: 40, max: 42 },
+      waist: { min: 33, max: 35 },
+      hip: { min: 43, max: 45 },
+      sleeve: { min: 34, max: 35 },
+    },
+  },
+];
+
+const mockBlazerSizeChart: catalogDb.SizeChartEntry[] = [
+  {
+    size: "M",
+    measurements: {
+      chest: { min: 35, max: 36 },
+      waist: { min: 28, max: 29 },
+      hip: { min: 38, max: 39 },
+    },
+  },
+  {
+    size: "XL",
+    measurements: {
+      chest: { min: 40, max: 42 },
+      waist: { min: 33, max: 35 },
+      hip: { min: 43, max: 45 },
+    },
+  },
+];
+
 describe("ProductDetailPage", () => {
   beforeEach(() => {
     vi.spyOn(catalogDb, "listVariantsByProductId").mockResolvedValue(mockVariants);
+    vi.spyOn(catalogDb, "listSizeChartByCategorySlug").mockImplementation(
+      async (_db, categorySlug) =>
+        categorySlug === "blazers" ? mockBlazerSizeChart : mockSizeChart,
+    );
   });
 
   it("scenario 1: renders name, USD price, description, composition and care", async () => {
@@ -177,6 +248,38 @@ describe("ProductDetailPage", () => {
     );
     expect(screen.getByTestId("product-care").textContent).toBe("Dry clean only. Steam to refresh.");
     expect(screen.getByRole("link", { name: "Collection" }).getAttribute("href")).toBe("/catalog");
+  });
+
+  it("renders the published size guide for the sizes this product offers", async () => {
+    vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
+
+    const ui = await ProductDetailPage({ params: Promise.resolve({ slug: "longline-wool-overcoat" }) });
+    render(ui);
+
+    expect(screen.getByTestId("size-guide")).toBeTruthy();
+    const table = within(screen.getByTestId("size-guide-table"));
+    expect(table.getByRole("columnheader", { name: "Chest / bust" })).toBeTruthy();
+    expect(table.getByRole("columnheader", { name: "Waist" })).toBeTruthy();
+    expect(table.getByRole("rowheader", { name: "S" })).toBeTruthy();
+    expect(table.getByRole("rowheader", { name: "M" })).toBeTruthy();
+    expect(table.getByRole("rowheader", { name: "L" })).toBeTruthy();
+    expect(table.queryByRole("rowheader", { name: "XS" })).toBeNull();
+    expect(table.queryByRole("rowheader", { name: "XL" })).toBeNull();
+    expect(table.getByText("35–36")).toBeTruthy();
+    expect(table.getByText("28–29")).toBeTruthy();
+  });
+
+  it("omits the size guide when the chart read fails without breaking the page", async () => {
+    vi.spyOn(catalogDb, "getPublishedProductBySlug").mockResolvedValueOnce(mockProduct);
+    vi.spyOn(catalogDb, "listSizeChartByCategorySlug").mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+
+    const ui = await ProductDetailPage({ params: Promise.resolve({ slug: "longline-wool-overcoat" }) });
+    render(ui);
+
+    expect(screen.queryByTestId("size-guide")).toBeNull();
+    expect(screen.getByTestId("product-price").textContent).toContain("$349.00");
   });
 
   it("scenario 2: gallery renders every image with its alt text, lowest position first", async () => {

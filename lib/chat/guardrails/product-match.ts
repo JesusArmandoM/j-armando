@@ -10,6 +10,20 @@ export interface ProductFactVariant {
   stockQty: number;
 }
 
+/** One published body measurement, in inches (approximate). */
+export interface ProductSizeMeasurement {
+  /** Shopper-facing label, e.g. "Chest/bust" or "Inseam". */
+  label: string;
+  minIn: number;
+  maxIn: number;
+}
+
+/** Category-level size chart entry for one size. */
+export interface ProductSizeChartEntry {
+  size: string;
+  measurements: readonly ProductSizeMeasurement[];
+}
+
 export interface ProductFact {
   slug: string;
   name: string;
@@ -23,6 +37,8 @@ export interface ProductFact {
   categoryName: string;
   /** Non-discontinued variants only; empty when the product has none. */
   variants: readonly ProductFactVariant[];
+  /** Published category measurements only; empty when none are published. */
+  sizeChart: readonly ProductSizeChartEntry[];
 }
 
 /**

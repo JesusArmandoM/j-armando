@@ -16,9 +16,16 @@ export const CANNOT_CONFIRM_PRICE_REPLY =
 export const UNVERIFIED_PRICE_REPLY =
   "I can't confirm that price. I can only quote prices from the published catalog — please check the product page or contact the store.";
 
-/** Honest answer when the catalog has no published measurements/size chart. */
+/** Honest answer when the matched product has no published measurements. */
 export const NO_SIZE_CHART_REPLY =
-  "I don't have a published size chart or body measurements. Each product page lists the available sizes and colors; if you're between sizes, please contact the store.";
+  "I don't have published body measurements for that item. Each product page lists the available sizes and colors; if you're between sizes, please contact the store.";
+
+/** Prompt used when a sizing question does not identify a product. */
+export const SIZE_GUIDE_PROMPT_REPLY =
+  "I can share published body measurements in inches for a specific garment. Tell me which product or category you're considering, or open its product page to see the size guide.";
+
+export const SIZE_CHART_DISCLAIMER =
+  "Measurements are approximate body measurements in inches; if you're between sizes, contact the store.";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL"] as const;
 const SIZE_RANK = new Map<string, number>(SIZE_ORDER.map((size, index) => [size, index]));
@@ -37,6 +44,28 @@ function orderedColors(variants: ProductFact["variants"]): string[] {
 
 function formatVariantPairs(variants: ProductFact["variants"]): string {
   return variants.map((variant) => `${variant.size} in ${variant.color}`).join(", ");
+}
+
+/**
+ * Formats published category measurements for the sizes this product actually
+ * sells. Returns `undefined` when the catalog has no matching chart row.
+ */
+function formatSizeChart(product: ProductFact): string | undefined {
+  const availableSizes = new Set(orderedSizes(product.variants));
+  const entries = product.sizeChart.filter((entry) => availableSizes.has(entry.size));
+  if (entries.length === 0) return undefined;
+
+  return `Body measurements (inches): ${entries
+    .map((entry) => {
+      const measurements = entry.measurements
+        .map(
+          (measurement) =>
+            `${measurement.label.toLowerCase()} ${measurement.minIn}–${measurement.maxIn}`,
+        )
+        .join(", ");
+      return `${entry.size} — ${measurements}`;
+    })
+    .join("; ")}.`;
 }
 
 function priceClause(product: ProductFact): string {
@@ -82,6 +111,7 @@ export function formatProductGroundingFact(product: ProductFact): string {
   const sizes = orderedSizes(product.variants);
   const colors = orderedColors(product.variants);
   const inStock = product.variants.filter((variant) => variant.stockQty > 0);
+  const sizeChart = formatSizeChart(product);
   return [
     `Product: ${product.name} (slug: ${product.slug}).`,
     `Category: ${product.categoryName}.`,
@@ -92,6 +122,7 @@ export function formatProductGroundingFact(product: ProductFact): string {
     product.variants.length > 0
       ? `Available sizes: ${sizes.join(", ")}. Available colors: ${colors.join(", ")}. In stock: ${inStock.length > 0 ? formatVariantPairs(inStock) : "none"}.`
       : "Available sizes and colors: not published.",
+    sizeChart ?? "Body measurements: not published.",
   ].join(" ");
 }
 
@@ -108,6 +139,7 @@ export function formatProductSizing(product: ProductFact): string {
   const colors = orderedColors(product.variants);
   const inStock = product.variants.filter((variant) => variant.stockQty > 0);
   const outOfStock = product.variants.filter((variant) => variant.stockQty === 0);
+  const sizeChart = formatSizeChart(product);
   const parts = [
     `The ${product.name} comes in sizes ${sizes.join(", ")} and colors ${colors.join(", ")}.`,
   ];
@@ -117,13 +149,17 @@ export function formatProductSizing(product: ProductFact): string {
   if (outOfStock.length > 0) {
     parts.push(`Currently out of stock: ${formatVariantPairs(outOfStock)}.`);
   }
-  parts.push(NO_SIZE_CHART_REPLY);
+  if (sizeChart) {
+    parts.push(sizeChart, SIZE_CHART_DISCLAIMER);
+  } else {
+    parts.push(NO_SIZE_CHART_REPLY);
+  }
   return parts.join(" ");
 }
 
-/** One sizing answer, or the generic no-size-chart copy when nothing matched. */
+/** One sizing answer, or a prompt to name a product when nothing matched. */
 export function composeProductSizingAnswer(products: readonly ProductFact[]): string {
-  if (products.length === 0) return NO_SIZE_CHART_REPLY;
+  if (products.length === 0) return SIZE_GUIDE_PROMPT_REPLY;
   return products.map(formatProductSizing).join(" ");
 }
 
@@ -136,7 +172,8 @@ export function formatProductInfo(product: ProductFact): string {
     product.variants.length > 0
       ? `Available sizes: ${orderedSizes(product.variants).join(", ")}. Available colors: ${orderedColors(product.variants).join(", ")}.`
       : "Available sizes and colors are not published.";
-  return `The ${product.name} (${product.categoryName}): ${product.description} Composition: ${product.composition} Care: ${product.care} ${availability} Price: ${priceClause(product)}.`;
+  const sizeChart = formatSizeChart(product);
+  return `The ${product.name} (${product.categoryName}): ${product.description} Composition: ${product.composition} Care: ${product.care} ${availability}${sizeChart ? `${sizeChart} ` : ""}Price: ${priceClause(product)}.`;
 }
 
 /** One or more product fact sheets for a matched category/product question. */

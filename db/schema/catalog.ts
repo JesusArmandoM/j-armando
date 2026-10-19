@@ -6,6 +6,7 @@ import {
   char,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -96,3 +97,40 @@ export const variant = pgTable(
 
 export type Variant = typeof variant.$inferSelect;
 export type NewVariant = typeof variant.$inferInsert;
+
+/** Approximate body-measurement range in inches for one size. */
+export interface SizeChartRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * Category-level body measurements. Keys are omitted when a measurement does
+ * not apply to the garment type (for example, trousers have no sleeve).
+ * Published as catalog content; the storefront and chat read the same rows.
+ */
+export interface SizeChartMeasurements {
+  chest?: SizeChartRange;
+  waist?: SizeChartRange;
+  hip?: SizeChartRange;
+  sleeve?: SizeChartRange;
+  length?: SizeChartRange;
+  inseam?: SizeChartRange;
+  rise?: SizeChartRange;
+}
+
+export const sizeChart = pgTable(
+  "size_chart",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => category.id),
+    size: variantSize("size").notNull(),
+    measurements: jsonb("measurements").$type<SizeChartMeasurements>().notNull(),
+  },
+  (t) => [unique("uq_size_chart_category_size").on(t.categoryId, t.size)],
+);
+
+export type SizeChart = typeof sizeChart.$inferSelect;
+export type NewSizeChart = typeof sizeChart.$inferInsert;
