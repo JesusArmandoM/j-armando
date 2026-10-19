@@ -320,13 +320,21 @@
     "title": "A successful payment creates a paid order with frozen prices",
     "user_visible_behavior": "When the simulated payment succeeds, an order is created in 'paid' state with frozen line prices, sales tax and shipping cost, and the shopper sees an order confirmation referencing that order.",
     "depends_on": ["checkout-sales-tax", "payment-provider-abstraction"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: a successful payment creates exactly one order in 'paid' state.",
-      "Provisional: order lines, prices, tax and shipping match the values shown at checkout even if the catalog price changes afterwards.",
-      "Provisional: the confirmation screen shows the order reference and totals."
+      "A successful payment transitions the order to paid, fulfillment status to unfulfilled, and creates order lines with frozen prices.",
+      "The cart is cleared or converted so returning to /cart shows empty.",
+      "The shopper lands on an order confirmation screen showing the order reference, lines, shipping, tax and total.",
+      "Subsequent catalog price updates do not change the frozen prices on the created order lines or order totals."
     ],
-    "evidence": [],
+    "evidence": [
+      "Automated: 57 test files / 465 tests pass via `CI=true ./init.sh`. Lint and typecheck clean.",
+      "Focused suites (6 files / 41 tests): `db/tests/order-creation.test.ts` (6/6), `app/api/checkout/pay/route.test.ts` (7/7), `app/checkout/confirmation/[reference]/page.test.tsx` (7/7), `app/checkout/contact-and-address-form.test.tsx` (10/10), `app/checkout/page.test.tsx` (9/9), `db/tests/migrate.test.ts` (2/2).",
+      "Database: migration `0004_mean_texas_twister.sql` drops NOT NULL constraint on `order.account_id` and adds 'unfulfilled' to `fulfillment_status` enum. Applied via `pnpm db:migrate` and verified via `pnpm db:verify`.",
+      "Production build: `pnpm build` exit 0 emitting dynamic routes `ƒ /api/checkout/pay`, `ƒ /checkout/confirmation/[reference]`, `ƒ /checkout`, and `ƒ /cart`.",
+      "Live HTTP verification on port 3007: adding variant to cart, completing address in NY, selecting shipping method, and posting to `/api/checkout/pay` creates order JA-822992 in status 'paid' and fulfillment 'unfulfilled'; confirmation page renders order reference, frozen line items, delivery details, and USD financial breakdown ($349.00 subtotal + $0.00 shipping + $27.92 tax = $376.92 total); returning to `/cart` verifies empty cart state.",
+      "Validation record: docs/validations/order-creation-on-payment.md (verdict: ACCEPT)."
+    ],
     "notes": "Order state machine is in docs/domain-model.md. Prices and tax are frozen at purchase time."
   },
   {

@@ -25,11 +25,9 @@ export type NewShippingMethod = typeof shippingMethod.$inferInsert;
 
 export const order = pgTable("order", {
   id: uuid("id").primaryKey().defaultRandom(),
-  /** Human-readable order reference shown to the shopper (e.g. JA-000123). */
   reference: text("reference").notNull().unique(),
-  accountId: uuid("account_id")
-    .notNull()
-    .references(() => account.id),
+  /** Nullable for guest checkouts before account creation (account-created-at-payment). */
+  accountId: uuid("account_id").references(() => account.id),
   contactEmail: text("contact_email").notNull(),
   status: orderStatus("status").notNull().default("created"),
   /** Null until the order is paid (docs/domain-model.md). */

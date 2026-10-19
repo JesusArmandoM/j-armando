@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { formatPriceUSD } from "@/lib/money.ts";
+import { calculateSalesTax } from "@/lib/tax/sales-tax.ts";
 import {
   parseCheckoutContactAndAddress,
   US_STATES,
@@ -48,11 +50,15 @@ const DEFAULT_SHIPPING_METHODS: ShippingMethodData[] = [
 export interface ContactAndAddressFormProps {
   initialSession?: CheckoutSessionData | null;
   shippingMethods?: ShippingMethodData[];
+  subtotalCents?: number;
+  totalCents?: number;
 }
 
 export function ContactAndAddressForm({
   initialSession,
   shippingMethods = DEFAULT_SHIPPING_METHODS,
+  subtotalCents,
+  totalCents,
 }: ContactAndAddressFormProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -61,6 +67,8 @@ export function ContactAndAddressForm({
     initialSession ?? null,
   );
   const [isEditing, setIsEditing] = useState<boolean>(!initialSession);
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Form field state
   const [email, setEmail] = useState(savedSession?.email ?? "");
@@ -156,6 +164,48 @@ export function ContactAndAddressForm({
 
   const isStep1Complete = !isEditing && savedSession !== null;
   const isStep2Complete = isStep1Complete && Boolean(savedSession?.shippingMethodId);
+
+  const selectedShippingCost = savedSession?.shippingMethod?.costCents ?? 0;
+  const taxCalculation =
+    savedSession?.state && subtotalCents !== undefined
+      ? calculateSalesTax(subtotalCents, savedSession.state)
+      : null;
+  const clientTotalCents =
+    (subtotalCents ?? 0) + selectedShippingCost + (taxCalculation?.taxCents ?? 0);
+  const effectiveTotalCents = totalCents ?? clientTotalCents;
+
+  async function handlePay() {
+    setPaymentError(null);
+    setIsPaying(true);
+
+    try {
+      const response = await fetch("/api/checkout/pay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setPaymentError(
+          data?.error || "Payment simulation failed. Please try again.",
+        );
+        setIsPaying(false);
+        return;
+      }
+
+      if (data?.redirectUrl) {
+        router.push(data.redirectUrl);
+      } else if (data?.reference) {
+        router.push(`/checkout/confirmation/${data.reference}`);
+      }
+    } catch {
+      setPaymentError(
+        "A network error occurred while processing payment. Please try again.",
+      );
+      setIsPaying(false);
+    }
+  }
 
   return (
     <div className="checkout-flow" data-testid="checkout-flow">
@@ -502,9 +552,38 @@ export function ContactAndAddressForm({
         </header>
         {isStep2Complete ? (
           <div className="checkout-step__content" data-testid="payment-step-content">
-            <p className="checkout-step__desc">
-              Review your order details above and proceed to payment simulation.
-            </p>
+            <div className="checkout-payment-box" data-testid="payment-simulated-box">
+              <p className="checkout-step__desc">
+                Review your order details and place your order using our simulated payment gateway.
+              </p>
+              {effectiveTotalCents > 0 ? (
+                <p className="checkout-payment-box__total" data-testid="payment-total-amount">
+                  Total to pay: <strong>{formatPriceUSD(effectiveTotalCents)}</strong>
+                </p>
+              ) : null}
+
+              {paymentError ? (
+                <p
+                  className="checkout-form__error checkout-form__error--banner"
+                  role="alert"
+                  data-testid="payment-error"
+                >
+                  {paymentError}
+                </p>
+              ) : null}
+
+              <div className="checkout-form__actions">
+                <button
+                  type="button"
+                  className="checkout-form__submit-btn checkout-payment-box__pay-btn"
+                  onClick={handlePay}
+                  disabled={isPaying}
+                  data-testid="place-order-button"
+                >
+                  {isPaying ? "Processing Order…" : "Place Order (Simulated)"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
       </section>

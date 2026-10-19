@@ -5,10 +5,10 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `order-creation-on-payment` (depends on `checkout-sales-tax` and `payment-provider-abstraction`, both accepted).
+- Current feature in flight: none. `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `payment-failure-path` (depends on `order-creation-on-payment`, now accepted).
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
-- Last verified at: 2026-10-19, on `feature/checkout-sales-tax`: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, on `feature/order-creation-on-payment`: `./init.sh` exit 0 (57 test files / 465 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
@@ -686,5 +686,43 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Evidence captured: `feature_list.json` → `checkout-sales-tax.verification`/`.evidence`; `docs/validations/checkout-sales-tax.md`; this log.
 - Known risk or unresolved issue: Payment execution and order placement are deferred to `order-creation-on-payment`.
 - Next best step: Commit `feature/checkout-sales-tax`, push to origin, open PR linking #30 without merging.
+
+### Session 034
+
+- Date: 2026-10-19
+- Goal: Implement and validate `order-creation-on-payment` in dedicated worktree `tienda-worktrees/order-creation-on-payment` on branch `feature/order-creation-on-payment` (Issue #32).
+- Completed:
+  - Spec written: `docs/specs/order-creation-on-payment.md` covering 6 acceptance scenarios for order creation with frozen snapshot prices, cart conversion, order confirmation page, and transaction atomicity.
+  - Database schema & migration:
+    - Updated `db/schema/order.ts` to make `order.accountId` nullable (enabling guest orders before account creation).
+    - Updated `db/schema/enums.ts` adding `'unfulfilled'` to `fulfillmentStatus` enum.
+    - Generated and applied migration `db/migrations/0004_mean_texas_twister.sql` via `pnpm db:generate` and `pnpm db:migrate`.
+  - Order repository (`db/order.ts`):
+    - Implemented `createPaidOrderFromCheckout(db, sessionToken, provider?)` which validates active cart lines, contact & shipping address (Step 1), and selected shipping method (Step 2); calculates frozen integer-cent financial totals; drives the simulated payment provider; and atomically inside a transaction inserts shipping address snapshot, order with unique reference `JA-XXXXXX`, frozen `orderLine` items, and `payment` row, and transitions `cart.status` to `"converted"`.
+    - Implemented `getOrderByReference(db, reference)` retrieving full order details, address snapshot, shipping method, and frozen line items.
+  - API Route (`app/api/checkout/pay/route.ts`):
+    - Handled `POST /api/checkout/pay` reading `ja_cart_session` cookie, invoking `createPaidOrderFromCheckout`, revalidating `/cart` and `/checkout`, and returning `{ ok: true, reference, redirectUrl, order }` with `Cache-Control: no-store`.
+  - Checkout UI Step 3 (`app/checkout/contact-and-address-form.tsx` & `app/checkout/page.tsx`):
+    - Added Step 3 payment card rendering total payable amount in USD and "Place Order (Simulated)" button when Steps 1 & 2 are complete.
+    - Handled loading state, error banner, and client navigation to `/checkout/confirmation/[reference]`.
+  - Order Confirmation Screen (`app/checkout/confirmation/[reference]/page.tsx`):
+    - Implemented server component displaying order reference, status ("Paid"), fulfillment ("Unfulfilled"), confirmation email notice, frozen purchased lines table, shipping address card, delivery method card, and USD order totals breakdown with "Continue Shopping" CTA.
+  - Validation: All 6 acceptance scenarios verified and recorded in `docs/validations/order-creation-on-payment.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `order-creation-on-payment` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (57 test files / 465 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /api/checkout/pay`, `ƒ /checkout/confirmation/[reference]`, `ƒ /checkout`, and `ƒ /cart`.
+  - Live HTTP transcript on `PORT=3007` against worktree database:
+    - Adding variant `bc6f1e44-752b-4a7c-98b2-acdaeafa986b` to cart;
+    - Saving NY address for Arthur Morgan;
+    - Selecting Standard Shipping;
+    - `POST /api/checkout/pay` returns 200 with `{ ok: true, reference: "JA-822992", redirectUrl: "/checkout/confirmation/JA-822992" }`;
+    - `GET /checkout/confirmation/JA-822992` returns 200 with reference, "Status: Paid", "Fulfillment: Unfulfilled", Arthur Morgan address, and USD totals breakdown ($349.00 subtotal, $27.92 tax, $376.92 total);
+    - `GET /cart` returns 200 empty cart state.
+- Evidence captured: `feature_list.json` → `order-creation-on-payment.verification`/`.evidence`; `docs/validations/order-creation-on-payment.md`; this log.
+- Known risk or unresolved issue: Payment failure and retry path is deferred to `payment-failure-path`.
+- Next best step: Commit `feature/order-creation-on-payment`, push to origin, and open PR linking #32 without merging.
+
 
 
