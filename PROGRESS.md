@@ -8,7 +8,7 @@
 - Current feature in flight: none in implementation. `product-detail-page`, `catalog-filtering`, `payment-provider-abstraction` and `chat-assistant` are all `accepted` (independently validated 2026-10-14)
 - Current next ready feature: `product-variant-selection` (depends on `product-detail-page`, accepted; needs `planner`) is next in `feature_list.json` order; `chat-assistant-guardrails` (depends on `chat-assistant`, accepted) and `order-creation-on-payment` (needs `checkout-sales-tax`) also follow
 - Current blocker: none. Six discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (the ORM question and the chat LLM-provider question are resolved — see *Resolved*)
-- Last verified at: 2026-10-14, `product-detail-page`, `catalog-filtering` and `payment-provider-abstraction` merged into `main` and re-verified; `chat-assistant` independently accepted (`feature-validator`, ACCEPT): `./init.sh` exit 0 — 18 test files / 107 tests, `pnpm build` exit 0 without `OPENAI_API_KEY`
+- Last verified at: 2026-10-14, `product-detail-page`, `catalog-filtering` and `payment-provider-abstraction` merged into `main` and re-verified; `chat-assistant` independently accepted (`feature-validator`, ACCEPT): `./init.sh` exit 0 — 18 test files / 107 tests, `pnpm build` exit 0 without `OPENAI_API_KEY`. 2026-10-19: `chat-assistant` residual R1 closed — the live provider was verified against the OpenAI-compatible DevExpert gateway (model `chat`).
 
 ## Project State
 
@@ -252,4 +252,18 @@ These must be answered before or during the relevant features. Full detail in `d
 - Files or artifacts updated: `next.config.ts`, `package.json`, this file. No product behavior, domain rule, API or verification rule changed; `feature_list.json` untouched.
 - Known risk or unresolved issue: `allowedDevOrigins` hardcodes the current LAN IP (`192.168.1.132`) alongside a `192.168.1.*` wildcard and `*.trycloudflare.com`; the concrete LAN IP can go stale if the network changes, and the quick-tunnel host changes on each cloudflared restart (covered by the wildcard). Beyond this, `pnpm dev` over a tunnel remains interactive only after hydration completes; production is the recommended path for phone testing.
 - Next best step: unchanged — take `product-variant-selection` (depends on `product-detail-page`, accepted; needs `planner`).
+
+### Session 014
+
+- Date: 2026-10-19
+- Goal: Close `chat-assistant` residual R1 (live real-provider transcript unverified) using the DevExpert inference gateway available on this machine, before launching the next parallel feature batch.
+- Completed:
+  - Confirmed the OpenAI-compatible DevExpert gateway: `POST https://inference.devexpert.io/v1/chat/completions`, model `chat` (advanced model `chat-pro`), `Authorization: Bearer $DEVEXPERT_API_KEY`; direct call returned HTTP 200.
+  - Exercised the repo's real adapter `createOpenAiChatAssistant` (no code change) against the live gateway with model `chat`; it answered two questions (merino crewneck fabric and wool overcoat care) with non-empty, on-topic replies. Transcripts recorded in `feature_list.json`.
+  - Mapped the gateway for local runs in the gitignored `.env.local`: `OPENAI_API_KEY=$DEVEXPERT_API_KEY`, `OPENAI_BASE_URL=https://inference.devexpert.io/v1`, `CHAT_ASSISTANT_MODEL=chat`. The key is never committed.
+  - Updated `feature_list.json`: replaced the R1 "UNVERIFIED" evidence entry with the verified transcript and updated the independent-validation follow-up note. No status change (`chat-assistant` stays `accepted`).
+- Verification run: live adapter call over the real provider (2 answers, non-empty, on-topic); `feature_list.json` re-parsed as valid JSON.
+- Files or artifacts updated: `feature_list.json`, this file; local `.env.local` (gitignored) only.
+- Known risk or unresolved issue: none for R1. The gateway's cost/latency and data-handling terms should still be reviewed before public launch (`docs/risks-and-open-questions.md`). `chat-assistant-guardrails` remains the feature that owns refusal/price-grounding behaviour. The DevExpert images API (`/v1/images/edits`, model `image-edit`) is available for virtual try-on, but the photo consent/retention decision (blocking question #3) is still open.
+- Next best step: run the dependency-ready features in parallel via `github-flow` (`product-variant-selection`, `chat-assistant-guardrails`, and `virtual-tryon-generation` subject to the photo consent/retention decision #3).
 
