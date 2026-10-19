@@ -2,6 +2,7 @@ import { bigint, char, integer, text, timestamp, uuid } from "drizzle-orm/pg-cor
 import { pgTable } from "drizzle-orm/pg-core";
 
 import { account, address } from "./account.ts";
+import { cart } from "./cart.ts";
 import { variant } from "./catalog.ts";
 import { fulfillmentStatus, orderStatus, paymentStatus } from "./enums.ts";
 
@@ -84,3 +85,25 @@ export const payment = pgTable("payment", {
 
 export type Payment = typeof payment.$inferSelect;
 export type NewPayment = typeof payment.$inferInsert;
+
+export const checkoutSession = pgTable("checkout_session", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  cartId: uuid("cart_id")
+    .notNull()
+    .unique()
+    .references(() => cart.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  recipientName: text("recipient_name").notNull(),
+  line1: text("line1").notNull(),
+  line2: text("line2"),
+  city: text("city").notNull(),
+  state: char("state", { length: 2 }).notNull(),
+  zip: text("zip").notNull(),
+  country: char("country", { length: 2 }).notNull().default("US"),
+  phone: text("phone"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type CheckoutSession = typeof checkoutSession.$inferSelect;
+export type NewCheckoutSession = typeof checkoutSession.$inferInsert;

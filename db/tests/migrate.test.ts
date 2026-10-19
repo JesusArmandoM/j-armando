@@ -13,6 +13,7 @@ const CORE_TABLES = [
   "size_chart",
   "cart",
   "cart_line",
+  "checkout_session",
   "account",
   "address",
   "shipping_method",

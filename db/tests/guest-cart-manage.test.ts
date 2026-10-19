@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -11,7 +10,6 @@ import {
 } from "../cart.ts";
 import { getPublishedProductBySlug } from "../catalog.ts";
 import type { ProductDetail, ProductDetailVariant } from "../catalog.ts";
-import { cart, cartLine } from "../schema/index.ts";
 import { seedCatalog } from "../seed.ts";
 import { createTestDatabase, migrateDatabase } from "./harness.ts";
 import type { TestDatabase } from "./harness.ts";

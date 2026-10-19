@@ -2,21 +2,21 @@
 
 ## Current Verified State
 
-- Repository root: `/Users/armando/Documents/tienda-worktrees/cart-stock-limits` (worktree; base checkout `/Users/armando/Documents/Ai Tienda de Ropa`).
+- Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `cart-stock-limits` is `accepted` (independently validated 2026-10-19). `guest-cart-manage` is `accepted` (independently validated 2026-10-19). `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready features: `checkout-contact-and-address` (depends on `guest-cart-manage`, accepted).
+- Current feature in flight: none. `guest-cart-manage`, `cart-stock-limits`, and `checkout-contact-and-address` are `accepted` and merged into `main`. `virtual-tryon-failure` and `guest-cart-add` are `accepted` and merged into `main`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `checkout-shipping-method` (depends on `checkout-contact-and-address`, accepted).
 - Current blocker: none for the shipped features. Four discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4 and shipping cost #5 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode; #6 tax blocks the checkout chain).
-- Last verified at: 2026-10-19, in this worktree: `CI=true ./init.sh` exit 0 (45 test files / 371 tests), `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-19, on `main`: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, quantity editing, removal, stock limits) shipped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer; `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, manage, stock limits) + checkout (contact email and shipping address) shipped**. Discovery is closed.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (migrations 0000..0002); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `db/checkout.ts` and `app/checkout/` hold checkout session repository and contact email & shipping address collection; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static production build.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 (`ui` + `db`).
-- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add`, `guest-cart-manage` and `cart-stock-limits` accepted; `catalog-size-chart` passing; the rest not started.
+- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add`, `guest-cart-manage`, `cart-stock-limits`, and `checkout-contact-and-address` accepted; `catalog-size-chart` passing; the rest not started.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -580,3 +580,34 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Known risk or unresolved issue: Concurrency stock reservation during checkout / payment is deferred to `stock-reservation`.
 - Next best step: Commit `feature/cart-stock-limits`, push to origin, open PR linking #24 without merging.
 
+### Session 031
+
+- Date: 2026-10-19
+- Goal: Implement and validate `checkout-contact-and-address` in dedicated worktree `tienda-worktrees/checkout-contact-and-address` on branch `feature/checkout-contact-and-address` (Issue #25).
+- Completed:
+  - Spec written: `docs/specs/checkout-contact-and-address.md` with 8 acceptance scenarios covering cart-to-checkout navigation, empty cart handling, contact email and US shipping address capture, inline validation errors, address persistence across reloads, in-place address editing ("Modify"), and session isolation.
+  - Database schema & migration: Added `checkout_session` table (unique `cart_id`, cascading on delete; `email`, `recipient_name`, `line1`, `line2`, `city`, `state`, `zip`, `country`, `phone`, `created_at`, `updated_at`) and added `recipient_name` column to `address` table. Generated migration `0002_daily_gabe_jones.sql` via `pnpm db:generate`.
+  - Data access repository: Created `db/checkout.ts` with `getCheckoutSession(db, sessionToken)` and `saveCheckoutContactAndAddress(db, sessionToken, input)`. Integration tests in `db/tests/checkout-contact-and-address.test.ts` (5 tests).
+  - Input validation: Created `app/checkout/checkout-input.ts` with RFC-compliant email, US state validation, and 5-digit/9-digit ZIP validation. Unit tests in `app/checkout/checkout-input.test.ts` (9 tests).
+  - Route handlers: Created `app/api/checkout/contact-and-address/route.ts` supporting `POST` (validating, session auth, upsert, revalidatePath, `Cache-Control: no-store`) and `GET`. Route tests in `app/api/checkout/contact-and-address/route.test.ts` (9 tests).
+  - UI: Added "Proceed to Checkout" button on `/cart/page.tsx`. Built `/checkout/page.tsx` with two-column layout (Contact & Address Form + Order Summary sidebar, empty cart fallback). Built client component `app/checkout/contact-and-address-form.tsx` supporting interactive inputs, inline validation alerts, Step 1 completed summary card, "Modify" toggle, and Step 2 ("Shipping Method") readiness indicator. Added styles to `app/globals.css`.
+  - Component tests: `app/checkout/contact-and-address-form.test.tsx` (7 tests), `app/checkout/page.test.tsx` (5 tests), updated `app/cart/page.test.tsx` (4 tests).
+  - Migration test: Updated `db/tests/migrate.test.ts` to include `checkout_session` in `CORE_TABLES`.
+  - Cleaned up unused import warnings in `db/tests/guest-cart-manage.test.ts`.
+  - Validation: All 8 acceptance scenarios independently verified and documented in `docs/validations/checkout-contact-and-address.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `checkout-contact-and-address` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (49 test files / 393 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /checkout` and `ƒ /api/checkout/contact-and-address`.
+  - Live HTTP transcript on `PORT=3004` against worktree database:
+    - Empty cart `/checkout` returns 200 empty state;
+    - Cart line add creates `ja_cart_session` cookie;
+    - `/cart` renders "Proceed to Checkout";
+    - `/checkout` renders Order Summary ($249.00) and Step 1 form;
+    - Invalid input returns 400 Bad Request with field error map;
+    - Valid input returns 200 OK and updates `/checkout` to show Step 1 completed summary card + Step 2 "Ready for Selection";
+    - Anonymous `GET /api/checkout/contact-and-address` returns `{"checkoutSession":null}`.
+- Evidence captured: `feature_list.json` → `checkout-contact-and-address.verification`/`.evidence`; `docs/validations/checkout-contact-and-address.md`; this log.
+- Known risk or unresolved issue: Shipping method selection and sales tax calculation are deferred to `checkout-shipping-method` and `checkout-sales-tax`.
+- Next best step: Commit `feature/checkout-contact-and-address`, push to origin, open PR linking #25 without merging.
