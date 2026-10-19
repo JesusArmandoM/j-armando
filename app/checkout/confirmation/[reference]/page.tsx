@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 interface OrderConfirmationPageProps {
   params: Promise<{ reference: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export async function generateMetadata({ params }: OrderConfirmationPageProps) {
@@ -19,8 +20,18 @@ export async function generateMetadata({ params }: OrderConfirmationPageProps) {
   };
 }
 
-export default async function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
+export default async function OrderConfirmationPage({
+  params,
+  searchParams,
+}: OrderConfirmationPageProps) {
   const { reference } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const queryNewAccount = Array.isArray(resolvedSearchParams.new_account)
+    ? resolvedSearchParams.new_account[0]
+    : resolvedSearchParams.new_account;
+  const queryAccount = Array.isArray(resolvedSearchParams.account)
+    ? resolvedSearchParams.account[0]
+    : resolvedSearchParams.account;
 
   let order: OrderWithDetails | undefined;
   try {
@@ -33,6 +44,15 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
     notFound();
     return null;
   }
+
+  const isLinked =
+    queryNewAccount === "false" ||
+    queryAccount === "linked" ||
+    order.isNewAccount === false;
+
+  const accountNoticeMessage = isLinked
+    ? `Order linked to your account ${order.contactEmail}.`
+    : `We've created an account for your order at ${order.contactEmail}.`;
 
   const statusLabel = order.status.charAt(0).toUpperCase() + order.status.slice(1);
   const fulfillmentLabel = order.fulfillmentStatus
@@ -70,6 +90,10 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
 
         <p className="order-confirmation__notice" data-testid="confirmation-notice">
           A confirmation email has been sent to <strong>{order.contactEmail}</strong>.
+        </p>
+
+        <p className="order-confirmation__account-notice" data-testid="account-notice">
+          {accountNoticeMessage}
         </p>
       </header>
 

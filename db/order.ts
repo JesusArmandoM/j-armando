@@ -3,6 +3,8 @@ import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "./client.ts";
 import type { FulfillmentStatus, OrderStatus } from "./schema/index.ts";
 import {
+  account,
+  accountRole,
   address,
   cart,
   cartLine,
@@ -54,6 +56,8 @@ export interface OrderShippingMethodSnapshot {
 export interface OrderWithDetails {
   id: string;
   reference: string;
+  accountId: string | null;
+  isNewAccount?: boolean;
   contactEmail: string;
   status: OrderStatus;
   fulfillmentStatus: FulfillmentStatus | null;
@@ -77,7 +81,10 @@ export type CreatePaidOrderResult =
         reference: string;
         totalCents: number;
         contactEmail: string;
+        accountId?: string | null;
       };
+      accountId: string;
+      isNewAccount: boolean;
     }
   | {
       ok: false;
@@ -197,15 +204,42 @@ export async function createPaidOrderFromCheckout(
     };
   }
 
-  // 6. Execute atomic transaction to freeze snapshot and create order
+  // 6. Execute atomic transaction to freeze snapshot, create/link account, and create order
   return db.transaction(async (tx) => {
     const txDb = tx as unknown as Db;
 
-    // 6a. Insert address snapshot (accountId null for guest checkout)
+    // Normalize contact email
+    const normalizedEmail = session.email.trim().toLowerCase();
+
+    // Look up existing account
+    const [existingAccount] = await txDb
+      .select({ id: account.id })
+      .from(account)
+      .where(eq(account.email, normalizedEmail))
+      .limit(1);
+
+    let targetAccountId: string;
+
+    if (existingAccount) {
+      targetAccountId = existingAccount.id;
+    } else {
+      const [newAccount] = await txDb
+        .insert(account)
+        .values({ email: normalizedEmail })
+        .returning({ id: account.id });
+      targetAccountId = newAccount.id;
+
+      await txDb.insert(accountRole).values({
+        accountId: targetAccountId,
+        role: "customer",
+      });
+    }
+
+    // 6a. Insert address snapshot (linked to targetAccountId)
     const [insertedAddress] = await txDb
       .insert(address)
       .values({
-        accountId: null,
+        accountId: targetAccountId,
         recipientName: session.recipientName,
         line1: session.line1,
         line2: session.line2,
@@ -225,8 +259,8 @@ export async function createPaidOrderFromCheckout(
       .insert(order)
       .values({
         reference,
-        accountId: null,
-        contactEmail: session.email,
+        accountId: targetAccountId,
+        contactEmail: normalizedEmail,
         status: "paid",
         fulfillmentStatus: "unfulfilled",
         addressId: insertedAddress.id,
@@ -269,10 +303,11 @@ export async function createPaidOrderFromCheckout(
       updatedAt: now,
     });
 
-    // 6e. Update cart to converted
+    // 6e. Update cart to converted and link accountId
     await txDb
       .update(cart)
       .set({
+        accountId: targetAccountId,
         status: "converted",
         updatedAt: now,
       })
@@ -285,7 +320,10 @@ export async function createPaidOrderFromCheckout(
         reference: createdOrder.reference,
         totalCents: createdOrder.totalCents,
         contactEmail: createdOrder.contactEmail,
+        accountId: targetAccountId,
       },
+      accountId: targetAccountId,
+      isNewAccount: !existingAccount,
     } as const;
   });
 }
@@ -314,6 +352,18 @@ export async function getOrderByReference(
     return undefined;
   }
 
+  let isNewAccount: boolean | undefined = undefined;
+  if (orderRow.order.accountId) {
+    const ordersForAccount = await db
+      .select({ id: order.id })
+      .from(order)
+      .where(eq(order.accountId, orderRow.order.accountId))
+      .orderBy(asc(order.createdAt));
+    if (ordersForAccount.length > 0) {
+      isNewAccount = ordersForAccount[0].id === orderRow.order.id;
+    }
+  }
+
   const lines = await db
     .select({
       id: orderLine.id,
@@ -331,6 +381,8 @@ export async function getOrderByReference(
   return {
     id: orderRow.order.id,
     reference: orderRow.order.reference,
+    accountId: orderRow.order.accountId,
+    isNewAccount,
     contactEmail: orderRow.order.contactEmail,
     status: orderRow.order.status,
     fulfillmentStatus: orderRow.order.fulfillmentStatus,

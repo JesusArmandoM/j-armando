@@ -127,7 +127,10 @@ describe("POST /api/checkout/pay", () => {
         reference: "JA-654321",
         totalCents: 26892,
         contactEmail: "shopper@example.com",
+        accountId: "acc-uuid-1",
       },
+      accountId: "acc-uuid-1",
+      isNewAccount: true,
     });
 
     const response = await POST();
@@ -139,6 +142,8 @@ describe("POST /api/checkout/pay", () => {
     expect(body.reference).toBe("JA-654321");
     expect(body.redirectUrl).toBe("/checkout/confirmation/JA-654321");
     expect(body.order.totalCents).toBe(26892);
+    expect(body.accountId).toBe("acc-uuid-1");
+    expect(body.isNewAccount).toBe(true);
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/cart");
     expect(revalidatePathMock).toHaveBeenCalledWith("/checkout");

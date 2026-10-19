@@ -25,6 +25,8 @@ const getOrderByReferenceMock = vi.mocked(getOrderByReference);
 const mockOrder: OrderWithDetails = {
   id: "order-1",
   reference: "JA-847291",
+  accountId: "account-1",
+  isNewAccount: true,
   contactEmail: "elena.rostova@example.com",
   status: "paid",
   fulfillmentStatus: "unfulfilled",
@@ -103,6 +105,39 @@ describe("OrderConfirmationPage", () => {
     );
     expect(screen.getByTestId("confirmation-notice").textContent).toContain(
       "elena.rostova@example.com",
+    );
+    expect(screen.getByTestId("account-notice").textContent).toBe(
+      "We've created an account for your order at elena.rostova@example.com.",
+    );
+  });
+
+  it("renders linked account notice when order is linked to existing account", async () => {
+    getOrderByReferenceMock.mockResolvedValueOnce({
+      ...mockOrder,
+      isNewAccount: false,
+    });
+
+    const ui = await OrderConfirmationPage({
+      params: Promise.resolve({ reference: "JA-847291" }),
+    });
+    render(ui);
+
+    expect(screen.getByTestId("account-notice").textContent).toBe(
+      "Order linked to your account elena.rostova@example.com.",
+    );
+  });
+
+  it("renders linked account notice when searchParams indicates account=linked", async () => {
+    getOrderByReferenceMock.mockResolvedValueOnce(mockOrder);
+
+    const ui = await OrderConfirmationPage({
+      params: Promise.resolve({ reference: "JA-847291" }),
+      searchParams: Promise.resolve({ account: "linked" }),
+    });
+    render(ui);
+
+    expect(screen.getByTestId("account-notice").textContent).toBe(
+      "Order linked to your account elena.rostova@example.com.",
     );
   });
 

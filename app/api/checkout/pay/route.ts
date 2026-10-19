@@ -59,6 +59,8 @@ export async function POST(): Promise<Response> {
         reference: result.order.reference,
         redirectUrl,
         order: result.order,
+        accountId: result.accountId,
+        isNewAccount: result.isNewAccount,
       },
       { status: 200, headers: NO_STORE },
     );

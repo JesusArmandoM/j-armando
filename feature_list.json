@@ -372,12 +372,19 @@
     "title": "Payment creates or links the account by email",
     "user_visible_behavior": "When payment succeeds, an account is created for the contact email if none exists, or the order is attached to the existing account if that email is already registered. No second account is ever created for the same email.",
     "depends_on": ["order-creation-on-payment"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: a first-time email results in one new account owning the new order.",
-      "Provisional: a repeat email does not create a second account and the order attaches to the existing one."
+      "A first-time email results in one new account in the account table with role customer owning the new order, shipping address, and cart: verified in db/tests/account-created-at-payment.test.ts (Scenario 1).",
+      "A repeat email does not create a second account, reuses the existing account id, and attaches the new order to the existing account: verified in db/tests/account-created-at-payment.test.ts (Scenario 2).",
+      "Emails are normalized to trimmed lowercase satisfying check constraint chk_account_email_lowercase: verified in db/tests/account-created-at-payment.test.ts (Scenarios 3 & 4).",
+      "Order confirmation page at /checkout/confirmation/[reference] displays welcoming account notice (We've created an account / Order linked to your account): verified in app/checkout/confirmation/[reference]/page.test.tsx."
     ],
-    "evidence": [],
+    "evidence": [
+      "./init.sh (2026-10-19): exit 0. 58 test files, 471 tests passed (install + lint + typecheck + test).",
+      "pnpm build (2026-10-19): exit 0. Next.js 16.4.0 (Turbopack) production build succeeded.",
+      "Integration tests: db/tests/account-created-at-payment.test.ts (4/4 passed), app/checkout/confirmation/[reference]/page.test.tsx (9/9 passed), app/api/checkout/pay/route.test.ts (7/7 passed), db/tests/order-creation.test.ts (6/6 passed).",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All acceptance scenarios pass; docs/validations/account-created-at-payment.md recorded."
+    ],
     "notes": "Account is keyed by unique email (CONTEXT.md). The duplicate-email flow must preserve the guest cart across the sign-in handoff; see edge cases in docs/user-and-access-model.md."
   },
   {

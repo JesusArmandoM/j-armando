@@ -2540,10 +2540,17 @@ body {
 }
 
 .order-confirmation__notice {
-  margin: 0;
+  margin: 0 0 0.5rem;
   font-family: var(--font-sans);
   font-size: 0.875rem;
   color: var(--color-stone);
+}
+
+.order-confirmation__account-notice {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-ink);
 }
 
 .order-confirmation__layout {
