@@ -205,4 +205,37 @@ describe("OrderConfirmationPage", () => {
     expect(link).toBeTruthy();
     expect(link.getAttribute("href")).toBe("/catalog");
   });
+
+  it("renders password-notice when order has a Quick Access password", async () => {
+    getOrderByReferenceMock.mockResolvedValueOnce({
+      ...mockOrder,
+      hasPassword: true,
+    });
+
+    const ui = await OrderConfirmationPage({
+      params: Promise.resolve({ reference: "JA-847291" }),
+    });
+    render(ui);
+
+    const passwordNotice = screen.getByTestId("password-notice");
+    expect(passwordNotice).toBeTruthy();
+    expect(passwordNotice.textContent).toContain("Quick Access password active");
+    expect(passwordNotice.textContent).toContain(
+      "You can sign in anytime using your email and password",
+    );
+  });
+
+  it("does not render password-notice when order has no Quick Access password", async () => {
+    getOrderByReferenceMock.mockResolvedValueOnce({
+      ...mockOrder,
+      hasPassword: false,
+    });
+
+    const ui = await OrderConfirmationPage({
+      params: Promise.resolve({ reference: "JA-847291" }),
+    });
+    render(ui);
+
+    expect(screen.queryByTestId("password-notice")).toBeNull();
+  });
 });

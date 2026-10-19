@@ -139,6 +139,7 @@ describe("POST /api/checkout/contact-and-address", () => {
         zip: "10001",
         country: "US",
         phone: "+1 555-019-2834",
+        passwordHash: null,
         shippingMethodId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -154,6 +155,65 @@ describe("POST /api/checkout/contact-and-address", () => {
     expect(data.checkoutSession.email).toBe("alexandra.vance@studio.com");
     expect(data.checkoutSession.recipientName).toBe("Alexandra Vance");
     expect(revalidatePathMock).toHaveBeenCalledWith("/checkout");
+  });
+
+  it("hashes password and passes passwordHash to saveCheckoutContactAndAddress", async () => {
+    saveCheckoutContactAndAddressMock.mockResolvedValueOnce({
+      ok: true,
+      checkoutSession: {
+        id: "session-uuid-1",
+        cartId: "cart-uuid-1",
+        email: "alexandra.vance@studio.com",
+        recipientName: "Alexandra Vance",
+        line1: "123 Main Street",
+        line2: "Apt 4B",
+        city: "New York",
+        state: "NY",
+        zip: "10001",
+        country: "US",
+        phone: "+1 555-019-2834",
+        passwordHash: "salt:mockhash",
+        shippingMethodId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    const response = await POST(
+      jsonRequest({
+        ...VALID_INPUT,
+        password: "SuperSecretPassword123",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.ok).toBe(true);
+    expect(data.checkoutSession.hasPassword).toBe(true);
+    expect((data.checkoutSession as Record<string, unknown>).passwordHash).toBeUndefined();
+
+    expect(saveCheckoutContactAndAddressMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "mock_session_token_123",
+      expect.objectContaining({
+        email: "alexandra.vance@studio.com",
+        passwordHash: expect.stringMatching(/^[0-9a-f]{32}:[0-9a-f]{128}$/),
+      }),
+    );
+  });
+
+  it("rejects password shorter than 8 characters with 400", async () => {
+    const response = await POST(
+      jsonRequest({
+        ...VALID_INPUT,
+        password: "short",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.errors.password).toBe("Password must be at least 8 characters long");
+    expect(saveCheckoutContactAndAddressMock).not.toHaveBeenCalled();
   });
 
   it("returns 503 when unexpected database error occurs", async () => {
@@ -194,6 +254,7 @@ describe("GET /api/checkout/contact-and-address", () => {
       zip: "90210",
       country: "US",
       phone: null,
+      passwordHash: null,
       shippingMethodId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -203,5 +264,7 @@ describe("GET /api/checkout/contact-and-address", () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data.checkoutSession.email).toBe("saved@example.com");
+    expect(data.checkoutSession.hasPassword).toBe(false);
+    expect(data.checkoutSession.passwordHash).toBeUndefined();
   });
 });

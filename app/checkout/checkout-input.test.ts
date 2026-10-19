@@ -139,4 +139,34 @@ describe("parseCheckoutContactAndAddress", () => {
       expect(result.errors.email).toBe("Invalid request body.");
     }
   });
+
+  it("accepts valid password of 8 or more characters", () => {
+    const result = parseCheckoutContactAndAddress({
+      ...validPayload,
+      password: "ValidPassword123",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.password).toBe("ValidPassword123");
+  });
+
+  it("rejects password shorter than 8 characters", () => {
+    const result = parseCheckoutContactAndAddress({
+      ...validPayload,
+      password: "short",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors.password).toBe("Password must be at least 8 characters long");
+  });
+
+  it("treats empty password as optional and omitted", () => {
+    const result = parseCheckoutContactAndAddress({
+      ...validPayload,
+      password: "",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.password).toBeUndefined();
+  });
 });

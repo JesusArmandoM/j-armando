@@ -1967,6 +1967,11 @@ body {
   color: var(--color-stone);
 }
 
+.checkout-form__hint--field {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
 .checkout-form__alert {
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
@@ -2607,6 +2612,17 @@ body {
   font-family: var(--font-sans);
   font-size: 0.875rem;
   color: var(--color-ink);
+}
+
+.order-confirmation__password-notice {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--color-sand, #f6f5f3);
+  border-radius: var(--radius);
 }
 
 .order-confirmation__layout {

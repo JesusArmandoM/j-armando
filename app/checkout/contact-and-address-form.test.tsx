@@ -573,6 +573,118 @@ describe("ContactAndAddressForm", () => {
 
     vi.unstubAllGlobals();
   });
+
+  describe("Quick Access Password field", () => {
+    it("renders the optional password field with helper text", () => {
+      render(<ContactAndAddressForm />);
+
+      const passwordInput = screen.getByTestId("input-password");
+      expect(passwordInput).toBeTruthy();
+      expect(passwordInput.getAttribute("type")).toBe("password");
+      expect(screen.getByTestId("password-help-text").textContent).toContain(
+        "Minimum 8 characters. Skip if you prefer not to set a password now.",
+      );
+    });
+
+    it("displays inline validation error when password is shorter than 8 characters", async () => {
+      render(<ContactAndAddressForm />);
+
+      fireEvent.change(screen.getByTestId("input-email"), {
+        target: { value: "test@example.com" },
+      });
+      fireEvent.change(screen.getByTestId("input-recipient-name"), {
+        target: { value: "Jane Doe" },
+      });
+      fireEvent.change(screen.getByTestId("input-line1"), {
+        target: { value: "100 Broadway" },
+      });
+      fireEvent.change(screen.getByTestId("input-city"), {
+        target: { value: "New York" },
+      });
+      fireEvent.change(screen.getByTestId("input-zip"), {
+        target: { value: "10001" },
+      });
+      fireEvent.change(screen.getByTestId("input-password"), {
+        target: { value: "short" },
+      });
+
+      fireEvent.click(screen.getByTestId("checkout-submit-address"));
+
+      const passwordErr = await screen.findByTestId("error-password");
+      expect(passwordErr.textContent).toBe("Password must be at least 8 characters long");
+    });
+
+    it("submits valid password and displays Quick Access status in summary", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          checkoutSession: {
+            ...mockSession,
+            hasPassword: true,
+          },
+        }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<ContactAndAddressForm />);
+
+      fireEvent.change(screen.getByTestId("input-email"), {
+        target: { value: "alexandra.vance@studio.com" },
+      });
+      fireEvent.change(screen.getByTestId("input-recipient-name"), {
+        target: { value: "Alexandra Vance" },
+      });
+      fireEvent.change(screen.getByTestId("input-line1"), {
+        target: { value: "123 Main Street" },
+      });
+      fireEvent.change(screen.getByTestId("input-city"), {
+        target: { value: "New York" },
+      });
+      fireEvent.change(screen.getByTestId("input-zip"), {
+        target: { value: "10001" },
+      });
+      fireEvent.change(screen.getByTestId("input-password"), {
+        target: { value: "ValidPassword123" },
+      });
+
+      fireEvent.click(screen.getByTestId("checkout-submit-address"));
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          "/api/checkout/contact-and-address",
+          expect.objectContaining({
+            body: expect.stringContaining('"password":"ValidPassword123"'),
+          }),
+        );
+      });
+
+      expect(await screen.findByTestId("summary-quick-access")).toBeTruthy();
+      expect(screen.getByTestId("summary-quick-access").textContent).toBe(
+        "Password set for quick access",
+      );
+
+      vi.unstubAllGlobals();
+    });
+
+    it("displays 'No password set (guest checkout)' when initialSession has no password", () => {
+      render(<ContactAndAddressForm initialSession={mockSession} />);
+
+      const quickAccessStatus = screen.getByTestId("summary-quick-access");
+      expect(quickAccessStatus.textContent).toBe("No password set (guest checkout)");
+    });
+
+    it("displays 'Password set for quick access' when initialSession has a password", () => {
+      render(
+        <ContactAndAddressForm
+          initialSession={{ ...mockSession, hasPassword: true }}
+        />,
+      );
+
+      const quickAccessStatus = screen.getByTestId("summary-quick-access");
+      expect(quickAccessStatus.textContent).toBe("Password set for quick access");
+    });
+  });
 });
 
 

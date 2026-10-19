@@ -1,0 +1,1 @@
+ALTER TABLE "checkout_session" ADD COLUMN "password_hash" text;

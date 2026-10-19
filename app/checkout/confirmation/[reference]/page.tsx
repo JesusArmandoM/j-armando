@@ -95,6 +95,12 @@ export default async function OrderConfirmationPage({
         <p className="order-confirmation__account-notice" data-testid="account-notice">
           {accountNoticeMessage}
         </p>
+
+        {order.hasPassword ? (
+          <p className="order-confirmation__password-notice" data-testid="password-notice">
+            Quick Access password active. You can sign in anytime using your email and password.
+          </p>
+        ) : null}
       </header>
 
       <div className="order-confirmation__layout">

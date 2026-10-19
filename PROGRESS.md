@@ -5,8 +5,8 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
-- Current next ready feature: `account-quick-access-password` (depends on `account-created-at-payment`, now accepted).
+- Current feature in flight: none. `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current next ready feature: `account-signin-signout` (depends on `account-quick-access-password`, now accepted).
 - Current blocker: none for the shipped features. Three discovery questions still block later product features; see `docs/risks-and-open-questions.md` → *Blocking Next Phase* (try-on provider #2, chat guardrails #4, shipping cost #5 and sales tax #6 are resolved — see *Resolved*; photo consent/retention #3 remains open and keeps try-on in memory-only mode).
 - Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
@@ -842,8 +842,55 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
   - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
   - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
 - Evidence captured: `feature_list.json` → `order-confirmation-email.evidence`; `docs/validations/order-confirmation-email.md`; this log.
-- Known risk or unresolved issue: Live third-party email service (SMTP/Resend/SendGrid) configuration remains an implementation-time decision for production deployment; simulated provider keeps tests offline, deterministic, and credential-free.
-- Next best step: Commit `feature/order-confirmation-email`, push to origin, and open PR linking #37 without merging.
+### Session 039
+
+- Date: 2026-10-19
+- Goal: Implement and validate `account-quick-access-password` in dedicated worktree `tienda-worktrees/account-quick-access-password` on branch `feature/account-quick-access-password` (Issue #42).
+- Completed:
+  - Spec written: `docs/specs/account-quick-access-password.md` covering 5 acceptance scenarios for optional Quick Access password setting at checkout, length validation, secure scrypt hashing with unique random salt, atomic persistence to account and checkout session, passwordless account upgrade on subsequent purchases, and confirmation page readiness notice.
+  - Password hashing and verification port (`lib/auth/password.ts`):
+    - Implemented `validatePassword` (enforcing minimum 8 characters).
+    - Implemented `hashPassword` using Node standard `crypto.scrypt` with a unique 16-byte random salt (`crypto.randomBytes(16)`), formatted as `<saltHex>:<keyHex>`.
+    - Implemented `verifyPassword` using `crypto.timingSafeEqual` against derived key to prevent timing side-channels.
+  - Schema & Migration (`db/schema/order.ts`):
+    - Added nullable `passwordHash: text("password_hash")` to `checkoutSession`.
+    - Generated migration `db/migrations/0005_dark_warbird.sql` via `pnpm db:generate`.
+    - Applied migration via `pnpm db:migrate` against dedicated database.
+    - Verified migration runs cleanly in `db/tests/migrate.test.ts`.
+  - Data Layer (`db/checkout.ts` & `db/order.ts`):
+    - Updated `CheckoutContactAndAddressInput` and `saveCheckoutContactAndAddress` to persist `passwordHash` to `checkoutSession`.
+    - In `createPaidOrderFromCheckout`:
+      - If creating a new account: persist `passwordHash: session.passwordHash ?? null`.
+      - If account exists and currently has `passwordHash: null` while `session.passwordHash` is provided: atomically update `account.passwordHash` with `session.passwordHash`.
+      - If account already has a password and a subsequent checkout omits password: preserve existing password hash without overwriting.
+      - Return `hasPassword: boolean` in order result.
+    - In `getOrderByReference`: check whether the account has a configured password hash and expose `hasPassword: boolean`.
+  - API & Validation (`app/checkout/checkout-input.ts` & `app/api/checkout/contact-and-address/route.ts`):
+    - `parseCheckoutContactAndAddress`: accepts optional `password` string; validates minimum 8 characters if provided, while allowing omitted/empty password.
+    - `POST /api/checkout/contact-and-address`: hashes valid passwords with `hashPassword`, stores `passwordHash` in checkout session, returns `hasPassword: boolean`, and never leaks plaintext passwords or raw password hashes in API responses.
+    - `GET /api/checkout/contact-and-address`: sanitizes `passwordHash` and provides `hasPassword: boolean`.
+  - Storefront UI (`app/checkout/contact-and-address-form.tsx` & `app/checkout/confirmation/[reference]/page.tsx` & `app/globals.css`):
+    - Added optional Quick Access password field to Step 1: "Create password for quick access (optional)" with helper text "Minimum 8 characters. Skip if you prefer not to set a password now."
+    - Added inline validation error display when password is shorter than 8 characters, without preventing advancing if left blank.
+    - Added Quick Access indicator to Step 1 summary card.
+    - Added Quick Access password notice (`data-testid="password-notice"`) to order confirmation page when account has a password set.
+  - Tests:
+    - Unit tests in `lib/auth/password.test.ts` (11 tests passing): verifies validation, hashing with unique salts, timing-safe verification, and malformed hash rejection.
+    - Unit tests in `app/checkout/checkout-input.test.ts` (12 tests passing): verifies optional password parsing, length validation, and error reporting.
+    - Integration tests in `db/tests/account-quick-access-password.test.ts` (4 tests passing): verifies Scenarios 1-4 for session hash persistence, account hash setting, passwordless checkout, repeat purchase upgrade, and existing password preservation.
+    - Route tests in `app/api/checkout/contact-and-address/route.test.ts` (11 tests passing): verifies password hashing, 400 rejection for short passwords, and secret sanitization.
+    - UI tests in `app/checkout/contact-and-address-form.test.tsx` (18 tests passing): verifies password input rendering, helper text, inline validation error, submission, and summary card status.
+    - UI tests in `app/checkout/confirmation/[reference]/page.test.tsx` (11 tests passing): verifies password notice rendering when account has a Quick Access password.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/account-quick-access-password.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `account-quick-access-password` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (64 test files / 522 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `account-quick-access-password.evidence`; `docs/validations/account-quick-access-password.md`; this log.
+- Known risk or unresolved issue: Sign-in / session management for accounts created with or without a password is the next feature: `account-signin-signout`.
+- Next best step: Commit `feature/account-quick-access-password`, push to origin, and open PR linking #42 without merging.
+
 
 
 
