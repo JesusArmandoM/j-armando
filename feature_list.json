@@ -570,13 +570,17 @@
     "depends_on": [
       "admin-role-gate"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: creating a product with two variants and stock persists and is listed in the backoffice.",
-      "Provisional: stock is stored per variant, not per product.",
-      "Provisional: invalid input is rejected with a clear message."
+      "Creating a product with two variants and stock persists in draft status and is listed in the backoffice (/admin/products and /admin/products/[id]): verified in db/tests/admin-product-create.test.ts, app/admin/products/new/create-product-form.test.tsx, and app/admin/products/page.test.tsx.",
+      "Stock is stored per variant (variant.stock_qty), not per product: verified in db/tests/admin-product-create.test.ts ('Scenario 2: Stock is stored per variant, not per product') and app/admin/products/page.test.tsx.",
+      "Invalid input (missing fields, non-positive/malformed USD price, negative stock, duplicate size/color variants, invalid size) is rejected with HTTP 400 and a clear validation message: verified in app/admin/products/product-input.test.ts, db/tests/admin-product-create.test.ts, app/api/admin/products/route.test.ts, and app/admin/products/new/create-product-form.test.tsx."
     ],
-    "evidence": [],
+    "evidence": [
+      "2026-10-19: CI=true ./init.sh exit 0 (86 test files / 609 tests green; +5 test files / +20 tests: app/admin/products/product-input.test.ts, db/tests/admin-product-create.test.ts, app/api/admin/products/route.test.ts, app/admin/products/page.test.tsx, app/admin/products/new/create-product-form.test.tsx).",
+      "2026-10-19: pnpm lint exit 0, pnpm typecheck exit 0, pnpm build exit 0 (Next.js 16.4.0 Turbopack build registers dynamic routes /admin/products, /admin/products/new, /admin/products/[id], /api/admin/products).",
+      "2026-10-19: Spec docs/specs/admin-product-create.md and validation docs/validations/admin-product-create.md recorded. Verdict: ACCEPT."
+    ],
     "notes": "Product/variant/stock model is in docs/domain-model.md. Out of scope here: bulk import, media pipeline beyond basic image upload."
   },
   {

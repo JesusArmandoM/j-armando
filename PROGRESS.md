@@ -5,7 +5,7 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `admin-product-create`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
 - Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
@@ -1018,9 +1018,40 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Known risk or unresolved issue: none.
 - Next best step: Commit `feature/admin-role-gate`, push to origin, and open PR linking Closes #47 without merging.
 
+### Session 043
 
-
-
-
+- Date: 2026-10-19
+- Goal: Implement and independently validate `admin-product-create` (Admin creates a product with variants and stock).
+- Completed:
+  - Feature spec written: `docs/specs/admin-product-create.md` covering all 4 acceptance scenarios for product and variant creation, per-variant stock persistence, validation error handling, and admin role enforcement.
+  - Pure Input Validation (`app/admin/products/product-input.ts`):
+    - `parsePriceDollarsToCents`: converts USD dollar strings into integer cents without floating-point arithmetic.
+    - `validateAdminProductInput`: validates required product fields (`name`, `categoryId`, `basePrice`, `description`, `composition`, `care`), optional `imageUrl`, and `variants` array (at least one variant, valid size `XS`–`XL`, non-empty color, valid hex swatch, integer `stockQty >= 0`, no duplicate `(size, color)` pairs).
+  - Backoffice Product Repository (`db/admin-products.ts`):
+    - `listAdminCategories`: lists categories ordered by `sortOrder` asc, `name` asc.
+    - `listAdminProducts`: lists all products across all statuses (`draft`, `published`, `archived`), ordered by `createdAt` desc, including category metadata, `basePriceCents`, `status`, `variantCount`, and `totalStock`.
+    - `getAdminProductById`: returns full backoffice product detail with category, images, and variants with per-variant `stockQty`.
+    - `createProductWithVariants`: validates input and runs a single transaction verifying category existence, generating a collision-safe slug, inserting the `product` row in `draft` status, optionally inserting a primary `product_image` row, and inserting each `variant` row with unique SKU and per-variant `stockQty`.
+  - Route Handler (`app/api/admin/products/route.ts`):
+    - `GET /api/admin/products` and `POST /api/admin/products` guarded by `getAdminSession()` (401 unauthenticated, 403 forbidden, 400 validation error, 200/201 authorized, `Cache-Control: no-store`).
+  - Backoffice UI (`app/admin/products/page.tsx`, `app/admin/products/new/page.tsx`, `app/admin/products/new/create-product-form.tsx`, `app/admin/products/[id]/page.tsx`, `app/globals.css`):
+    - Product list table with status badge, USD base price (`formatPriceUSD`), variant count, total stock, and "+ New Product" button.
+    - Interactive product creation form with dynamic variant rows (size, color, swatch hex, per-variant stock), inline validation messages, and redirect to saved product detail page.
+    - Product detail view displaying garment overview and variant inventory table with SKU, size, color swatch, unit price, and per-variant stock quantity.
+  - Tests (all green):
+    - `app/admin/products/product-input.test.ts` (7 tests passing)
+    - `db/tests/admin-product-create.test.ts` (4 tests passing)
+    - `app/api/admin/products/route.test.ts` (5 tests passing)
+    - `app/admin/products/page.test.tsx` (2 tests passing)
+    - `app/admin/products/new/create-product-form.test.tsx` (2 tests passing)
+  - Validation: All 4 acceptance scenarios verified and recorded in `docs/validations/admin-product-create.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `admin-product-create` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (86 test files / 609 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `admin-product-create.evidence`; `docs/validations/admin-product-create.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/admin-product-create`, push to origin, and open PR linking Closes #50 without merging.
 
 

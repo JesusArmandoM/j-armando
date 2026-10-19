@@ -31,8 +31,13 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
   - `/checkout` — session-scoped checkout flow (dynamic; `checkout-contact-and-address`). Requires an active guest cart; renders the order summary alongside Step 1 (Contact Email and Shipping Address form or completed summary card) and Step 2 indicator (Shipping Method). Empty cart → empty checkout state.
   - `/account` — protected customer account overview (dynamic; `account-signin-signout`). Requires an active session via `ja_account_session`; unauthenticated visits redirect to `/account/signin`. Displays customer email, roles, and a Sign Out button.
   - `/account/signin` — customer sign-in portal with Password and Email Code tabs (dynamic; `account-signin-signout`). Authenticated visitors redirect to `/account` or query parameter `returnUrl`.
+  - `/admin` — backoffice dashboard guarded by `getAdminSession` (`admin-role-gate`).
+  - `/admin/products` — backoffice product list across all lifecycle statuses (`draft`, `published`, `archived`), showing variant counts and total stock (`admin-product-create`).
+  - `/admin/products/new` — backoffice form to create a draft product with size/color variants and per-variant stock (`admin-product-create`).
+  - `/admin/products/[id]` — backoffice product detail view displaying garment metadata and variant inventory table (`admin-product-create`).
   - `POST /api/chat` — stateless chat endpoint (dynamic; `chat-assistant`), guarded before the provider is called (`chat-assistant-guardrails`). Malformed body → 400, unconfigured provider → 503, provider error → 502.
 - **Route surface (mutating):**
+  - `GET /api/admin/products` & `POST /api/admin/products` — admin-guarded product listing and transactional draft product + variant creation (`admin-product-create`). Unauthenticated → 401; non-admin → 403; invalid input → 400 with field errors; created → 201 `{ ok: true, product }`. Always `Cache-Control: no-store`.
   - `POST /api/auth/signin` — authenticates with email and password (`account-signin-signout`). On success, creates a session in `account_session` and sets the `ja_account_session` cookie; returns `{ ok: true, account }`. Invalid credentials → 401.
   - `POST /api/auth/request-code` — dispatches a 6-digit OTP code to the account email for passwordless sign-in (`account-signin-signout`). Invalid or nonexistent email → 404. Success → 200 `{ ok: true }`.
   - `POST /api/auth/verify-code` — verifies the 6-digit OTP code (`account-signin-signout`). Single-use: deletes code upon verification. On success, creates a session and sets the `ja_account_session` cookie; returns `{ ok: true, account }`. Invalid or expired code → 400.
