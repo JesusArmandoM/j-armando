@@ -2,10 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getDb } from "@/db/client.ts";
-import { getPublishedProductBySlug } from "@/db/catalog.ts";
+import {
+  getPublishedProductBySlug,
+  listVariantsByProductId,
+} from "@/db/catalog.ts";
 import type { ProductDetail } from "@/db/catalog.ts";
+import type { Variant } from "@/db/schema/index.ts";
 
 import { ProductGallery } from "./product-gallery";
+import { TryOnPanel } from "./try-on-panel";
 import { VariantSelector } from "./variant-selector";
 import { parseVariantSelection } from "./variant-selection";
 
@@ -54,6 +59,24 @@ export default async function ProductDetailPage({
 
   const initialSelection = parseVariantSelection(resolvedSearchParams, product.variants);
 
+  // Try-on garment context only. A read failure must not break the product
+  // page: render it with no variants so the panel shows its unavailable state.
+  let variants: Variant[] = [];
+  try {
+    variants = await listVariantsByProductId(getDb(), product.id);
+  } catch (error) {
+    console.error("Failed to load product variants:", error);
+  }
+
+  const tryOnVariants = variants
+    .filter((variant) => !variant.discontinued)
+    .map((variant) => ({
+      size: variant.size,
+      color: variant.color,
+      colorHex: variant.colorHex,
+      stockQty: variant.stockQty,
+    }));
+
   return (
     <main className="product-detail" data-testid="product-detail">
       <nav className="product-detail__breadcrumbs" aria-label="Breadcrumb">
@@ -98,6 +121,12 @@ export default async function ProductDetailPage({
               </dd>
             </div>
           </dl>
+
+          <TryOnPanel
+            productSlug={product.slug}
+            productName={product.name}
+            variants={tryOnVariants}
+          />
         </div>
       </div>
     </main>
