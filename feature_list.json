@@ -539,13 +539,20 @@
     "depends_on": [
       "account-signin-signout"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: an admin account can open the backoffice.",
-      "Provisional: a customer account and a signed-out shopper are both refused backoffice access.",
-      "Provisional: backoffice data is not readable without the admin role."
+      "An admin account can open the backoffice (/admin).",
+      "A customer account without the admin role is refused backoffice access (HTTP 403 Forbidden).",
+      "A signed-out shopper is refused backoffice access (redirects to /account/signin?returnUrl=/admin).",
+      "Backoffice data and APIs are not readable without the admin role (GET /api/admin/check returns 401 unauthenticated, 403 forbidden, 200 authorized).",
+      "Revoking the admin role removes backoffice access immediately on the next request."
     ],
-    "evidence": [],
+    "evidence": [
+      "2026-10-19: CI=true ./init.sh exit 0 (76 test files / 568 tests green; db/tests/admin-role-gate.test.ts, app/admin/layout.test.tsx, app/admin/page.test.tsx, app/api/admin/check/route.test.ts passing).",
+      "2026-10-19: pnpm lint exit 0, pnpm typecheck exit 0, pnpm build exit 0 (Next.js 16.4.0 Turbopack build succeeds).",
+      "2026-10-19: Live dev server port 3015 manual verification against PostgreSQL: unauthenticated redirect to /account/signin?returnUrl=/admin (HTTP 307), unauthenticated API check (HTTP 401), customer without admin role refused (HTTP 403 Forbidden view and API), admin account opens /admin dashboard (HTTP 200), immediate admin role revocation test verified (HTTP 403 on subsequent request without token refresh).",
+      "2026-10-19: Spec docs/specs/admin-role-gate.md and validation docs/validations/admin-role-gate.md recorded. Verdict: ACCEPT."
+    ],
     "notes": "Roles are attributes of the account (docs/user-and-access-model.md). An account may hold both customer and admin roles. Revoking the admin role must take effect on the next request."
   },
   {
