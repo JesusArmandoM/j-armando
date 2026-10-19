@@ -614,7 +614,7 @@
     "title": "Published size charts and body measurements appear in the catalog and chat",
     "user_visible_behavior": "Each published product page shows a size guide with approximate body measurements for the sizes the product offers, and the chat assistant answers sizing questions with the same published measurements instead of saying they are unavailable.",
     "depends_on": ["bootstrap-database-schema", "product-detail-page", "chat-assistant-guardrails"],
-    "status": "passing",
+    "status": "accepted",
     "verification": [
       "A category-level size_chart table (category_id, size, JSON body measurements, unique category/size) is created by a generated migration: pnpm db:migrate; backed by db/tests/migrate.test.ts 'scenario 1: runs against an empty database and creates the core tables' including size_chart.",
       "The seed inserts 30 published chart rows (6 categories x XS-XL) and 2 shipping methods, remains insert-if-missing, and db:verify asserts their minimum counts: db/tests/seed.test.ts 'scenario 4: populates categories, products and variants' and 'scenario 5: re-running the seed neither duplicates rows nor overwrites edits'; db/tests/verify.test.ts.",
@@ -628,9 +628,10 @@
       "Product page: app/products/[slug]/size-guide.tsx renders a semantic table for only the product's non-discontinued sizes; page.tsx catches chart read failures so the rest of the detail page still renders; app/globals.css adds the editorial table styles.",
       "Chat: ProductFact now includes sizeChart entries; formatProductSizing and formatProductInfo include only available-size measurements; SIZE_GUIDE_PROMPT_REPLY is used when no product matches; NO_SIZE_CHART_REPLY remains the honest fallback for a matched product with no chart. Shipping-cost now returns the exact verified policy with $15.00 express.",
       "Local database transcript (2026-10-19, .env.local DATABASE_URL): pnpm db:migrate applied 0001; pnpm db:seed -> categories 6, products 9, variants 40, images 16, size charts 30, shipping methods 2; pnpm db:verify exit 0 printing the same counts and 'OK: catalog is populated'.",
-      "Gate (2026-10-19): pnpm test -> 35 test files / 265 tests passed (was 35 / 261); pnpm typecheck exit 0; pnpm lint exit 0."
+      "Gate (2026-10-19): pnpm test -> 35 test files / 265 tests passed (was 35 / 261); pnpm typecheck exit 0; pnpm lint exit 0.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 4 acceptance scenarios verified passing. Record: docs/validations/catalog-size-chart.md."
     ],
-    "notes": "User-directed content/decision follow-up (2026-10-19). Measurements are approximate body measurements in inches for the US women's XS-XL chart, not garment measurements; they do not provide fit prediction or a size recommendation. Shipping decision resolves blocking open question #5: standard free (3-5 business days) and express $15.00 flat (1-2 business days), matching the storefront's existing free-standard copy and common US apparel practice. Independent validation has not run; status is passing. Admin editing of size charts and per-garment measurements remain future work."
+    "notes": "User-directed content/decision follow-up (2026-10-19). Measurements are approximate body measurements in inches for the US women's XS-XL chart, not garment measurements; they do not provide fit prediction or a size recommendation. Shipping decision resolves blocking open question #5: standard free (3-5 business days) and express $15.00 flat (1-2 business days), matching the storefront's existing free-standard copy and common US apparel practice. Independently validated and accepted 2026-10-19. Admin editing of size charts and per-garment measurements remain future work."
   },
   {
     "id": "virtual-tryon-failure",
