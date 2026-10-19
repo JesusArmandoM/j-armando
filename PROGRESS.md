@@ -552,3 +552,36 @@ Numbering is preserved from earlier sessions; #4 (chat assistant guardrails beha
 - Files or artifacts updated: `db/cart.ts`, `db/tests/guest-cart-manage.test.ts`, `app/cart/{cart-input,cart-input.test,cart-line-row,cart-line-row.test,page,page.test}.ts(x)`, `app/api/cart/lines/{route,route.test}.ts`, `app/globals.css`, `ARCHITECTURE.md`, `docs/specs/guest-cart-manage.md`, `docs/validations/guest-cart-manage.md`, `feature_list.json`, `PROGRESS.md`.
 - Known risk or unresolved issue: Cart line quantities are bounded by 10 per line; cumulative inventory availability validation is deferred to `cart-stock-limits`.
 - Next best step: Commit `feature/guest-cart-manage`, push to origin, open PR linking #22 without merging. Then launch parallel worktrees for `cart-stock-limits` and `checkout-contact-and-address`.
+
+### Session 030
+
+- Date: 2026-10-19
+- Goal: Implement and validate `checkout-contact-and-address` in dedicated worktree `tienda-worktrees/checkout-contact-and-address` on branch `feature/checkout-contact-and-address` (Issue #25).
+- Completed:
+  - Spec written: `docs/specs/checkout-contact-and-address.md` with 8 acceptance scenarios covering cart-to-checkout navigation, empty cart handling, contact email and US shipping address capture, inline validation errors, address persistence across reloads, in-place address editing ("Modify"), and session isolation.
+  - Database schema & migration: Added `checkout_session` table (unique `cart_id`, cascading on delete; `email`, `recipient_name`, `line1`, `line2`, `city`, `state`, `zip`, `country`, `phone`, `created_at`, `updated_at`) and added `recipient_name` column to `address` table. Generated migration `0002_daily_gabe_jones.sql` via `pnpm db:generate`.
+  - Data access repository: Created `db/checkout.ts` with `getCheckoutSession(db, sessionToken)` and `saveCheckoutContactAndAddress(db, sessionToken, input)`. Integration tests in `db/tests/checkout-contact-and-address.test.ts` (5 tests).
+  - Input validation: Created `app/checkout/checkout-input.ts` with RFC-compliant email, US state validation, and 5-digit/9-digit ZIP validation. Unit tests in `app/checkout/checkout-input.test.ts` (9 tests).
+  - Route handlers: Created `app/api/checkout/contact-and-address/route.ts` supporting `POST` (validating, session auth, upsert, revalidatePath, `Cache-Control: no-store`) and `GET`. Route tests in `app/api/checkout/contact-and-address/route.test.ts` (9 tests).
+  - UI: Added "Proceed to Checkout" button on `/cart/page.tsx`. Built `/checkout/page.tsx` with two-column layout (Contact & Address Form + Order Summary sidebar, empty cart fallback). Built client component `app/checkout/contact-and-address-form.tsx` supporting interactive inputs, inline validation alerts, Step 1 completed summary card, "Modify" toggle, and Step 2 ("Shipping Method") readiness indicator. Added styles to `app/globals.css`.
+  - Component tests: `app/checkout/contact-and-address-form.test.tsx` (7 tests), `app/checkout/page.test.tsx` (5 tests), updated `app/cart/page.test.tsx` (4 tests).
+  - Migration test: Updated `db/tests/migrate.test.ts` to include `checkout_session` in `CORE_TABLES`.
+  - Cleaned up unused import warnings in `db/tests/guest-cart-manage.test.ts`.
+  - Validation: All 8 acceptance scenarios independently verified and documented in `docs/validations/checkout-contact-and-address.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `checkout-contact-and-address` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (49 test files / 393 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 with dynamic routes `ƒ /checkout` and `ƒ /api/checkout/contact-and-address`.
+  - Live HTTP transcript on `PORT=3004` against worktree database:
+    - Empty cart `/checkout` returns 200 empty state;
+    - Cart line add creates `ja_cart_session` cookie;
+    - `/cart` renders "Proceed to Checkout";
+    - `/checkout` renders Order Summary ($249.00) and Step 1 form;
+    - Invalid input returns 400 Bad Request with field error map;
+    - Valid input returns 200 OK and updates `/checkout` to show Step 1 completed summary card + Step 2 "Ready for Selection";
+    - Anonymous `GET /api/checkout/contact-and-address` returns `{"checkoutSession":null}`.
+- Evidence captured: `feature_list.json` → `checkout-contact-and-address.verification`/`.evidence`; `docs/validations/checkout-contact-and-address.md`; this log.
+- Known risk or unresolved issue: Shipping method selection and sales tax calculation are deferred to `checkout-shipping-method` and `checkout-sales-tax`.
+- Next best step: Commit `feature/checkout-contact-and-address`, push to origin, open PR linking #25 without merging.
+

@@ -88,7 +88,9 @@ describe("CartPage", () => {
     expect(screen.getByTestId("cart-line-dec")).toBeTruthy();
     expect(screen.getByTestId("cart-line-inc")).toBeTruthy();
     expect(screen.getByTestId("cart-line-remove")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: /checkout/i })).toBeNull();
+    const checkoutLink = screen.getByRole("link", { name: /proceed to checkout/i });
+    expect(checkoutLink).toBeTruthy();
+    expect(checkoutLink.getAttribute("href")).toBe("/checkout");
   });
 
   it("renders the empty state without a database call or a cookie when the visitor has no cart cookie", async () => {

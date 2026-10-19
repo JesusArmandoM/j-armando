@@ -77,6 +77,16 @@ export default async function CartPage() {
       <p className="cart__note">
         USD, tax-exclusive. Taxes and shipping calculated at checkout.
       </p>
+
+      <div className="cart__actions">
+        <Link
+          href="/checkout"
+          className="cart__checkout-link"
+          data-testid="cart-checkout-button"
+        >
+          Proceed to Checkout
+        </Link>
+      </div>
     </main>
   );
 }

@@ -43,6 +43,7 @@ export const address = pgTable("address", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** Null for addresses captured from a guest checkout before account creation. */
   accountId: uuid("account_id").references(() => account.id),
+  recipientName: text("recipient_name"),
   line1: text("line1").notNull(),
   line2: text("line2"),
   city: text("city").notNull(),

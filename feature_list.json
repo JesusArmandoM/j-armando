@@ -219,12 +219,21 @@
     "title": "Shopper enters contact email and shipping address at checkout",
     "user_visible_behavior": "The checkout collects a contact email and a shipping address from the shopper, validates required fields, and carries them forward to the rest of the flow.",
     "depends_on": ["guest-cart-manage"],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: submitting valid contact and address data advances the checkout and the values persist to later steps.",
-      "Provisional: missing required fields show inline validation and do not advance."
+      "Submitting valid contact and address data advances the checkout to Step 2 and values persist to later steps.",
+      "Missing required fields show inline validation and do not advance.",
+      "Format validation enforces RFC email, valid US state code, and 5-digit / 9-digit ZIP code.",
+      "Form supports modifying previously saved address data and updates the summary card.",
+      "Session isolation: checkout data is resolved strictly from the httpOnly ja_cart_session cookie."
     ],
-    "evidence": [],
+    "evidence": [
+      "Automated: 49 test files / 393 tests pass via `CI=true ./init.sh`.",
+      "Focused suites (8 files / 45 tests): `db/tests/checkout-contact-and-address.test.ts` (5/5), `app/checkout/checkout-input.test.ts` (9/9), `app/api/checkout/contact-and-address/route.test.ts` (9/9), `app/checkout/contact-and-address-form.test.tsx` (7/7), `app/checkout/page.test.tsx` (5/5), `app/cart/page.test.tsx` (4/4), `db/tests/migrate.test.ts` (2/2), `app/checkout/payment-outcome.test.tsx` (4/4).",
+      "Database: migration 0002_daily_gabe_jones.sql adds checkout_session table and recipient_name to address table. Verified via `pnpm db:migrate`.",
+      "Live verification on port 3004: empty cart checkout shows empty state; adding cart line creates session; /cart shows 'Proceed to Checkout'; /checkout collects contact and address; invalid input returns 400 with inline errors; valid input returns 200 and advances to Step 1 completed summary card + Step 2 Ready for Selection; Modify re-opens form; session isolation returns null for anonymous calls.",
+      "Validation record: docs/validations/checkout-contact-and-address.md (verdict: ACCEPT)."
+    ],
     "notes": "The email is the account key: it drives account-created-at-payment. Design reference: the 'Identification & Registration' and 'Address & Shipping' blocks in stitch_image_based_application/carrito_pasarela_de_pago_simulada/ (rewrite copy to English, see DESIGN.md)."
   },
   {

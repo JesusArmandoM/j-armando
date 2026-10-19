@@ -15,6 +15,13 @@
       "when": 1792429681248,
       "tag": "0001_needy_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792436874959,
+      "tag": "0002_daily_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

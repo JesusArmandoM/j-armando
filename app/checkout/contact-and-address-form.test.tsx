@@ -1,0 +1,248 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ContactAndAddressForm } from "./contact-and-address-form.tsx";
+import type { CheckoutSessionData } from "./contact-and-address-form.tsx";
+
+const refreshMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: refreshMock,
+  }),
+}));
+
+const mockSession: CheckoutSessionData = {
+  id: "session-1",
+  email: "alexandra.vance@studio.com",
+  recipientName: "Alexandra Vance",
+  line1: "123 Main Street",
+  line2: "Apt 4B",
+  city: "New York",
+  state: "NY",
+  zip: "10001",
+  country: "US",
+  phone: "+1 555-019-2834",
+};
+
+describe("ContactAndAddressForm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders the empty form with all fields when no initial session is present", () => {
+    render(<ContactAndAddressForm />);
+
+    expect(screen.getByTestId("step-contact-and-address")).toBeTruthy();
+    expect(screen.getByTestId("input-email")).toBeTruthy();
+    expect(screen.getByTestId("input-recipient-name")).toBeTruthy();
+    expect(screen.getByTestId("input-line1")).toBeTruthy();
+    expect(screen.getByTestId("input-line2")).toBeTruthy();
+    expect(screen.getByTestId("input-city")).toBeTruthy();
+    expect(screen.getByTestId("select-state")).toBeTruthy();
+    expect(screen.getByTestId("input-zip")).toBeTruthy();
+    expect(screen.getByTestId("input-country")).toBeTruthy();
+    expect(screen.getByTestId("input-phone")).toBeTruthy();
+    expect(screen.getByTestId("checkout-submit-address")).toBeTruthy();
+
+    // Step 2 is in upcoming state
+    expect(screen.getByText("Pending Step 1")).toBeTruthy();
+  });
+
+  it("shows inline validation errors when submitting with empty required fields", async () => {
+    render(<ContactAndAddressForm />);
+
+    const submitBtn = screen.getByTestId("checkout-submit-address");
+    fireEvent.click(submitBtn);
+
+    const emailErr = await screen.findByTestId("error-email");
+    expect(emailErr.textContent).toBe("Email is required");
+    expect(screen.getByTestId("error-recipient-name").textContent).toBe(
+      "Recipient full name is required",
+    );
+    expect(screen.getByTestId("error-line1").textContent).toBe("Street address is required");
+    expect(screen.getByTestId("error-city").textContent).toBe("City is required");
+    expect(screen.getByTestId("error-zip").textContent).toBe("ZIP code is required");
+  });
+
+  it("shows inline validation errors for invalid email and invalid ZIP", async () => {
+    render(<ContactAndAddressForm />);
+
+    fireEvent.change(screen.getByTestId("input-email"), { target: { value: "invalid-email" } });
+    fireEvent.change(screen.getByTestId("input-recipient-name"), {
+      target: { value: "Alexandra Vance" },
+    });
+    fireEvent.change(screen.getByTestId("input-line1"), { target: { value: "123 Main St" } });
+    fireEvent.change(screen.getByTestId("input-city"), { target: { value: "New York" } });
+    fireEvent.change(screen.getByTestId("input-zip"), { target: { value: "abc" } });
+
+    fireEvent.click(screen.getByTestId("checkout-submit-address"));
+
+    const emailErr = await screen.findByTestId("error-email");
+    expect(emailErr.textContent).toBe("Please enter a valid email address");
+    expect(screen.getByTestId("error-zip").textContent).toBe(
+      "Please enter a valid US ZIP code (e.g. 10001 or 10001-1234)",
+    );
+  });
+
+  it("submits valid details, advances to completed Step 1 summary, and activates Step 2", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        checkoutSession: mockSession,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ContactAndAddressForm />);
+
+    fireEvent.change(screen.getByTestId("input-email"), {
+      target: { value: "alexandra.vance@studio.com" },
+    });
+    fireEvent.change(screen.getByTestId("input-recipient-name"), {
+      target: { value: "Alexandra Vance" },
+    });
+    fireEvent.change(screen.getByTestId("input-line1"), {
+      target: { value: "123 Main Street" },
+    });
+    fireEvent.change(screen.getByTestId("input-line2"), { target: { value: "Apt 4B" } });
+    fireEvent.change(screen.getByTestId("input-city"), { target: { value: "New York" } });
+    fireEvent.change(screen.getByTestId("select-state"), { target: { value: "NY" } });
+    fireEvent.change(screen.getByTestId("input-zip"), { target: { value: "10001" } });
+    fireEvent.change(screen.getByTestId("input-phone"), {
+      target: { value: "+1 555-019-2834" },
+    });
+
+    fireEvent.click(screen.getByTestId("checkout-submit-address"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/checkout/contact-and-address",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            email: "alexandra.vance@studio.com",
+            recipientName: "Alexandra Vance",
+            line1: "123 Main Street",
+            line2: "Apt 4B",
+            city: "New York",
+            state: "NY",
+            zip: "10001",
+            country: "US",
+            phone: "+1 555-019-2834",
+          }),
+        }),
+      );
+    });
+
+    // Summary card is displayed
+    const summaryCard = await screen.findByTestId("address-summary-card");
+    expect(summaryCard).toBeTruthy();
+    expect(screen.getByTestId("summary-email").textContent).toBe(
+      "alexandra.vance@studio.com",
+    );
+    expect(screen.getByTestId("summary-recipient-name").textContent).toBe(
+      "Alexandra Vance",
+    );
+    expect(screen.getByTestId("summary-address").textContent).toBe(
+      "123 Main Street, Apt 4B",
+    );
+    expect(screen.getByTestId("summary-location").textContent).toBe("New York, NY 10001");
+    expect(screen.getByTestId("summary-phone").textContent).toBe("Phone: +1 555-019-2834");
+
+    // Step 2 is ready
+    expect(screen.getByTestId("shipping-step-ready").textContent).toBe(
+      "Ready for Selection",
+    );
+
+    vi.unstubAllGlobals();
+  });
+
+  it("renders completed summary card directly when initialSession is provided", () => {
+    render(<ContactAndAddressForm initialSession={mockSession} />);
+
+    expect(screen.getByTestId("address-summary-card")).toBeTruthy();
+    expect(screen.getByTestId("summary-email").textContent).toBe(
+      "alexandra.vance@studio.com",
+    );
+    expect(screen.getByTestId("summary-recipient-name").textContent).toBe(
+      "Alexandra Vance",
+    );
+    expect(screen.getByTestId("shipping-step-ready")).toBeTruthy();
+  });
+
+  it("clicking Modify opens form with pre-populated values, allowing updates", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        checkoutSession: {
+          ...mockSession,
+          line1: "456 Broadway",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ContactAndAddressForm initialSession={mockSession} />);
+
+    // Click modify
+    const editBtn = screen.getByTestId("edit-contact-address");
+    fireEvent.click(editBtn);
+
+    // Form is now visible with values pre-populated
+    const line1Input = screen.getByTestId("input-line1") as HTMLInputElement;
+    expect(line1Input.value).toBe("123 Main Street");
+    expect((screen.getByTestId("input-email") as HTMLInputElement).value).toBe(
+      "alexandra.vance@studio.com",
+    );
+
+    // Update address line 1
+    fireEvent.change(line1Input, { target: { value: "456 Broadway" } });
+
+    fireEvent.click(screen.getByTestId("checkout-submit-address"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const updatedAddr = await screen.findByTestId("summary-address");
+    expect(updatedAddr.textContent).toBe("456 Broadway, Apt 4B");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("displays server error when API returns 400 with errors object", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error: "Please correct the errors in the form.",
+        errors: {
+          email: "Invalid email domain.",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ContactAndAddressForm />);
+
+    fireEvent.change(screen.getByTestId("input-email"), {
+      target: { value: "test@domain.com" },
+    });
+    fireEvent.change(screen.getByTestId("input-recipient-name"), {
+      target: { value: "User" },
+    });
+    fireEvent.change(screen.getByTestId("input-line1"), { target: { value: "Street" } });
+    fireEvent.change(screen.getByTestId("input-city"), { target: { value: "City" } });
+    fireEvent.change(screen.getByTestId("input-zip"), { target: { value: "10001" } });
+
+    fireEvent.click(screen.getByTestId("checkout-submit-address"));
+
+    const emailErr = await screen.findByTestId("error-email");
+    expect(emailErr.textContent).toBe("Invalid email domain.");
+
+    vi.unstubAllGlobals();
+  });
+});
