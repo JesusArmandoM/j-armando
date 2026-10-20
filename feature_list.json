@@ -591,13 +591,20 @@
     "depends_on": [
       "admin-product-create"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: publishing a draft product makes it appear in the storefront catalog.",
-      "Provisional: archiving a product removes it from the storefront and its detail URL returns not-found.",
-      "Provisional: a draft product is never visible in the storefront."
+      "Publishing a draft product makes it appear in the storefront catalog (/catalog) and product detail (/products/[slug]).",
+      "Archiving a product removes it from the storefront catalog and its detail URL returns notFound() (HTTP 404).",
+      "A draft product is never visible in the storefront.",
+      "Moving an archived product back to draft or published updates storefront visibility accordingly.",
+      "Only authenticated admin accounts can change product lifecycle status (401 unauthenticated, 403 forbidden)."
     ],
-    "evidence": [],
+    "evidence": [
+      "Implementation: added updateProductStatus and isValidProductStatus to db/admin-products.ts, PATCH and POST /api/admin/products/[id]/status with getAdminSession guard, ProductStatusActions component in app/admin/products/[id]/product-status-actions.tsx, and styling in app/globals.css.",
+      "Unit & integration tests: db/tests/admin-product-publish.test.ts (4 tests: draft -> published -> archived -> draft storefront catalog & detail visibility matrix), app/api/admin/products/[id]/status/route.test.ts (4 tests: 401 unauthenticated, 403 non-admin forbidden, 400 invalid status/JSON, 404 not found, 200 success), app/admin/products/[id]/product-status-actions.test.tsx (5 tests: action buttons rendering, PATCH status update call, router.refresh, error handling), app/admin/products/page.test.tsx (lifecycle panel rendering assertions).",
+      "Full test suite: CI=true ./init.sh passed across 94 test files / 640 tests; pnpm build succeeded with /api/admin/products/[id]/status and /admin/products/[id] dynamic ƒ.",
+      "Independent validation (feature-validator, 2026-10-19): verdict ACCEPT. All 5 acceptance scenarios verified (docs/validations/admin-product-publish.md)."
+    ],
     "notes": "Product state machine is in docs/domain-model.md. This closes the admin half of the MVP's first vertical slice."
   },
   {

@@ -34,13 +34,14 @@ Node is installed in user space at `~/.nvm`. Nothing is installed system-wide an
   - `/admin` — protected backoffice dashboard (dynamic; `admin-role-gate`). Guarded by `getAdminSession`.
   - `/admin/products` — backoffice product list across all lifecycle statuses (`draft`, `published`, `archived`), showing variant counts and total stock (`admin-product-create`).
   - `/admin/products/new` — backoffice form to create a draft product with size/color variants and per-variant stock (`admin-product-create`).
-  - `/admin/products/[id]` — backoffice product detail view displaying garment metadata and variant inventory table (`admin-product-create`).
+  - `/admin/products/[id]` — backoffice product detail view displaying garment metadata, variant inventory table, and lifecycle status transition controls (`admin-product-create`, `admin-product-publish`).
   - `/admin/orders` — protected backoffice order list across all customers (dynamic; `admin-order-list`). Guarded by `getAdminSession`; displays reference, date, customer email, item count, payment/fulfillment status badges, and USD totals.
   - `/admin/orders/[reference]` — protected read-only backoffice order detail across any customer (dynamic; `admin-order-list`). Guarded by `getAdminSession`; unknown references call `notFound()`.
   - `GET /api/admin/orders` and `GET /api/admin/orders/[reference]` — read-only admin order endpoints (`admin-order-list`), guarded by `getAdminSession` with `Cache-Control: no-store`.
   - `POST /api/chat` — stateless chat endpoint (dynamic; `chat-assistant`), guarded before the provider is called (`chat-assistant-guardrails`). Malformed body → 400, unconfigured provider → 503, provider error → 502.
 - **Route surface (mutating):**
   - `GET /api/admin/products` & `POST /api/admin/products` — admin-guarded product listing and transactional draft product + variant creation (`admin-product-create`). Unauthenticated → 401; non-admin → 403; invalid input → 400 with field errors; created → 201 `{ ok: true, product }`. Always `Cache-Control: no-store`.
+  - `PATCH /api/admin/products/[id]/status` & `POST /api/admin/products/[id]/status` — admin-guarded product lifecycle status transition between `draft`, `published`, and `archived` (`admin-product-publish`). Unauthenticated → 401; non-admin → 403; invalid status → 400; not found → 404; success → 200 `{ ok: true, product }`. Always `Cache-Control: no-store`.
   - `POST /api/auth/signin` — authenticates with email and password (`account-signin-signout`). On success, creates a session in `account_session` and sets the `ja_account_session` cookie; returns `{ ok: true, account }`. Invalid credentials → 401.
   - `POST /api/auth/request-code` — dispatches a 6-digit OTP code to the account email for passwordless sign-in (`account-signin-signout`). Invalid or nonexistent email → 404. Success → 200 `{ ok: true }`.
   - `POST /api/auth/verify-code` — verifies the 6-digit OTP code (`account-signin-signout`). Single-use: deletes code upon verification. On success, creates a session and sets the `ja_account_session` cookie; returns `{ ok: true, account }`. Invalid or expired code → 400.

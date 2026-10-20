@@ -5,6 +5,7 @@ import { getDb } from "@/db/client.ts";
 import { getAdminProductById } from "@/db/admin-products.ts";
 import { getAdminSession } from "@/lib/auth/admin-guard.ts";
 import { formatPriceUSD } from "@/lib/money.ts";
+import { ProductStatusActions } from "./product-status-actions.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,20 @@ export default async function AdminProductDetailPage({
           </Link>
         </div>
       </header>
+
+      <section
+        className="admin-products-panel admin-product-publish-panel"
+        data-testid="product-lifecycle-panel"
+      >
+        <h2 className="admin-products-panel__title">
+          Product Lifecycle & Visibility
+        </h2>
+        <ProductStatusActions
+          productId={productDetail.id}
+          initialStatus={productDetail.status}
+          productSlug={productDetail.slug}
+        />
+      </section>
 
       <div className="admin-products-detail-grid">
         <section className="admin-products-panel">
