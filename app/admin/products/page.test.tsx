@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+    push: vi.fn(),
+  }),
   redirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
@@ -144,6 +148,10 @@ describe("AdminProductsPage and AdminProductDetailPage", () => {
       "Double-Faced Cashmere Wrap Coat",
     );
     expect(screen.getByTestId("detail-product-status").textContent).toBe("draft");
+    expect(screen.getByTestId("product-lifecycle-panel")).toBeDefined();
+    expect(screen.getByTestId("product-status-actions")).toBeDefined();
+    expect(screen.getByTestId("publish-product-btn")).toBeDefined();
+    expect(screen.getByTestId("archive-product-btn")).toBeDefined();
     expect(screen.getByTestId("detail-product-price").textContent).toBe("$495.00");
     expect(screen.getByTestId("variant-stock-S-Camel").textContent).toBe("12 in stock");
     expect(screen.getByTestId("variant-stock-M-Camel").textContent).toBe("8 in stock");

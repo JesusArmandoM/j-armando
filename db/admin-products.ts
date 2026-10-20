@@ -428,3 +428,52 @@ export async function createProductWithVariants(
     };
   });
 }
+
+export const VALID_PRODUCT_STATUSES: readonly ProductStatus[] = [
+  "draft",
+  "published",
+  "archived",
+] as const;
+
+export function isValidProductStatus(value: unknown): value is ProductStatus {
+  return (
+    typeof value === "string" &&
+    VALID_PRODUCT_STATUSES.includes(value as ProductStatus)
+  );
+}
+
+/**
+ * Updates the lifecycle status of a product (draft | published | archived).
+ * Sets updatedAt to the current timestamp.
+ * Returns the refreshed AdminProductDetail or null if the product does not exist.
+ */
+export async function updateProductStatus(
+  db: Db,
+  productId: string,
+  newStatus: ProductStatus,
+): Promise<AdminProductDetail | null> {
+  const trimmedId = productId.trim();
+  if (!UUID_REGEX.test(trimmedId)) {
+    return null;
+  }
+
+  if (!isValidProductStatus(newStatus)) {
+    return null;
+  }
+
+  const updatedRows = await db
+    .update(product)
+    .set({
+      status: newStatus,
+      updatedAt: new Date(),
+    })
+    .where(eq(product.id, trimmedId))
+    .returning({ id: product.id });
+
+  if (updatedRows.length === 0) {
+    return null;
+  }
+
+  return getAdminProductById(db, trimmedId);
+}
+
