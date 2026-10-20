@@ -6,6 +6,7 @@ import type { AdminOrderDetail } from "@/db/admin-orders.ts";
 import { getDb } from "@/db/client.ts";
 import { getAdminSession } from "@/lib/auth/admin-guard.ts";
 import { formatPriceUSD } from "@/lib/money.ts";
+import { FulfillmentControls } from "./fulfillment-controls.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +123,12 @@ export default async function AdminOrderDetailPage({
 
       <div className="admin-orders-detail__grid">
         <div className="admin-orders-detail__main">
+          <FulfillmentControls
+            reference={order.reference}
+            initialFulfillmentStatus={order.fulfillmentStatus}
+            paymentStatus={order.status}
+          />
+
           <section
             className="admin-orders-section"
             data-testid="admin-order-lines-section"

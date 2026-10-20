@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const redirectMock = vi.fn();
 const notFoundMock = vi.fn();
+const refreshMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
@@ -13,6 +14,11 @@ vi.mock("next/navigation", () => ({
     notFoundMock();
     throw new Error("NOT_FOUND");
   },
+  useRouter: () => ({
+    refresh: refreshMock,
+    push: vi.fn(),
+    replace: vi.fn(),
+  }),
 }));
 
 vi.mock("@/lib/auth/admin-guard.ts", () => ({
@@ -23,9 +29,13 @@ vi.mock("@/db/client.ts", () => ({
   getDb: vi.fn(() => ({})),
 }));
 
-vi.mock("@/db/admin-orders.ts", () => ({
-  getOrderForAdmin: vi.fn(),
-}));
+vi.mock("@/db/admin-orders.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/db/admin-orders.ts")>();
+  return {
+    ...actual,
+    getOrderForAdmin: vi.fn(),
+  };
+});
 
 import { getOrderForAdmin } from "@/db/admin-orders.ts";
 import { getAdminSession } from "@/lib/auth/admin-guard.ts";
@@ -183,5 +193,64 @@ describe("AdminOrderDetailPage", () => {
     expect(
       screen.getByTestId("back-to-admin-orders").getAttribute("href"),
     ).toBe("/admin/orders");
+
+    // Fulfillment controls rendered
+    expect(screen.getByTestId("admin-order-fulfillment-section")).toBeDefined();
+    expect(screen.getByTestId("admin-fulfillment-advance-btn").textContent).toBe(
+      "Mark as Preparing",
+    );
+  });
+
+  it("renders unpaid notice when order status is pending or cancelled", async () => {
+    getAdminSessionMock.mockResolvedValueOnce({
+      status: "authorized",
+      account: {
+        id: "adm-1",
+        email: "admin@j-armando.store",
+        createdAt: new Date(),
+      },
+      roles: ["customer", "admin"],
+    });
+
+    getOrderForAdminMock.mockResolvedValueOnce({
+      id: "ord-2",
+      reference: "JA-999000",
+      accountId: "cust-2",
+      contactEmail: "cancelled@example.com",
+      status: "cancelled",
+      fulfillmentStatus: "unfulfilled",
+      subtotalCents: 10000,
+      shippingCents: 0,
+      taxCents: 800,
+      totalCents: 10800,
+      currency: "USD",
+      createdAt: new Date(),
+      paidAt: null,
+      shippingAddress: {
+        recipientName: "Bob",
+        line1: "1 Main St",
+        line2: null,
+        city: "Dallas",
+        state: "TX",
+        zip: "75001",
+        country: "US",
+        phone: null,
+      },
+      shippingMethod: {
+        id: "sm-std",
+        name: "Standard",
+        costCents: 0,
+        deliveryEstimate: "3-5 days",
+      },
+      lines: [],
+    });
+
+    const page = await AdminOrderDetailPage({
+      params: Promise.resolve({ reference: "JA-999000" }),
+    });
+    render(page);
+
+    expect(screen.getByTestId("admin-fulfillment-unpaid-notice")).toBeDefined();
+    expect(screen.queryByTestId("admin-fulfillment-advance-btn")).toBeNull();
   });
 });
