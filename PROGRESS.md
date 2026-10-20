@@ -5,7 +5,7 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `admin-order-fulfillment`, `admin-product-create`, `admin-order-list`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `admin-order-fulfillment`, `admin-product-publish`, `admin-product-create`, `admin-order-list`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
 - Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
@@ -1086,6 +1086,61 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Known risk or unresolved issue: none.
 - Next best step: Commit `feature/admin-product-create`, push to origin, and open PR linking Closes #50 without merging.
 
+### Session 045
+
+- Date: 2026-10-19
+- Goal: Implement and independently validate `admin-product-publish` (Admin publishes and archives products).
+- Completed:
+  - Feature spec written: `docs/specs/admin-product-publish.md` covering all 5 acceptance scenarios for product lifecycle transitions (`draft`, `published`, `archived`), storefront catalog and product detail visibility, and admin authentication/authorization gates.
+  - Backoffice Product Repository (`db/admin-products.ts`):
+    - Added `isValidProductStatus`: pure validator for product lifecycle enum statuses.
+    - Added `updateProductStatus(db, productId, newStatus)`: updates `product.status` and sets `updatedAt = new Date()`, returning the refreshed `AdminProductDetail` with variants, images, and category metadata, or `null` if the UUID is invalid, not found, or status is invalid.
+  - Route Handler (`app/api/admin/products/[id]/status/route.ts`):
+    - Implemented `PATCH` and `POST` handlers guarded by `getAdminSession()` (401 unauthenticated, 403 non-admin forbidden).
+    - Validates request payload JSON and status enum (400 on malformed input).
+    - Calls `updateProductStatus` and returns 404 if product not found.
+    - Calls `revalidatePath` for `/admin/products`, `/admin/products/${id}`, `/catalog`, and `/products/${slug}`.
+    - Returns HTTP 200 `{ ok: true, product }` with `Cache-Control: no-store`.
+  - Backoffice UI (`app/admin/products/[id]/product-status-actions.tsx`, `app/admin/products/[id]/page.tsx`, `app/globals.css`):
+    - Client component `ProductStatusActions` rendering status-dependent action buttons:
+      - `draft`: "Publish Product" and "Archive Product".
+      - `published`: "Archive Product" and "Revert to Draft".
+      - `archived`: "Publish Product" and "Revert to Draft".
+    - Displays loading/pending states during transition, live success/error alerts, storefront link or hidden disclaimer, and triggers `router.refresh()`.
+    - Integrated lifecycle panel in `app/admin/products/[id]/page.tsx` right below the header.
+    - Added CSS rules under `.admin-product-publish-*` in `app/globals.css`.
+  - Tests (all green):
+    - `db/tests/admin-product-publish.test.ts` (4 integration tests):
+      - Scenario 1 & 3: Publishing a draft product makes it appear in storefront catalog and detail; draft products are never visible.
+      - Scenario 2: Archiving a published product removes it from catalog and product detail returns 404 (detail returns `undefined`), while backoffice still lists it.
+      - Scenario 4: Moving an archived product back to published or draft updates visibility accordingly.
+      - Edge cases: safely rejects non-existent IDs, invalid UUIDs, and unknown status values.
+    - `app/api/admin/products/[id]/status/route.test.ts` (4 route tests):
+      - 401 unauthenticated and 403 forbidden gates.
+      - 400 on invalid JSON or status string.
+      - 404 on unknown product ID.
+      - 200 on valid PATCH/POST with `Cache-Control: no-store`.
+    - `app/admin/products/[id]/product-status-actions.test.tsx` (5 UI tests):
+      - Action buttons rendering per status.
+      - Status transition triggering fetch with PATCH and calling router.refresh().
+      - Error handling and feedback banner rendering.
+    - `app/admin/products/page.test.tsx`:
+      - Assertions for lifecycle panel and status action buttons on product detail page.
+  - Validation: All 5 acceptance scenarios verified and recorded in `docs/validations/admin-product-publish.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `admin-product-publish` as `accepted`.
+  - Updated `ARCHITECTURE.md` with `/api/admin/products/[id]/status` route surface.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (94 test files / 640 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `admin-product-publish.evidence`; `docs/validations/admin-product-publish.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/admin-product-publish`, push to origin, and open PR linking Closes #54 without merging.
+
+
+
+
+
 ### Session 046
 
 - Date: 2026-10-19
@@ -1118,6 +1173,3 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Evidence captured: `feature_list.json` → `admin-order-fulfillment.evidence`; `docs/validations/admin-order-fulfillment.md`; this log.
 - Known risk or unresolved issue: none.
 - Next best step: Commit `feature/admin-order-fulfillment`, push to origin, and open PR linking Closes #55 without merging.
-
-
-
