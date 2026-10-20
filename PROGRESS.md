@@ -5,7 +5,7 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `admin-product-publish`, `admin-product-create`, `admin-order-list`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. `admin-order-fulfillment`, `admin-product-publish`, `admin-product-create`, `admin-order-list`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
 - Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
 
@@ -1139,3 +1139,37 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 
 
 
+
+
+### Session 046
+
+- Date: 2026-10-19
+- Goal: Implement and validate `admin-order-fulfillment` (Admin moves an order through fulfillment).
+- Completed:
+  - Feature spec written: `docs/specs/admin-order-fulfillment.md` covering all 6 acceptance scenarios for sequential fulfillment progression (`unfulfilled` -> `preparing` -> `shipped` -> `delivered`), invalid transitions rejection, unpaid order rejection, customer views reflection, access control gate, and unknown reference handling.
+  - Pure state machine & repository (`db/admin-orders.ts`):
+    - Defined `VALID_FULFILLMENT_TRANSITIONS` mapping and `getNextFulfillmentStatus` progression helper.
+    - `updateOrderFulfillmentStatus(db, reference, newFulfillmentStatus)`: validates reference, enforces `order.status === 'paid'`, checks sequential validity, updates `fulfillmentStatus` and `updatedAt`, and returns full updated order details.
+  - Route Handlers (`app/api/admin/orders/[reference]/fulfillment/route.ts`):
+    - Supports `PATCH` and `POST` methods guarded by `getAdminSession()`: returns 401 unauthenticated, 403 forbidden, 400 validation error, 404 not found, 400 invalid transition / unpaid order, 200 ok on success with `Cache-Control: no-store`.
+  - Backoffice UI (`app/admin/orders/[reference]/page.tsx`, `fulfillment-controls.tsx`, `app/globals.css`):
+    - Visual fulfillment lifecycle progress tracker highlighting stages (`unfulfilled`, `preparing`, `shipped`, `delivered`).
+    - Action buttons ("Mark as Preparing", "Mark as Shipped", "Mark as Delivered") with loading and error states.
+    - Notice for unpaid orders (`pending`, `cancelled`, etc.) preventing fulfillment before payment.
+    - Completion message when order is `delivered`.
+    - CSS styles appended to `app/globals.css` prefixed with `admin-order-fulfillment-`.
+  - Customer reflection: Verified that existing customer order history and order detail views (`/account/orders` and `/account/orders/[reference]`) display the updated fulfillment status badge accurately.
+  - Tests added / updated:
+    - `db/tests/admin-order-fulfillment.test.ts` (6 tests passing): full sequential lifecycle, invalid transitions (skipping, backward, post-delivered), unpaid order rejection, customer views reflection, unknown reference 404.
+    - `app/api/admin/orders/[reference]/fulfillment/route.test.ts` (8 tests passing): 401/403 auth guards, 400 invalid bodies, 404 not found, 400 unpaid orders, 400 invalid transitions, 200 PATCH success, 200 POST success.
+    - `app/admin/orders/[reference]/fulfillment-controls.test.tsx` (7 tests passing): UI timeline, advance actions, API error alerts, unpaid notice, completion state.
+    - `app/admin/orders/[reference]/page.test.tsx` (5 tests passing): page renders fulfillment section, handles unpaid notices.
+  - Validation: All acceptance scenarios verified and recorded in `docs/validations/admin-order-fulfillment.md`. Verdict: ACCEPT.
+  - Updated `feature_list.json` marking `admin-order-fulfillment` as `accepted`.
+- Verification run:
+  - Standard gate: `CI=true ./init.sh` exit 0 (93 test files / 649 tests passed).
+  - `pnpm lint` and `pnpm typecheck` exit 0 (zero errors, zero warnings).
+  - `pnpm build` exit 0 (Next.js 16.4.0 Turbopack production build succeeds).
+- Evidence captured: `feature_list.json` → `admin-order-fulfillment.evidence`; `docs/validations/admin-order-fulfillment.md`; this log.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/admin-order-fulfillment`, push to origin, and open PR linking Closes #55 without merging.

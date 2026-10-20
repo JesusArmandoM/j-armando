@@ -4470,3 +4470,181 @@ body {
   text-decoration: underline;
 }
 
+/* --- Admin Order Fulfillment (admin-order-fulfillment) --- */
+
+.admin-order-fulfillment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-order-fulfillment-card {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-canvas);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-order-fulfillment-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .admin-order-fulfillment-timeline {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.admin-order-fulfillment-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.admin-order-fulfillment-step__marker {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--color-hairline-strong);
+  background: var(--color-canvas);
+  color: var(--color-stone);
+}
+
+.admin-order-fulfillment-step__label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-stone);
+}
+
+.admin-order-fulfillment-step--active .admin-order-fulfillment-step__marker {
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  border-color: var(--color-ink);
+}
+
+.admin-order-fulfillment-step--active .admin-order-fulfillment-step__label {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.admin-order-fulfillment-step--completed .admin-order-fulfillment-step__marker {
+  background: var(--color-canvas);
+  border-color: var(--color-ink);
+  color: var(--color-ink);
+}
+
+.admin-order-fulfillment-step--completed .admin-order-fulfillment-step__label {
+  color: var(--color-ink);
+}
+
+.admin-order-fulfillment-step--pending .admin-order-fulfillment-step__marker {
+  background: var(--color-canvas);
+  border-color: var(--color-hairline);
+  color: var(--color-stone);
+  opacity: 0.6;
+}
+
+.admin-order-fulfillment-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.admin-order-fulfillment-btn {
+  appearance: none;
+  border: none;
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  padding: 0.75rem 1.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.admin-order-fulfillment-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.admin-order-fulfillment-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-order-fulfillment-help {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--color-stone);
+  margin: 0;
+}
+
+.admin-order-fulfillment-notice {
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--color-hairline-strong);
+  background: #fdfbf7;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--color-stone);
+}
+
+.admin-order-fulfillment-notice p {
+  margin: 0;
+}
+
+.admin-order-fulfillment-complete {
+  padding: 0.75rem 1rem;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.admin-order-fulfillment-complete p {
+  margin: 0;
+}
+
+.admin-order-fulfillment-alert {
+  padding: 0.75rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.admin-order-fulfillment-alert--error {
+  background: #fef2f2;
+  border: 1px solid #b91c1c;
+  color: #b91c1c;
+}
+
+.admin-order-fulfillment-alert--success {
+  background: #f0fdf4;
+  border: 1px solid #16a34a;
+  color: #16a34a;
+}

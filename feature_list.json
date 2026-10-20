@@ -640,13 +640,21 @@
     "depends_on": [
       "admin-order-list"
     ],
-    "status": "not_started",
+    "status": "accepted",
     "verification": [
-      "Provisional: an admin can transition a paid order through preparing, shipped and delivered in order.",
-      "Provisional: invalid transitions (for example, shipping an unpaid order) are rejected.",
-      "Provisional: the customer sees the updated fulfillment state in order history."
+      "An admin can transition a paid order through preparing, shipped and delivered in sequence.",
+      "Invalid transitions (skipping states, moving backwards, fulfilling unpaid orders) are rejected.",
+      "The customer sees the updated fulfillment state in order history and order detail.",
+      "Only admin accounts can transition fulfillment status (401 unauthenticated, 403 forbidden)."
     ],
-    "evidence": [],
+    "evidence": [
+      "db/tests/admin-order-fulfillment.test.ts (full lifecycle sequential transitions, invalid transitions rejection, unpaid order rejection, customer views reflection)",
+      "app/api/admin/orders/[reference]/fulfillment/route.test.ts (PATCH & POST auth gates 401/403, 404 not found, 400 invalid transitions / unpaid, 200 success with Cache-Control: no-store)",
+      "app/admin/orders/[reference]/fulfillment-controls.test.tsx (UI timeline, advance buttons, API calls, error alert, unpaid notice, completion state)",
+      "app/admin/orders/[reference]/page.test.tsx (order detail page renders fulfillment section and unpaid notices)",
+      "docs/specs/admin-order-fulfillment.md",
+      "docs/validations/admin-order-fulfillment.md"
+    ],
     "notes": "Fulfillment only applies once an order is paid (docs/domain-model.md). Cancelling after shipping is out of MVP scope."
   },
   {

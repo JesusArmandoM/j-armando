@@ -175,3 +175,106 @@ export async function getOrderForAdmin(
     lines,
   };
 }
+
+export const VALID_FULFILLMENT_TRANSITIONS: Record<
+  FulfillmentStatus,
+  FulfillmentStatus[]
+> = {
+  unfulfilled: ["preparing"],
+  preparing: ["shipped"],
+  shipped: ["delivered"],
+  delivered: [],
+};
+
+export function getNextFulfillmentStatus(
+  current: FulfillmentStatus | null,
+): FulfillmentStatus | null {
+  const currentKey: FulfillmentStatus = current ?? "unfulfilled";
+  const transitions = VALID_FULFILLMENT_TRANSITIONS[currentKey];
+  return transitions && transitions.length > 0 ? transitions[0] : null;
+}
+
+export type UpdateFulfillmentStatusResult =
+  | { ok: true; order: AdminOrderDetail }
+  | { ok: false; error: "not_found"; message: string }
+  | { ok: false; error: "order_not_paid"; message: string }
+  | {
+      ok: false;
+      error: "invalid_transition";
+      message: string;
+      currentStatus: FulfillmentStatus;
+      requestedStatus: string;
+    };
+
+/**
+ * Transitions an order's fulfillment status sequentially for the admin backoffice.
+ * - Rejects if order does not exist ('not_found').
+ * - Rejects if order is not paid ('order_not_paid').
+ * - Rejects if the transition violates the sequential lifecycle ('invalid_transition'):
+ *     unfulfilled -> preparing -> shipped -> delivered.
+ * - Updates fulfillmentStatus and updatedAt on success.
+ */
+export async function updateOrderFulfillmentStatus(
+  db: Db,
+  reference: string,
+  newFulfillmentStatus: string,
+): Promise<UpdateFulfillmentStatusResult> {
+  if (!reference || !reference.trim()) {
+    return { ok: false, error: "not_found", message: "Order not found." };
+  }
+
+  const [existingOrder] = await db
+    .select({
+      id: order.id,
+      reference: order.reference,
+      status: order.status,
+      fulfillmentStatus: order.fulfillmentStatus,
+    })
+    .from(order)
+    .where(eq(order.reference, reference.trim()))
+    .limit(1);
+
+  if (!existingOrder) {
+    return { ok: false, error: "not_found", message: "Order not found." };
+  }
+
+  if (existingOrder.status !== "paid") {
+    return {
+      ok: false,
+      error: "order_not_paid",
+      message: `Cannot update fulfillment for order with payment status '${existingOrder.status}'. Only paid orders can be fulfilled.`,
+    };
+  }
+
+  const currentStatus: FulfillmentStatus =
+    existingOrder.fulfillmentStatus ?? "unfulfilled";
+
+  const validTargets = VALID_FULFILLMENT_TRANSITIONS[currentStatus] ?? [];
+  if (!validTargets.includes(newFulfillmentStatus as FulfillmentStatus)) {
+    return {
+      ok: false,
+      error: "invalid_transition",
+      message: `Cannot transition fulfillment from '${currentStatus}' to '${newFulfillmentStatus}'.`,
+      currentStatus,
+      requestedStatus: newFulfillmentStatus,
+    };
+  }
+
+  await db
+    .update(order)
+    .set({
+      fulfillmentStatus: newFulfillmentStatus as FulfillmentStatus,
+    })
+    .where(eq(order.id, existingOrder.id));
+
+  const updatedDetail = await getOrderForAdmin(db, reference.trim());
+  if (!updatedDetail) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Order not found after update.",
+    };
+  }
+
+  return { ok: true, order: updatedDetail };
+}
