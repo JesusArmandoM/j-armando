@@ -26,7 +26,7 @@ export function getTryOnProvider(): TryOnProvider {
   if (providerType === "gemini" || process.env.GEMINI_API_KEY) {
     const apiKey = process.env.GEMINI_API_KEY || resolveApiKey();
     if (apiKey) {
-      const model = process.env.GEMINI_IMAGE_MODEL || process.env.TRYON_MODEL;
+      const model = process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-image";
       const baseUrl = process.env.GEMINI_BASE_URL;
       cached = createGeminiTryOnProvider({ apiKey, model, baseUrl });
       return cached;

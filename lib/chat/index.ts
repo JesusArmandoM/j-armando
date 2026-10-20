@@ -15,7 +15,7 @@ export function getChatAssistant(): ChatAssistant {
   // 1. Prioritize Google Gemini if GEMINI_API_KEY is present
   const geminiApiKey = process.env.GEMINI_API_KEY;
   if (geminiApiKey) {
-    const model = process.env.GEMINI_CHAT_MODEL || process.env.CHAT_ASSISTANT_MODEL;
+    const model = process.env.GEMINI_CHAT_MODEL || "gemini-3.8-flash";
     const baseUrl = process.env.GEMINI_BASE_URL;
     cached = createGeminiChatAssistant({ apiKey: geminiApiKey, model, baseUrl });
     return cached;
