@@ -1,5 +1,8 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { createGeminiTryOnProvider } from "./gemini-try-on-provider.ts";
 import { createOpenAiImagesTryOnProvider } from "./openai-images-try-on-provider.ts";
+import { createVertexTryOnProvider } from "./vertex-try-on-provider.ts";
 import { TryOnProviderError } from "./try-on-provider.ts";
 import type { TryOnProvider } from "./try-on-provider.ts";
 
@@ -20,9 +23,18 @@ function resolveApiKey(): string | undefined {
 export function getTryOnProvider(): TryOnProvider {
   if (cached) return cached;
 
+  // 1. Google Cloud Vertex AI if service account credentials exist
+  const gcpKeyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(process.cwd(), "gcp-service-account.json");
+  if (existsSync(gcpKeyFile) && process.env.USE_VERTEX_AI !== "false") {
+    const model = process.env.VERTEX_IMAGE_MODEL;
+    const location = process.env.VERTEX_LOCATION;
+    cached = createVertexTryOnProvider({ model, location });
+    return cached;
+  }
+
   const providerType = process.env.TRYON_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "openai");
 
-  // 1. Google Gemini Native Image Provider
+  // 2. Google Gemini Native Image Provider
   if (providerType === "gemini" || process.env.GEMINI_API_KEY) {
     const apiKey = process.env.GEMINI_API_KEY || resolveApiKey();
     if (apiKey) {
@@ -33,14 +45,14 @@ export function getTryOnProvider(): TryOnProvider {
     }
   }
 
-  // 2. OpenAI / Compatible Image-Edits Provider
+  // 3. OpenAI / Compatible Image-Edits Provider
   const baseUrl = process.env.TRYON_BASE_URL;
   const model = process.env.TRYON_MODEL;
   const apiKey = resolveApiKey();
 
   if (!baseUrl || !model || !apiKey) {
     throw new TryOnProviderError(
-      "Virtual try-on is not configured: TRYON_BASE_URL, TRYON_MODEL and an API key (TRYON_API_KEY, GEMINI_API_KEY, DEVEXPERT_API_KEY or OPENAI_API_KEY) are required. See .env.example.",
+      "Virtual try-on is not configured: GCP credentials, TRYON_BASE_URL, TRYON_MODEL, or an API key is required. See .env.example.",
       { kind: "configuration" },
     );
   }
