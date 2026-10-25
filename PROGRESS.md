@@ -5,18 +5,18 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. `admin-order-fulfillment`, `admin-product-publish`, `admin-product-create`, `admin-order-list`, `order-history`, `admin-role-gate`, `account-signin-signout`, `account-quick-access-password`, `order-confirmation-email`, `account-created-at-payment`, `stock-reservation`, `payment-failure-path`, `order-creation-on-payment`, `checkout-sales-tax`, `checkout-shipping-method`, `checkout-contact-and-address`, `cart-stock-limits`, `guest-cart-manage`, `virtual-tryon-failure` and `guest-cart-add` are `accepted`. `catalog-size-chart` is `passing` (self-verified 2026-10-19; merged via PR #17). `product-variant-selection`, `chat-assistant-guardrails` and `virtual-tryon-generation` are `accepted`.
+- Current feature in flight: none. All 31 initial MVP features (`bootstrap-app-skeleton` through `virtual-tryon-failure`, including `catalog-size-chart`) are `accepted`. New feature `repository-readme` added as `not_started` (dependency-ready).
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
-- Last verified at: 2026-10-19: `./init.sh` exit 0, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm build` exit 0.
+- Last verified at: 2026-10-25: `feature_list.json` validated (32 features: 31 `accepted`, 1 `not_started` — `repository-readme`).
 
 
 ## Project State
 
-- Phase: **application shell + PostgreSQL data layer + storefront catalog + payments port + chat assistant with deterministic guardrails + guest cart (add, manage, stock limits) + checkout (contact email, shipping address, and shipping method selection) shipped**. Discovery is closed.
-- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (migrations 0000..0003); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `db/checkout.ts` and `app/checkout/` hold checkout session repository, contact email & shipping address collection, and shipping method selection; `payments/` holds the simulated provider; `lib/chat/` holds guarded chat assistant; `lib/try-on/` holds virtual try-on with pre-flight photo validation. Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
-- Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static production build.
+- Phase: **Full 31-feature MVP shipped and accepted** (application shell + PostgreSQL data layer + storefront catalog & size guides + guest cart + 3-step guest-first checkout with sales tax, simulated payments, atomic stock reservation, account creation/linking & optional password + password/OTP sign-in + customer order history + order confirmation emails + admin backoffice for products & order fulfillment + guarded chat assistant + virtual try-on). Next feature queued: `repository-readme`.
+- Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (17 tables across migrations `0000..0006`); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `db/checkout.ts`, `db/order.ts`, and `app/checkout/` hold checkout session repository, contact/address, shipping method, sales tax, payment execution, atomic stock reservation, and order confirmation; `db/auth.ts`, `lib/auth/`, and `app/account/` hold scrypt password + 6-digit OTP authentication and customer order history; `db/admin-products.ts`, `db/admin-orders.ts`, and `app/admin/` hold the admin backoffice; `payments/` holds the simulated payment provider; `lib/chat/` holds the guarded chat assistant (Vertex AI / Gemini / OpenAI adapters); `lib/try-on/` holds virtual try-on with pre-flight photo validation (Vertex AI / Gemini / OpenAI-compatible adapters). Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
+- Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static/dynamic production build.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 (`ui` + `db`).
-- Feature inventory: 31 session-sized features in `feature_list.json`; `bootstrap-app-skeleton`, `bootstrap-database-schema`, `catalog-product-listing`, `catalog-filtering`, `product-detail-page`, `product-variant-selection`, `payment-provider-abstraction`, `chat-assistant`, `chat-assistant-guardrails`, `virtual-tryon-generation`, `virtual-tryon-failure`, `guest-cart-add`, `guest-cart-manage`, `cart-stock-limits`, and `checkout-contact-and-address` accepted; `catalog-size-chart` passing; the rest not started.
+- Feature inventory: 32 session-sized features in `feature_list.json`; 31 `accepted`, 1 `not_started` (`repository-readme`, dependency-ready).
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -1173,3 +1173,17 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Evidence captured: `feature_list.json` → `admin-order-fulfillment.evidence`; `docs/validations/admin-order-fulfillment.md`; this log.
 - Known risk or unresolved issue: none.
 - Next best step: Commit `feature/admin-order-fulfillment`, push to origin, and open PR linking Closes #55 without merging.
+
+### Session 047
+
+- Date: 2026-10-25
+- Goal: Analyze the complete repository (31 accepted features, architecture, tech stack, libraries, AI ports/adapters/guardrails, database schema/migrations, and workflows) and add a new feature `repository-readme` to `feature_list.json` with full specification details.
+- Completed:
+  - Verified all 31 existing features in `feature_list.json` have status `accepted`.
+  - Audited the full codebase across `app/`, `db/`, `lib/`, `payments/`, `docs/`, `package.json`, `.env.example`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `CONTEXT.md`, and `DESIGN.md`.
+  - Added feature #32 `repository-readme` (`area: "documentation"`, `status: "not_started"`) to `feature_list.json` with detailed `user_visible_behavior`, `depends_on` (all terminal accepted features across domains), 9 concrete `verification` criteria, and a comprehensive project-analysis blueprint in `notes` (covering product/editorial design, pinned toolchain & libraries, Hexagonal Ports & Adapters architecture, 3-tier AI provider resolution across Vertex AI / Gemini / OpenAI-DevExpert, deterministic chat guardrails, zero-persistence virtual try-on privacy, 17 PostgreSQL tables across 7 Drizzle migrations, Mermaid diagrams, and the SDD multi-agent workflow).
+- Verification run:
+  - Validated `feature_list.json` JSON syntax, required fields, and dependency graph integrity (all `depends_on` references exist, are `accepted`, and have no self-references or cycles).
+- Files or artifacts updated: `feature_list.json`, `PROGRESS.md`.
+- Known risk or unresolved issue: none.
+- Next best step: Run `feature-spec` / `feature-flow` (or `github-flow`) for `repository-readme` to generate `docs/specs/repository-readme.md`, implement `README.md`, and validate it.
