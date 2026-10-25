@@ -5,18 +5,18 @@
 - Repository root: `/Users/armando/Documents/Ai Tienda de Ropa` (main branch).
 - Standard startup path: `./init.sh`
 - Standard verification path: `./init.sh` runs the real non-blocking gate (install + lint + typecheck + test, including the DB integration tests) and exits 0 without any database configured
-- Current feature in flight: none. All 31 initial MVP features (`bootstrap-app-skeleton` through `virtual-tryon-failure`, including `catalog-size-chart`) are `accepted`. New feature `repository-readme` added as `not_started` (dependency-ready).
+- Current feature in flight: none — all 32 features in `feature_list.json` (`bootstrap-app-skeleton` through `repository-readme`, including `catalog-size-chart`) are `accepted`.
 - Current blocker: none for the shipped features. Blocking discovery question #1 (sign-in for accounts created without a password) is resolved by `account-signin-signout` (see `docs/risks-and-open-questions.md` → *Resolved*).
-- Last verified at: 2026-10-25: `feature_list.json` validated (32 features: 31 `accepted`, 1 `not_started` — `repository-readme`).
+- Last verified at: 2026-10-25: `CI=true ./init.sh` exit 0 (99 test files / 667 tests passed), `pnpm build` exit 0, `README.md` link/Mermaid/schema/library verification check passed, and independent `feature-validator` returned `ACCEPT` for `repository-readme` (32/32 features `accepted`).
 
 
 ## Project State
 
-- Phase: **Full 31-feature MVP shipped and accepted** (application shell + PostgreSQL data layer + storefront catalog & size guides + guest cart + 3-step guest-first checkout with sales tax, simulated payments, atomic stock reservation, account creation/linking & optional password + password/OTP sign-in + customer order history + order confirmation emails + admin backoffice for products & order fulfillment + guarded chat assistant + virtual try-on). Next feature queued: `repository-readme`.
+- Phase: **All 32 features shipped and independently `accepted`** (application shell + PostgreSQL data layer + storefront catalog & size guides + guest cart + 3-step guest-first checkout with sales tax, simulated payments, atomic stock reservation, account creation/linking & optional password + password/OTP sign-in + customer order history + order confirmation emails + admin backoffice for products & order fulfillment + guarded chat assistant + virtual try-on + comprehensive root `README.md`).
 - Application code: Next.js 16 (App Router) + TypeScript shell at the repo root; `db/` holds the Drizzle data layer (17 tables across migrations `0000..0006`); `db/cart.ts` and `app/cart/` hold the guest cart repository and session-cookie view with interactive steppers, line removal, and stock limit reconciliation; `db/checkout.ts`, `db/order.ts`, and `app/checkout/` hold checkout session repository, contact/address, shipping method, sales tax, payment execution, atomic stock reservation, and order confirmation; `db/auth.ts`, `lib/auth/`, and `app/account/` hold scrypt password + 6-digit OTP authentication and customer order history; `db/admin-products.ts`, `db/admin-orders.ts`, and `app/admin/` hold the admin backoffice; `payments/` holds the simulated payment provider; `lib/chat/` holds the guarded chat assistant (Vertex AI / Gemini / OpenAI adapters); `lib/try-on/` holds virtual try-on with pre-flight photo validation (Vertex AI / Gemini / OpenAI-compatible adapters). Toolchain pinned to Node `v24.21.0` (nvm/`.nvmrc`) and pnpm `12.11.2` (Corepack).
 - Standard gate: `./init.sh` = install + lint + typecheck + test, non-blocking. `pnpm build` produces a static/dynamic production build.
 - Verification stack: ESLint (`eslint-config-next`), `tsc --noEmit`, Vitest 5 (`ui` + `db`).
-- Feature inventory: 32 session-sized features in `feature_list.json`; 31 `accepted`, 1 `not_started` (`repository-readme`, dependency-ready).
+- Feature inventory: 32 session-sized features in `feature_list.json`; all 32 `accepted`.
 - Repository: standalone git repository at the project root (initialized 2026-10-11); decision recorded in `docs/adr/0001-standalone-git-repository.md`.
 - Architecture: see `ARCHITECTURE.md` for the runtime surface, toolchain pin, standard gate, data layer and layering intent.
 
@@ -1187,3 +1187,29 @@ Numbering is preserved from earlier sessions; #1 (passwordless sign-in), #4 (cha
 - Files or artifacts updated: `feature_list.json`, `PROGRESS.md`.
 - Known risk or unresolved issue: none.
 - Next best step: Run `feature-spec` / `feature-flow` (or `github-flow`) for `repository-readme` to generate `docs/specs/repository-readme.md`, implement `README.md`, and validate it.
+
+### Session 048
+
+- Date: 2026-10-25
+- Goal: Implement `repository-readme` per `docs/specs/repository-readme.md` (comprehensive English root `README.md` covering architecture, stack, libraries, AI systems, 17-table database schema, and 6 Mermaid diagrams).
+- Completed:
+  - Transitioned `repository-readme.status` to `in_progress` before creating `README.md`.
+  - Created `/README.md` (993 lines, 11 sections) in English using GitHub Flavored Markdown:
+    - Executive summary, core architectural highlights, and quick links to all durable docs (`AGENTS.md`, `ARCHITECTURE.md`, `CONSTRAINTS.md`, `CONTEXT.md`, `DESIGN.md`, `PROGRESS.md`, `feature_list.json`, `docs/*`, `docs/adr/0001..0004`).
+    - Editorial design system & brand philosophy (`Newsreader` + `Hanken Grotesk`, `#121212` charcoal ink on `#F9F8F5` warm ivory alabaster, `#4A5568` slate-steel AI accents, zero-radius rectilinear geometry, adaptation from `stitch_image_based_application/`).
+    - Role permissions matrix (`Guest`, `Customer`, `Admin`) and complete 32-feature inventory table.
+    - Full technology stack, toolchain pins (`Node.js v24.21.0`, `pnpm 12.11.2`), all 19 `package.json` dependencies/devDependencies with versions and roles, and zero-SDK `node:crypto` primitives (`scrypt`, `timingSafeEqual`, `RSA-SHA256` JWT assertion).
+    - Hexagonal Ports & Adapters architecture (`ChatAssistant`, `TryOnProvider`, `PaymentProvider`, `OrderConfirmationEmailSender`/`AccessCodeEmailSender`), repository directory layout, and complete route/API surface tables (16 pages + 19 REST endpoints).
+    - AI subsystems deep-dive: 3-tier provider resolution (`Vertex AI` -> `Gemini API` -> `OpenAI / DevExpert`), `GuardedChatAssistant` deterministic pipeline & exact dollar-amount set guard (`guardLlmAnswer`), and Virtual Try-On pre-flight validation (`4 MiB` inclusive cap, JPEG/PNG/WebP, magic-byte sniffing), `30 s` `AbortSignal.timeout`, and zero-persistence in-memory privacy.
+    - Guest-first 3-step checkout, destination US state sales tax (`lib/tax/sales-tax.ts`), deadlock-free atomic stock reservation (`UPDATE variant SET stock_qty = stock_qty - qty WHERE id = ? AND stock_qty >= qty`), account creation/linking at payment time, and non-blocking confirmation email.
+    - PostgreSQL 17 data layer: all 17 tables, 7 `pgEnum` types, 7 committed migrations (`0000_bumpy_lifeguard`..`0006_fresh_zombie`), and idempotent `pnpm db:seed` inventory (including default admin `admin@j-armando.store` / `Admin123!`).
+    - 6 GitHub-renderable Mermaid diagrams with properly quoted node labels: (1) System & Hexagonal Architecture `flowchart TB`, (2) Chat Guardrails `flowchart TD`, (3) Virtual Try-On Privacy & Provider Sequence `sequenceDiagram`, (4) Guest-First Checkout & Atomic Stock Reservation `sequenceDiagram`, (5) 17-Table PostgreSQL `erDiagram`, and (6) Product/Cart/Order/Fulfillment Lifecycle `stateDiagram-v2`.
+    - All 10 durable rules from `CONSTRAINTS.md`, ADRs `0001`–`0004`, local quickstart (with and without local Postgres via `pnpm db:devdb`), `.env.example` reference, CLI commands, mobile QR preview rule (`pnpm dev:phone`), and SDD multi-agent workflow.
+- Verification run:
+  - Node structural & link verification check: exit 0 (135/135 relative markdown links verified on disk, 6 balanced Mermaid blocks across `flowchart`, `sequenceDiagram`, `erDiagram`, and `stateDiagram-v2`, 17 tables, 7 enums, 7 migrations, 4 ports, 3 AI tiers, 10 constraints, 19 `package.json` packages/versions, and 32 feature IDs verified).
+  - `CI=true ./init.sh`: exit 0 (`pnpm install --frozen-lockfile`, `pnpm lint` exit 0, `pnpm typecheck` exit 0, `pnpm test` exit 0 with 99 test files / 667 tests passed).
+  - `pnpm build`: exit 0 (Next.js 16.4.0 Turbopack production build succeeds across all static and dynamic routes).
+- Evidence captured: `feature_list.json` → `repository-readme.evidence` (6 detailed entries including independent validation); `docs/validations/repository-readme.md`; status set to `accepted`.
+- Files or artifacts updated: `README.md` (created), `docs/specs/repository-readme.md` (created), `docs/validations/repository-readme.md` (created), `feature_list.json`, `PROGRESS.md`.
+- Known risk or unresolved issue: none.
+- Next best step: Commit `feature/repository-readme` (`docs: complete repository-readme`), push to origin, open PR against `main` linking `Closes #58`, merge per user authorization, and tear down worktree.
